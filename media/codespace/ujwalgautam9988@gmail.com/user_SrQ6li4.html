@@ -1,0 +1,410 @@
+{% verbatim %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>User Setup - TaskHive</title>
+
+  <!-- ✅ SAFE AUTH GUARD (single) -->
+  <script>
+    (function () {
+      const raw = localStorage.getItem("taskhive_current_user");
+
+      if (!raw || raw === "Guest") {
+        const next = encodeURIComponent(window.location.pathname);
+        window.location.href = `/login/?next=${next}`;
+        return;
+      }
+
+      try {
+        JSON.parse(raw);
+      } catch (e) {
+        localStorage.removeItem("taskhive_current_user");
+        const next = encodeURIComponent(window.location.pathname);
+        window.location.href = `/login/?next=${next}`;
+      }
+    })();
+  </script>
+
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface-hover: #21262d;
+      --border: rgba(56, 139, 253, 0.15);
+      --accent: #58a6ff;
+      --accent-glow: #1f6feb;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --text-heading: #f0f6fc;
+      --success: #3fb950;
+      --success-bg: rgba(63, 185, 80, 0.15);
+      --error: #f85149;
+      --error-bg: rgba(248, 81, 73, 0.15);
+      --gradient-start: #58a6ff;
+      --gradient-end: #c678dd;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 32px;
+      background: rgba(13, 17, 23, 0.8);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      font-weight: 500;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      background: var(--surface-hover);
+      box-shadow: 0 0 12px rgba(88, 166, 255, 0.2);
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+      color: #0d1117;
+      border: none;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(88, 166, 255, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(88, 166, 255, 0.4);
+    }
+
+    main {
+      flex: 1;
+      padding: 60px 32px;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    h1 {
+      font-size: 2.8rem;
+      margin: 0 0 12px;
+      font-weight: 700;
+      color: var(--text-heading);
+      text-align: center;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      margin: 0 0 16px;
+      font-size: 1.2rem;
+      text-align: center;
+    }
+
+    .user-info {
+      text-align: center;
+      margin-bottom: 48px;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+    }
+
+    .user-info span {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 32px;
+      margin-top: 32px;
+    }
+
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      background: var(--surface);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
+    }
+
+    .card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 16px 40px rgba(88, 166, 255, 0.15);
+    }
+
+    .card h3 {
+      margin: 0 0 24px;
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--text-heading);
+      text-align: center;
+    }
+
+    input {
+      width: 100%;
+      padding: 16px 18px;
+      margin: 16px 0 24px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface-hover);
+      color: var(--text);
+      font-size: 1.1rem;
+      outline: none;
+      transition: all 0.3s ease;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(88, 166, 255, 0.2);
+    }
+
+    input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .msg, .err {
+      margin-top: 16px;
+      font-weight: 500;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 1rem;
+      text-align: center;
+    }
+
+    .msg {
+      color: var(--success);
+      background: var(--success-bg);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+    }
+
+    .err {
+      color: var(--error);
+      background: var(--error-bg);
+      border: 1px solid rgba(248, 81, 73, 0.3);
+    }
+
+    .actions {
+      margin-top: 64px;
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 768px) {
+      .topbar { padding: 16px 20px; }
+      .nav { gap: 16px; font-size: 0.95rem; }
+      main { padding: 40px 20px; }
+      h1 { font-size: 2.2rem; }
+      .grid { grid-template-columns: 1fr; gap: 24px; }
+      .card { padding: 24px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="brand">TaskHive</div>
+
+    <div class="nav">
+      <a href="/workspace/">Workspace</a>
+      <a href="/profile/">Profile</a>
+      <button onclick="logout()" class="btn">Logout</button>
+    </div>
+  </div>
+
+  <main>
+    <h1>Team Setup</h1>
+    <p class="subtitle">Create or join a team to unlock collaborative task management.</p>
+    <p class="user-info">
+      Logged in as: <span id="who"></span>
+    </p>
+
+    <div class="grid">
+      <section class="card">
+        <h3>Create New Team</h3>
+        <input id="teamName" placeholder="Enter team name (e.g. Frontend Squad)" />
+        <button onclick="createTeam()" class="btn btn-primary">Create Team</button>
+        <div id="createMsg"></div>
+      </section>
+
+      <section class="card">
+        <h3>Join Existing Team</h3>
+        <input id="teamCode" placeholder="Enter team code (e.g. TEAM-ABCDEF)" />
+        <button onclick="joinTeam()" class="btn btn-primary">Join Team</button>
+        <div id="joinMsg"></div>
+      </section>
+    </div>
+
+    <div class="actions">
+      <a href="/profile/" class="btn">Complete Profile</a>
+      <a href="/workspace/" class="btn btn-primary">Go to Workspace →</a>
+    </div>
+  </main>
+
+  <script>
+    // ✅ Safe user parsing
+    function getCurrentUserObj() {
+      const raw = localStorage.getItem("taskhive_current_user");
+      if (!raw || raw === "Guest") return null;
+      try { return JSON.parse(raw); } catch (e) { return null; }
+    }
+
+    const user = getCurrentUserObj();
+    const display = user && (user.name || user.email || user.username) ? (user.name || user.email || user.username) : "User";
+    document.getElementById("who").innerText = display;
+
+    function createTeam() {
+      const name = document.getElementById("teamName").value.trim();
+      const createMsg = document.getElementById("createMsg");
+
+      createMsg.className = "";
+      createMsg.innerText = "";
+
+      if (!name) {
+        createMsg.className = "err";
+        createMsg.innerText = "Enter a team name.";
+        return;
+      }
+
+      const u = getCurrentUserObj();
+      if (!u) {
+        const next = encodeURIComponent(window.location.pathname);
+        window.location.href = `/login/?next=${next}`;
+        return;
+      }
+
+      const code = "TEAM-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+
+      const teams = JSON.parse(localStorage.getItem("taskhive_teams") || "[]");
+      teams.push({
+        name,
+        code,
+        ownerEmail: u.email || "",
+        ownerName: u.name || "",
+        members: [{ email: u.email || "", name: u.name || "" }]
+      });
+
+      localStorage.setItem("taskhive_teams", JSON.stringify(teams));
+      localStorage.setItem("taskhive_team_code", code);
+
+      createMsg.className = "msg";
+      createMsg.innerText = "Created successfully ✅ Team code: " + code;
+    }
+
+    function joinTeam() {
+      const code = document.getElementById("teamCode").value.trim().toUpperCase();
+      const joinMsg = document.getElementById("joinMsg");
+
+      joinMsg.className = "";
+      joinMsg.innerText = "";
+
+      if (!code) {
+        joinMsg.className = "err";
+        joinMsg.innerText = "Enter a team code.";
+        return;
+      }
+
+      const u = getCurrentUserObj();
+      if (!u) {
+        const next = encodeURIComponent(window.location.pathname);
+        window.location.href = `/login/?next=${next}`;
+        return;
+      }
+
+      const teams = JSON.parse(localStorage.getItem("taskhive_teams") || "[]");
+      const t = teams.find(x => x.code === code);
+      if (!t) {
+        joinMsg.className = "err";
+        joinMsg.innerText = "Invalid team code.";
+        return;
+      }
+
+      t.members = Array.isArray(t.members) ? t.members : [];
+      const exists = t.members.some(m => (m.email || "") === (u.email || ""));
+      if (!exists) t.members.push({ email: u.email || "", name: u.name || "" });
+
+      localStorage.setItem("taskhive_teams", JSON.stringify(teams));
+      localStorage.setItem("taskhive_team_code", code);
+
+      joinMsg.className = "msg";
+      joinMsg.innerText = "Joined successfully ✅ " + t.name;
+    }
+
+    function logout() {
+      localStorage.removeItem("taskhive_current_user");
+      window.location.href = "/login/";
+    }
+  </script>
+
+  <script>
+    (function () {
+      const raw = localStorage.getItem("taskhive_current_user");
+      if (!raw) {
+        window.location.href = "/login/";
+        return;
+      }
+      try {
+        JSON.parse(raw);
+      } catch {
+        localStorage.removeItem("taskhive_current_user");
+        window.location.href = "/login/";
+      }
+    })();
+  </script>
+</body>
+</html>
+{% endverbatim %}

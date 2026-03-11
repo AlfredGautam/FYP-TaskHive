@@ -1,0 +1,1458 @@
+{% verbatim %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskHive - Workspace</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+
+  <style>
+    body { font-family: 'Roboto Mono', monospace; transition: background-color 0.3s ease, color 0.3s ease; }
+    h1, h2, h3, h4 { font-family: 'Orbitron', sans-serif; }
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease-in-out; }
+    .fade-enter, .fade-leave-to { opacity: 0; }
+
+    .drag-over { background-color: rgba(0, 255, 255, 0.1); border: 2px dashed #00ffff; box-shadow: 0 0 15px rgba(0, 255, 255, 0.3); }
+    .task-card { transition: all 0.3s ease; border-radius: 12px; }
+    .task-card:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 0 20px rgba(0, 255, 255, 0.2), 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    .file-progress { transition: width 0.3s ease; background: linear-gradient(to right, #00ffff, #ff00ff); }
+    .modal { transition: all 0.3s ease; backdrop-filter: blur(5px); }
+
+    .context-menu {
+      box-shadow: 0 10px 15px -3px rgba(0, 255, 255, 0.1),
+                  0 4px 6px -2px rgba(0, 0, 0, 0.05),
+                  0 0 20px rgba(0, 255, 255, 0.2);
+      background: rgba(17, 24, 39, 0.95);
+      border: 1px solid rgba(0, 255, 255, 0.2);
+    }
+
+    .project-card {
+      transition: all 0.3s ease;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(31, 41, 55, 0.9), rgba(55, 65, 81, 0.9));
+      border: 1px solid rgba(0, 255, 255, 0.1);
+    }
+    .project-card:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 0 25px rgba(0, 255, 255, 0.3), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
+
+    .confirmation-modal { background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); }
+    .empty-state {
+      background-color: rgba(31, 41, 55, 0.7);
+      border: 2px dashed rgba(0, 255, 255, 0.3);
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+    }
+
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .glow { box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+    .neon-text { text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3); }
+
+    .neon-button {
+      background: linear-gradient(to right, #00ffff, #ff00ff);
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+      transition: all 0.3s ease;
+    }
+    .neon-button:hover {
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .search-input:focus { box-shadow: 0 0 15px rgba(0, 255, 255, 0.4); border-color: #00ffff; }
+    .search-results {
+      background: rgba(17, 24, 39, 0.97);
+      border: 1px solid rgba(0, 255, 255, 0.2);
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+    }
+
+    body.light-mode { background-color: #f9fafb; color: #111827; }
+    body.light-mode .bg-gray-900 { background-color:#f3f4f6 !important; color:#111827; }
+    body.light-mode .bg-gray-800 { background-color:#e5e7eb !important; color:#111827; }
+    body.light-mode .bg-gray-700 { background-color:#d1d5db !important; color:#111827; }
+    body.light-mode .text-gray-100 { color:#111827 !important; }
+    body.light-mode .text-gray-300 { color:#4b5563 !important; }
+  </style>
+
+  <!-- ✅ SINGLE SAFE AUTH GUARD -->
+  <script>
+    (function () {
+      const raw = localStorage.getItem("taskhive_current_user");
+      if (!raw || raw === "Guest") {
+        const next = encodeURIComponent(window.location.pathname);
+        window.location.href = `/login/?next=${next}`;
+        return;
+      }
+      try { JSON.parse(raw); }
+      catch (e) {
+        localStorage.removeItem("taskhive_current_user");
+        const next = encodeURIComponent(window.location.pathname);
+        window.location.href = `/login/?next=${next}`;
+      }
+    })();
+  </script>
+</head>
+
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+<div id="app" class="flex flex-col min-h-screen" @click="closeContextMenu">
+
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-md py-4 px-6 flex justify-between items-center">
+    <div class="flex items-center">
+      <div class="text-cyan-400 text-2xl mr-3 neon-text animate-pulse">
+        <i class="fas fa-bug"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold text-cyan-300 neon-text">TaskHive</h1>
+        <p class="text-xs text-gray-400">
+          Logged in as:
+          <span class="text-cyan-300">{{ currentUserName }}</span>
+          <span class="ml-2 text-[10px] px-2 py-0.5 rounded-full"
+                :class="currentUserRole === 'head' ? 'bg-purple-900/50 text-purple-300' : 'bg-gray-700/60 text-gray-300'">
+            {{ currentUserRole === 'head' ? 'Team Head' : 'Member' }}
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="relative w-1/3 hidden md:block">
+      <input
+        ref="searchInput"
+        v-model="searchQuery"
+        @keydown.enter.prevent="goToHighlightedResult"
+        @keydown.down.prevent="moveSelection(1)"
+        @keydown.up.prevent="moveSelection(-1)"
+        placeholder="Search tasks, projects, files (Ctrl+K)..."
+        class="search-input w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg
+               focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+      />
+      <div class="absolute left-3 top-2.5 text-gray-400">
+        <i class="fas fa-search"></i>
+      </div>
+
+      <!-- Search Results -->
+      <div v-if="searchQuery" class="search-results absolute z-50 mt-1 w-full rounded-lg shadow-lg max-h-96 overflow-y-auto">
+        <!-- Tasks -->
+        <div v-if="globalResults.tasks.length" class="p-2">
+          <h3 class="px-3 py-1 text-xs font-semibold text-cyan-300 uppercase tracking-wider">Tasks</h3>
+          <div
+            v-for="(task, index) in globalResults.tasks"
+            :key="task.id"
+            @click="selectSearchResult(task, 'task')"
+            class="px-3 py-2 rounded-md cursor-pointer flex items-center"
+            :class="{
+              'bg-cyan-900/50': isHighlighted(index),
+              'hover:bg-gray-700': !isHighlighted(index)
+            }"
+          >
+            <div class="bg-cyan-900 text-cyan-300 p-2 rounded-md mr-3">
+              <i class="fas fa-tasks"></i>
+            </div>
+            <div class="flex-1">
+              <p class="font-medium text-gray-100">
+                {{ task.name }}
+                <span v-if="task.taskType === 'super'" class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-purple-900/50 text-purple-300">
+                  <i class="fas fa-bolt mr-1"></i> SUPER
+                </span>
+              </p>
+              <p class="text-sm text-gray-400">Task · {{ getBoardName(task.boardId) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Projects -->
+        <div v-if="globalResults.projects.length" class="p-2">
+          <h3 class="px-3 py-1 text-xs font-semibold text-cyan-300 uppercase tracking-wider">Projects</h3>
+          <div
+            v-for="(project, index) in globalResults.projects"
+            :key="project.id"
+            @click="selectSearchResult(project, 'project')"
+            class="px-3 py-2 rounded-md cursor-pointer flex items-center"
+            :class="{
+              'bg-cyan-900/50': isHighlighted(index + globalResults.tasks.length),
+              'hover:bg-gray-700': !isHighlighted(index + globalResults.tasks.length)
+            }"
+          >
+            <div class="bg-purple-900 text-purple-300 p-2 rounded-md mr-3">
+              <i class="fas fa-project-diagram"></i>
+            </div>
+            <div>
+              <p class="font-medium text-gray-100">{{ project.name }}</p>
+              <p class="text-sm text-gray-400">Project</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Files -->
+        <div v-if="globalResults.files.length" class="p-2">
+          <h3 class="px-3 py-1 text-xs font-semibold text-cyan-300 uppercase tracking-wider">Files</h3>
+          <div
+            v-for="(file, index) in globalResults.files"
+            :key="file.id"
+            @click="selectSearchResult(file, 'file')"
+            class="px-3 py-2 rounded-md cursor-pointer flex items-center"
+            :class="{
+              'bg-cyan-900/50': isHighlighted(index + globalResults.tasks.length + globalResults.projects.length),
+              'hover:bg-gray-700': !isHighlighted(index + globalResults.tasks.length + globalResults.projects.length)
+            }"
+          >
+            <div class="bg-pink-900 text-pink-300 p-2 rounded-md mr-3">
+              <i class="fas fa-file"></i>
+            </div>
+            <div>
+              <p class="font-medium text-gray-100">{{ file.name }}</p>
+              <p class="text-sm text-gray-400">File · {{ file.type }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="!flatResults.length" class="px-3 py-4 text-center text-gray-400">
+          No results found for "{{ searchQuery }}"
+        </div>
+      </div>
+    </div>
+
+    <!-- Right nav -->
+    <div class="flex items-center space-x-3">
+      <a href="/" class="hidden sm:inline text-cyan-300 text-sm hover:text-cyan-200">
+        <i class="fas fa-grid-2 mr-1"></i> Board
+      </a>
+      <a href="/analytics/" class="hidden sm:inline text-gray-300 text-sm hover:text-cyan-300">
+        <i class="fas fa-chart-line mr-1"></i> Analytics
+      </a>
+      <a href="/codespace/" class="hidden sm:inline text-gray-300 text-sm hover:text-cyan-300">
+        <i class="fas fa-code mr-1"></i> Code Space
+      </a>
+
+      <button @click="toggleTheme"
+              class="w-8 h-8 rounded-full flex items-center justify-center bg-gray-800 hover:bg-gray-700 transition-all"
+              :title="isDark ? 'Light mode' : 'Dark mode'">
+        <i v-if="isDark" class="fas fa-sun text-yellow-300 text-xs"></i>
+        <i v-else class="fas fa-moon text-indigo-400 text-xs"></i>
+      </button>
+
+      <button @click="logout"
+              class="hidden md:inline px-3 py-1 rounded-lg text-xs bg-red-700 hover:bg-red-600 text-white">
+        <i class="fas fa-right-from-bracket mr-1"></i> Logout
+      </button>
+
+      <div class="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center text-gray-900 font-semibold glow">
+        {{ currentUserInitials }}
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex flex-1 overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-72 bg-gray-800 shadow-md py-6 px-4 flex flex-col">
+      <nav class="space-y-1 flex-1">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          @click="currentTab = tab.id"
+          class="w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors"
+          :class="{
+            'bg-cyan-900/50 text-cyan-300': currentTab === tab.id,
+            'text-gray-300 hover:bg-gray-700': currentTab !== tab.id
+          }"
+        >
+          <i :class="tab.icon" class="mr-3 w-5"></i>
+          <span class="font-medium">{{ tab.name }}</span>
+        </button>
+      </nav>
+
+      <!-- Teams -->
+      <div class="pt-6 border-t border-gray-700">
+        <h3 class="px-4 text-xs font-semibold text-cyan-300 uppercase tracking-wider mb-3">Teams</h3>
+        <div class="space-y-1 max-h-52 overflow-y-auto pr-1">
+          <div
+            v-for="team in teams"
+            :key="team.id"
+            class="flex items-center justify-between px-4 py-2 rounded-lg hover:bg-gray-700 text-gray-300"
+          >
+            <div class="flex items-center">
+              <span class="w-2 h-2 rounded-full mr-3 glow" :style="{ backgroundColor: team.color }"></span>
+              <span>{{ team.name }}</span>
+            </div>
+            <div class="flex items-center space-x-2 text-xs">
+              <button @click.stop="startEditTeam(team)" class="text-yellow-300 hover:text-yellow-200">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button @click.stop="confirmDeleteTeam(team)" class="text-red-400 hover:text-red-300">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </div>
+          <div v-if="teams.length === 0" class="px-4 py-2 text-xs text-gray-400">
+            No teams yet. Add your first team below.
+          </div>
+        </div>
+
+        <!-- Add / Edit team form -->
+        <div class="mt-3 bg-gray-900/70 rounded-lg p-3">
+          <p class="text-[11px] text-gray-400 mb-2">
+            {{ editingTeamId ? 'Edit team' : 'Add new team' }}
+          </p>
+          <input
+            v-model="newTeamName"
+            placeholder="Team name"
+            class="w-full mb-2 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+          />
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center space-x-2">
+              <label class="text-[11px] text-gray-400">Color:</label>
+              <input type="color" v-model="newTeamColor" class="w-8 h-6 border-0 p-0 bg-transparent" />
+            </div>
+            <button v-if="editingTeamId" @click="resetTeamForm" class="text-[11px] text-gray-300 hover:text-gray-100">
+              Cancel
+            </button>
+          </div>
+          <button
+            @click="createOrUpdateTeam"
+            class="w-full py-1.5 rounded-lg text-xs text-white neon-button flex items-center justify-center"
+          >
+            <i class="fas" :class="editingTeamId ? 'fa-save mr-2' : 'fa-plus mr-2'"></i>
+            {{ editingTeamId ? 'Update Team' : 'Add Team' }}
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Content -->
+    <div class="flex-1 overflow-auto p-6 bg-gray-900">
+
+      <!-- Projects -->
+      <div v-if="currentTab === 'projects'" class="space-y-6">
+        <div class="flex justify-between items-center">
+          <h2 class="text-2xl font-bold text-cyan-300 neon-text">Projects</h2>
+          <button @click="openNewProject" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
+            <i class="fas fa-plus mr-2"></i> New Project
+          </button>
+        </div>
+
+        <div v-if="projects.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            v-for="project in projects"
+            :key="project.id"
+            class="project-card p-5 cursor-pointer relative group"
+            @click="viewProject(project)"
+          >
+            <button @click.stop="confirmDeleteProject(project)"
+                    class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity">
+              <i class="fas fa-trash"></i>
+            </button>
+            <div class="flex justify-between items-start mb-4">
+              <div class="w-10 h-10 rounded-lg bg-cyan-900/50 flex items-center justify-center text-cyan-400 glow">
+                <i class="fas fa-project-diagram"></i>
+              </div>
+              <div class="text-xs px-2 py-1 rounded-full" :class="{
+                  'bg-green-900/50 text-green-300': project.status === 'active',
+                  'bg-gray-900/50 text-gray-300': project.status === 'completed',
+                  'bg-yellow-900/50 text-yellow-300': project.status === 'on-hold'
+                }">
+                {{ formatStatus(project.status) }}
+              </div>
+            </div>
+            <h3 class="font-semibold text-lg mb-2 text-gray-100">{{ project.name }}</h3>
+            <p class="text-gray-400 text-sm mb-4 line-clamp-2">{{ project.description }}</p>
+
+            <div class="flex justify-between items-center text-sm text-gray-400">
+              <div class="flex items-center">
+                <i class="fas fa-tasks mr-1"></i>
+                <span>{{ getProjectTaskCount(project.id) }} tasks</span>
+              </div>
+              <div class="flex -space-x-2">
+                <div
+                  v-for="member in project.members.slice(0, 3)"
+                  :key="member"
+                  class="w-6 h-6 rounded-full bg-cyan-500 text-gray-900 text-xs flex items-center justify-center border border-gray-700 glow"
+                  :title="member"
+                >
+                  {{ getInitials(member) }}
+                </div>
+                <div v-if="project.members.length > 3"
+                     class="w-6 h-6 rounded-full bg-gray-700 text-gray-300 text-xs flex items-center justify-center border border-gray-700"
+                     :title="project.members.slice(3).join(', ')">
+                  +{{ project.members.length - 3 }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="empty-state p-8 text-center">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 glow">
+            <i class="fas fa-project-diagram text-2xl"></i>
+          </div>
+          <h3 class="text-lg font-medium text-gray-100 mb-2">No projects yet</h3>
+          <p class="text-gray-400 mb-4">Get started by creating your first project</p>
+          <button @click="openNewProject"
+                  class="neon-button text-white px-4 py-2 rounded-lg inline-flex items-center">
+            <i class="fas fa-plus mr-2"></i> New Project
+          </button>
+        </div>
+      </div>
+
+      <!-- Tasks -->
+      <div v-if="currentTab === 'tasks'" class="space-y-6">
+        <div class="flex justify-between items-center">
+          <h2 class="text-2xl font-bold text-cyan-300 neon-text">Tasks</h2>
+          <button @click="openNewTask" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
+            <i class="fas fa-plus mr-2"></i> New Task
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div
+            v-for="board in boards"
+            :key="board.id"
+            class="bg-gray-800 rounded-lg p-4 min-h-[500px] bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900"
+            @drop.prevent="moveTask($event, board.id)"
+            @dragover.prevent
+            @dragenter="setDragOver(board.id, true)"
+            @dragleave="setDragOver(board.id, false)"
+            :class="{'drag-over': dragOverBoard === board.id}"
+          >
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-semibold text-gray-100 neon-text">{{ board.name }}</h3>
+              <span class="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-1 rounded-full">
+                {{ tasks.filter(t => t.boardId === board.id).length }}
+              </span>
+            </div>
+
+            <div class="space-y-3">
+              <div
+                v-for="task in tasks.filter(t => t.boardId === board.id)"
+                :key="task.id"
+                class="task-card bg-gray-800 shadow p-4 cursor-move border-l-4"
+                :class="{
+                  'border-red-500': task.priority === 'high',
+                  'border-yellow-500': task.priority === 'medium',
+                  'border-green-500': task.priority === 'low'
+                }"
+                draggable="true"
+                @dragstart="startDrag($event, task)"
+                @click="handleTaskClick(task)"
+                @contextmenu.prevent="showTaskContextMenu($event, task)"
+              >
+                <div class="flex justify-between items-start mb-2">
+                  <div class="flex items-center">
+                    <h4 class="font-medium text-gray-100">{{ task.name }}</h4>
+
+                    <span v-if="task.taskType === 'super'"
+                          class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-purple-900/50 text-purple-300">
+                      <i class="fas fa-bolt mr-1"></i> SUPER
+                    </span>
+                  </div>
+
+                  <div class="text-xs px-2 py-1 rounded-full" :class="{
+                    'bg-red-900/50 text-red-300': task.priority === 'high',
+                    'bg-yellow-900/50 text-yellow-300': task.priority === 'medium',
+                    'bg-green-900/50 text-green-300': task.priority === 'low'
+                  }">
+                    {{ task.priority }}
+                  </div>
+                </div>
+
+                <p class="text-gray-400 text-sm mb-3">{{ task.description }}</p>
+
+                <!-- ✅ Super Task extra line -->
+                <div v-if="task.taskType === 'super'" class="text-[11px] text-purple-300 mb-2">
+                  <i class="fas fa-terminal mr-1"></i>
+                  {{ task.codeMeta && task.codeMeta.codeName ? task.codeMeta.codeName : 'Code Task' }}
+                  <span class="text-gray-400">· {{ (task.codeMeta && task.codeMeta.language) ? task.codeMeta.language : 'code' }}</span>
+                  <span v-if="task.codeMeta && task.codeMeta.filePath" class="text-gray-400">· {{ task.codeMeta.filePath }}</span>
+                </div>
+
+                <div class="flex justify-between items-center text-xs text-gray-400">
+                  <span><i class="far fa-clock mr-1"></i> {{ formatDate(task.dueDate) }}</span>
+                  <div class="flex">
+                    <div
+                      v-for="assignee in task.assignees"
+                      :key="assignee"
+                      class="w-6 h-6 rounded-full bg-cyan-500 text-gray-900 text-xs flex items-center justify-center border border-gray-700 -ml-1 glow"
+                      :title="assignee"
+                    >
+                      {{ getInitials(assignee) }}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Files -->
+      <div v-if="currentTab === 'files'" class="space-y-6">
+        <div class="flex justify-between items-center">
+          <h2 class="text-2xl font-bold text-cyan-300 neon-text">Files</h2>
+          <div>
+            <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden">
+            <button @click="$refs.fileInput.click()"
+                    class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
+              <i class="fas fa-plus mr-2"></i> Upload File
+            </button>
+          </div>
+        </div>
+
+        <div v-if="uploadProgress > 0 && uploadProgress < 100"
+             class="bg-gray-800 rounded-lg p-4 shadow glow">
+          <div class="flex justify-between items-center mb-2">
+            <span class="font-medium text-gray-100">Uploading file...</span>
+            <span class="text-sm text-gray-400">{{ uploadProgress }}%</span>
+          </div>
+          <div class="w-full bg-gray-700 rounded-full h-2">
+            <div class="h-2 rounded-full file-progress"
+                 :style="{ width: uploadProgress + '%' }"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div
+            v-for="file in files"
+            :key="file.id"
+            class="project-card p-5 relative group"
+            @contextmenu.prevent="showFileContextMenu($event, file)"
+          >
+            <button @click="confirmDeleteFile(file)"
+                    class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity">
+              <i class="fas fa-times"></i>
+            </button>
+            <div class="flex justify-center mb-4">
+              <div class="w-12 h-12 rounded-lg flex items-center justify-center text-2xl glow"
+                   :class="{
+                     'bg-blue-900/50 text-blue-300': file.type === 'doc' || file.type === 'docx',
+                     'bg-red-900/50 text-red-300': file.type === 'pdf',
+                     'bg-green-900/50 text-green-300': file.type === 'xls' || file.type === 'xlsx',
+                     'bg-yellow-900/50 text-yellow-300': file.type === 'zip',
+                     'bg-purple-900/50 text-purple-300': file.type === 'png' || file.type === 'jpg' || file.type === 'jpeg'
+                   }">
+                <i class="fas" :class="{
+                  'fa-file-word': file.type === 'doc' || file.type === 'docx',
+                  'fa-file-pdf': file.type === 'pdf',
+                  'fa-file-excel': file.type === 'xls' || file.type === 'xlsx',
+                  'fa-file-archive': file.type === 'zip',
+                  'fa-file-image': file.type === 'png' || file.type === 'jpg' || file.type === 'jpeg',
+                  'fa-file-alt': file.type === 'txt' || file.type === 'other'
+                }"></i>
+              </div>
+            </div>
+            <h3 class="font-semibold text-center mb-1 truncate text-gray-100">{{ file.name }}</h3>
+            <p class="text-gray-400 text-sm text-center mb-3">{{ file.size }}</p>
+
+            <div class="flex justify-between items-center text-xs text-gray-400">
+              <span>{{ formatDate(file.uploaded) }}</span>
+              <div class="flex space-x-2">
+                <button @click="downloadFile(file)" class="text-blue-400 hover:text-blue-200">
+                  <i class="fas fa-download"></i>
+                </button>
+                <button @click="openFile(file)" class="text-green-400 hover:text-green-200">
+                  <i class="fas fa-external-link-alt"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ✅ Task Modal (SCROLL FIX INSIDE) -->
+  <transition name="fade">
+    <div v-if="showTaskModal" class="fixed inset-0 z-40 flex items-center justify-center confirmation-modal">
+      <!-- ✅ IMPORTANT: max-h + overflow -->
+      <div class="bg-gray-900 rounded-xl shadow-xl w-full max-w-lg p-6 border border-cyan-500/40 modal max-h-[85vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold text-cyan-300 mb-4">
+          {{ editingTask ? 'Edit Task' : 'New Task' }}
+        </h3>
+
+        <div class="space-y-3 text-sm">
+          <div>
+            <label class="block text-gray-300 mb-1">Task Name</label>
+            <input v-model="currentTask.name"
+                   class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+          </div>
+
+          <div>
+            <label class="block text-gray-300 mb-1">Description</label>
+            <textarea v-model="currentTask.description" rows="3"
+                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"></textarea>
+          </div>
+
+          <!-- Task Type -->
+          <div>
+            <label class="block text-gray-300 mb-1">Task Type</label>
+            <select v-model="currentTask.taskType"
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+              <option value="normal">Normal</option>
+              <option value="super">Super Task (CodeSpace)</option>
+            </select>
+            <p v-if="currentTask.taskType === 'super'" class="mt-1 text-[11px] text-purple-300">
+              <i class="fas fa-bolt mr-1"></i>
+              Clicking this task will open CodeSpace with its starter code.
+            </p>
+          </div>
+
+          <!-- Project -->
+          <div>
+            <label class="block text-gray-300 mb-1">Project (optional)</label>
+            <select v-model.number="currentTask.projectId"
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+              <option :value="null">No project</option>
+              <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-gray-300 mb-1">Priority</label>
+              <select v-model="currentTask.priority"
+                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-gray-300 mb-1">Due Date</label>
+              <input type="date" v-model="currentTask.dueDate"
+                     class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            </div>
+          </div>
+
+          <!-- ✅ Super Task CodeSpace Meta -->
+          <div v-if="currentTask.taskType === 'super'" class="bg-gray-800/60 p-3 rounded-lg border border-purple-500/20">
+            <p class="text-xs text-purple-300 mb-2">
+              <i class="fas fa-code mr-1"></i> CodeSpace Details
+            </p>
+
+            <!-- ✅ Code Name (REQUIRED) -->
+            <div class="mb-3">
+              <label class="block text-gray-300 mb-1 text-xs">Code Name (required)</label>
+              <input v-model="currentTask.codeMeta.codeName"
+                     placeholder="e.g. Fix JWT Middleware"
+                     class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-gray-300 mb-1 text-xs">Language</label>
+                <select v-model="currentTask.codeMeta.language"
+                        class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+                  <option>javascript</option>
+                  <option>typescript</option>
+                  <option>python</option>
+                  <option>java</option>
+                  <option>cpp</option>
+                  <option>c</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-gray-300 mb-1 text-xs">File Path (optional)</label>
+                <input v-model="currentTask.codeMeta.filePath"
+                       placeholder="e.g. backend/routes/auth.js"
+                       class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <label class="block text-gray-300 mb-1 text-xs">Starter Code</label>
+              <textarea v-model="currentTask.codeMeta.starterCode" rows="6"
+                        placeholder="// starter code here..."
+                        class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm"></textarea>
+            </div>
+
+            <div class="mt-3">
+              <label class="block text-gray-300 mb-1 text-xs">Expected Output / Notes (optional)</label>
+              <input v-model="currentTask.codeMeta.expectedOutput"
+                     placeholder="e.g. validate JWT and reject invalid tokens"
+                     class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mt-3">
+              <div>
+                <label class="block text-gray-300 mb-1 text-xs">Repo URL (optional)</label>
+                <input v-model="currentTask.codeMeta.repoUrl"
+                       placeholder="https://github.com/..."
+                       class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+              </div>
+              <div>
+                <label class="block text-gray-300 mb-1 text-xs">Branch (optional)</label>
+                <input v-model="currentTask.codeMeta.branch"
+                       placeholder="dev / feature-x"
+                       class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 flex justify-end space-x-3">
+          <button @click="closeTaskModal"
+                  class="px-4 py-2 rounded-lg text-sm bg-gray-700 text-gray-200 hover:bg-gray-600">
+            Cancel
+          </button>
+          <button @click="saveTask"
+                  class="px-4 py-2 rounded-lg text-sm text-white neon-button">
+            {{ editingTask ? 'Save Changes' : 'Create Task' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- Project Modal -->
+  <transition name="fade">
+    <div v-if="showProjectModal" class="fixed inset-0 z-40 flex items-center justify-center confirmation-modal">
+      <div class="bg-gray-900 rounded-xl shadow-xl w-full max-w-lg p-6 border border-cyan-500/40 modal max-h-[85vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold text-cyan-300 mb-4">
+          {{ editingProject ? 'Edit Project' : 'New Project' }}
+        </h3>
+        <div class="space-y-3 text-sm">
+          <div>
+            <label class="block text-gray-300 mb-1">Project Name</label>
+            <input v-model="currentProject.name"
+                   class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+          </div>
+          <div>
+            <label class="block text-gray-300 mb-1">Description</label>
+            <textarea v-model="currentProject.description" rows="3"
+                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"></textarea>
+          </div>
+          <div>
+            <label class="block text-gray-300 mb-1">Status</label>
+            <select v-model="currentProject.status"
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="on-hold">On-hold</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-5 flex justify-end space-x-3">
+          <button @click="closeProjectModal"
+                  class="px-4 py-2 rounded-lg text-sm bg-gray-700 text-gray-200 hover:bg-gray-600">
+            Cancel
+          </button>
+          <button @click="saveProject"
+                  class="px-4 py-2 rounded-lg text-sm text-white neon-button">
+            {{ editingProject ? 'Save Changes' : 'Create Project' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- Confirmation Modal -->
+  <transition name="fade">
+    <div v-if="showConfirmationModal" class="fixed inset-0 z-50 flex items-center justify-center confirmation-modal">
+      <div class="bg-gray-900 rounded-xl shadow-xl w-full max-w-sm p-6 border border-red-500/40">
+        <h3 class="text-lg font-semibold text-red-400 mb-2">Are you sure?</h3>
+        <p class="text-sm text-gray-300 mb-4">
+          This will permanently delete the {{ itemToDelete.type }}:
+          <span class="font-semibold">{{ itemToDelete.name }}</span>
+        </p>
+        <div class="flex justify-end space-x-3">
+          <button @click="showConfirmationModal = false"
+                  class="px-4 py-2 rounded-lg text-sm bg-gray-700 text-gray-200 hover:bg-gray-600">
+            Cancel
+          </button>
+          <button @click="executeDelete"
+                  class="px-4 py-2 rounded-lg text-sm bg-red-600 text-white hover:bg-red-500">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- Context Menu -->
+  <div v-if="contextMenu.visible" class="fixed z-50 context-menu rounded-lg py-1"
+       :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
+    <div v-if="contextMenu.type === 'task'" class="min-w-[180px]">
+      <button @click.stop="editTask(contextMenu.item)"
+              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
+        <i class="fas fa-edit mr-2 text-cyan-400"></i> Edit
+      </button>
+
+      <button v-if="contextMenu.item && contextMenu.item.taskType === 'super'"
+              @click.stop="openSuperTask(contextMenu.item)"
+              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
+        <i class="fas fa-code mr-2 text-purple-300"></i> Open in CodeSpace
+      </button>
+
+      <button @click.stop="confirmDeleteTask(contextMenu.item)"
+              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
+        <i class="fas fa-trash mr-2 text-red-400"></i> Delete
+      </button>
+    </div>
+
+    <div v-if="contextMenu.type === 'file'" class="min-w-[150px]">
+      <button @click.stop="openFile(contextMenu.item)"
+              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
+        <i class="fas fa-external-link-alt mr-2 text-green-400"></i> Open
+      </button>
+      <button @click.stop="downloadFile(contextMenu.item)"
+              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
+        <i class="fas fa-download mr-2 text-cyan-400"></i> Download
+      </button>
+      <button @click.stop="confirmDeleteFile(contextMenu.item)"
+              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
+        <i class="fas fa-trash mr-2 text-red-400"></i> Delete
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <transition name="fade">
+    <div v-if="showToast"
+         class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg flex items-center glow"
+         :class="toastIsError ? 'bg-red-900/80 text-red-200 border border-red-500/40' : 'bg-gray-800 text-cyan-300'">
+      <i class="fas mr-2" :class="toastIsError ? 'fa-triangle-exclamation' : 'fa-check-circle'"></i>
+      <span>{{ toastMessage }}</span>
+    </div>
+  </transition>
+
+</div>
+
+<script>
+  new Vue({
+    el: '#app',
+    data() {
+      return {
+        isDark: true,
+        searchQuery: "",
+        highlightedIndex: 0,
+        currentTab: "tasks",
+
+        dragOverBoard: null,
+        showTaskModal: false,
+        showProjectModal: false,
+        showToast: false,
+        toastIsError: false,
+        showConfirmationModal: false,
+
+        toastMessage: "",
+        draggedTask: null,
+        uploadProgress: 0,
+
+        editingTask: false,
+        editingProject: false,
+
+        itemToDelete: { type: "", name: "", id: null },
+        contextMenu: { visible: false, type: null, item: null, x: 0, y: 0 },
+
+        teams: [],
+        newTeamName: "",
+        newTeamColor: "#00ffff",
+        editingTeamId: null,
+
+        currentTask: {
+          id: null,
+          name: "",
+          description: "",
+          priority: "medium",
+          dueDate: "",
+          assignees: [],
+          boardId: 1,
+          projectId: null,
+
+          taskType: "normal",
+          codeMeta: {
+            codeName: "",          // ✅ required for super
+            language: "javascript",
+            starterCode: "",
+            expectedOutput: "",
+            filePath: "",
+            repoUrl: "",
+            branch: ""
+          }
+        },
+
+        currentProject: { id: null, name: "", description: "", status: "active", members: [] },
+
+        tabs: [
+          { id: 'projects', name: 'Projects', icon: 'fas fa-project-diagram' },
+          { id: 'tasks',    name: 'Tasks',    icon: 'fas fa-tasks' },
+          { id: 'files',    name: 'Files',    icon: 'fas fa-file-alt' }
+        ],
+
+        boards: [
+          { id: 1, name: "Todo" },
+          { id: 2, name: "In Progress" },
+          { id: 3, name: "Done" }
+        ],
+
+        tasks: [],
+        projects: [],
+        files: []
+      };
+    },
+
+    computed: {
+      globalResults() {
+        const q = this.searchQuery.toLowerCase();
+        return {
+          tasks: this.tasks.filter((t) => {
+            const name = (t.name || "").toLowerCase();
+            const desc = (t.description || "").toLowerCase();
+            const filePath = (t.codeMeta && t.codeMeta.filePath) ? t.codeMeta.filePath.toLowerCase() : "";
+            const codeName = (t.codeMeta && t.codeMeta.codeName) ? t.codeMeta.codeName.toLowerCase() : "";
+            return name.includes(q) || desc.includes(q) || filePath.includes(q) || codeName.includes(q);
+          }),
+          projects: this.projects.filter((p) =>
+            (p.name || "").toLowerCase().includes(q) ||
+            (p.description || "").toLowerCase().includes(q)
+          ),
+          files: this.files.filter((f) => (f.name || "").toLowerCase().includes(q)),
+        };
+      },
+
+      flatResults() {
+        return [
+          ...this.globalResults.tasks.map((r) => ({ ...r, type: "task" })),
+          ...this.globalResults.projects.map((r) => ({ ...r, type: "project" })),
+          ...this.globalResults.files.map((r) => ({ ...r, type: "file" })),
+        ];
+      },
+
+      currentUserObj() {
+        const raw = localStorage.getItem("taskhive_current_user");
+        if (!raw || raw === "Guest") return { name: "User", role: "member" };
+        try { return JSON.parse(raw) || { name: "User", role: "member" }; }
+        catch (e) { return { name: "User", role: "member" }; }
+      },
+
+      currentUserName() { return this.currentUserObj.name || "User"; },
+      currentUserInitials() { return (this.currentUserObj.name || "U").charAt(0).toUpperCase(); },
+      currentUserRole() { return (this.currentUserObj.role || "member").toLowerCase(); }
+    },
+
+    mounted() {
+      this.initTheme();
+      this.loadData();
+      window.addEventListener("keydown", this.handleShortcut);
+      window.addEventListener("beforeunload", this.saveData);
+
+      // click outside context menu
+      window.addEventListener("click", this.closeContextMenu);
+    },
+
+    beforeDestroy() {
+      window.removeEventListener("keydown", this.handleShortcut);
+      window.removeEventListener("beforeunload", this.saveData);
+      window.removeEventListener("click", this.closeContextMenu);
+    },
+
+    methods: {
+      initTheme() {
+        const saved = localStorage.getItem("taskhive_theme");
+        if (saved === "light") {
+          this.isDark = false;
+          document.body.classList.add("light-mode");
+        } else {
+          this.isDark = true;
+          document.body.classList.remove("light-mode");
+        }
+      },
+
+      toggleTheme() {
+        this.isDark = !this.isDark;
+        if (this.isDark) {
+          localStorage.setItem("taskhive_theme", "dark");
+          document.body.classList.remove("light-mode");
+        } else {
+          localStorage.setItem("taskhive_theme", "light");
+          document.body.classList.add("light-mode");
+        }
+      },
+
+      logout() {
+        localStorage.removeItem("taskhive_current_user");
+        window.location.href = "/login/";
+      },
+
+      saveData() {
+        localStorage.setItem('taskhive_tasks', JSON.stringify(this.tasks));
+        localStorage.setItem('taskhive_projects', JSON.stringify(this.projects));
+        localStorage.setItem('taskhive_files', JSON.stringify(this.files));
+        localStorage.setItem('taskhive_teams', JSON.stringify(this.teams));
+      },
+
+      normalizeTask(t) {
+        const task = { ...t };
+
+        if (task.projectId === undefined) task.projectId = null;
+        if (!task.taskType) task.taskType = "normal";
+
+        if (!task.codeMeta || typeof task.codeMeta !== "object") task.codeMeta = {};
+        task.codeMeta.codeName = task.codeMeta.codeName || "";
+        task.codeMeta.language = task.codeMeta.language || "javascript";
+        task.codeMeta.starterCode = task.codeMeta.starterCode || "";
+        task.codeMeta.expectedOutput = task.codeMeta.expectedOutput || "";
+        task.codeMeta.filePath = task.codeMeta.filePath || "";
+        task.codeMeta.repoUrl = task.codeMeta.repoUrl || "";
+        task.codeMeta.branch = task.codeMeta.branch || "";
+
+        return task;
+      },
+
+      loadData() {
+        const savedTasks = localStorage.getItem('taskhive_tasks');
+        const savedProjects = localStorage.getItem('taskhive_projects');
+        const savedFiles = localStorage.getItem('taskhive_files');
+        const savedTeams = localStorage.getItem('taskhive_teams');
+
+        if (savedTasks) {
+          try {
+            const parsed = JSON.parse(savedTasks);
+            this.tasks = Array.isArray(parsed) ? parsed.map(this.normalizeTask) : [];
+          } catch (e) { this.tasks = []; }
+        }
+
+        if (savedProjects) { try { this.projects = JSON.parse(savedProjects) || []; } catch (e) { this.projects = []; } }
+        if (savedFiles) { try { this.files = JSON.parse(savedFiles) || []; } catch (e) { this.files = []; } }
+        if (savedTeams) { try { this.teams = JSON.parse(savedTeams) || []; } catch (e) { this.teams = []; } }
+
+        if (this.projects.length === 0) {
+          this.projects = [
+            { id: 10, name: "WePlan App", description: "Project management application for teams", status: "active", members: ["JD", "MA", "SP"] },
+            { id: 11, name: "TaskHive", description: "Team collaboration and task management platform", status: "active", members: ["JD", "RJ"] },
+            { id: 12, name: "Customer Portal", description: "Self-service portal for enterprise customers", status: "on-hold", members: ["MA", "SP"] }
+          ];
+        }
+
+        if (this.tasks.length === 0) {
+          this.tasks = [
+            this.normalizeTask({
+              id: 1, name: "Fix login bug",
+              description: "Resolve the authentication issue on mobile devices",
+              boardId: 1, priority: "high", dueDate: "2023-09-15", assignees: ["JD", "MA"],
+              projectId: 11, taskType: "normal"
+            }),
+            this.normalizeTask({
+              id: 2, name: "Middleware patch",
+              description: "Fix auth middleware in CodeSpace",
+              boardId: 2, priority: "medium", dueDate: "2023-09-20", assignees: ["SP"],
+              projectId: 11, taskType: "super",
+              codeMeta: {
+                codeName: "Fix JWT middleware",              // ✅ code name
+                language: "javascript",
+                filePath: "backend/middleware/auth.js",
+                starterCode: "export default function auth(req, res, next) {\n  // TODO: fix token parsing\n  next();\n}\n",
+                expectedOutput: "JWT validated and invalid tokens rejected",
+                repoUrl: "",
+                branch: "dev"
+              }
+            })
+          ];
+        }
+
+        if (this.files.length === 0) {
+          this.files = [
+            { id: 20, name: "UI Mockup.png", type: "png", size: "2.4 MB", uploaded: "2023-08-27", content: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" },
+            { id: 21, name: "ProjectPlan.docx", type: "docx", size: "1.2 MB", uploaded: "2023-08-25", content: "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQABgAIAAAAIQC2gziS/gAAAOEBAAATAAAAW0NvbnRlbnRfVHlpeZQ==" }
+          ];
+        }
+
+        if (this.teams.length === 0) {
+          this.teams = [
+            { id: 1, name: "Frontend Squad", color: "#00ffff" },
+            { id: 2, name: "Backend Crew",   color: "#ff00ff" },
+            { id: 3, name: "QA Ninjas",      color: "#22c55e" }
+          ];
+        }
+
+        this.saveData();
+      },
+
+      handleShortcut(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+          e.preventDefault();
+          this.$refs.searchInput && this.$refs.searchInput.focus();
+          this.searchQuery = "";
+        }
+        if (e.key === "Escape" && this.searchQuery) this.searchQuery = "";
+      },
+
+      moveSelection(direction) {
+        if (!this.flatResults.length) return;
+        this.highlightedIndex =
+          (this.highlightedIndex + direction + this.flatResults.length) %
+          this.flatResults.length;
+      },
+
+      goToHighlightedResult() {
+        const selected = this.flatResults[this.highlightedIndex];
+        if (!selected) return;
+        this.selectSearchResult(selected, selected.type);
+      },
+
+      selectSearchResult(item, type) {
+        this.currentTab = type + 's';
+        this.searchQuery = "";
+
+        if (type === "task" && item.taskType === "super") {
+          this.openSuperTask(item);
+          return;
+        }
+
+        this.showToastMessage(`Navigated to ${type}: ${item.name}`);
+      },
+
+      isHighlighted(index) { return this.highlightedIndex === index; },
+
+      getBoardName(boardId) {
+        const board = this.boards.find(b => b.id === boardId);
+        return board ? board.name : 'Unknown';
+      },
+
+      startDrag(event, task) {
+        event.dataTransfer.setData("taskID", String(task.id));
+        this.draggedTask = task;
+      },
+
+      moveTask(event, boardId) {
+        const taskId = parseInt(event.dataTransfer.getData("taskID"));
+        const task = this.tasks.find((t) => t.id === taskId);
+        if (task) {
+          task.boardId = boardId;
+          this.saveData();
+          this.showToastMessage(`Task moved to ${this.getBoardName(boardId)}`);
+        }
+        this.draggedTask = null;
+        this.dragOverBoard = null;
+      },
+
+      setDragOver(boardId, isOver) { this.dragOverBoard = isOver ? boardId : null; },
+
+      handleTaskClick(task) {
+        if (task.taskType === "super") return this.openSuperTask(task);
+        this.editTask(task);
+      },
+
+      openSuperTask(task) {
+        localStorage.setItem("taskhive_active_super_task", JSON.stringify(task));
+        window.location.href = `/codespace/?taskId=${encodeURIComponent(task.id)}`;
+      },
+
+      openNewTask() {
+        this.editingTask = false;
+        this.resetCurrentTask();
+        this.showTaskModal = true;
+      },
+
+      editTask(task) {
+        this.currentTask = this.normalizeTask(task);
+        this.editingTask = true;
+        this.showTaskModal = true;
+      },
+
+      saveTask() {
+        if (!this.currentTask.name.trim()) return this.showToastMessage("Task name is required", true);
+
+        // Head-only for Super
+        if (this.currentTask.taskType === "super" && this.currentUserRole !== "head") {
+          return this.showToastMessage("Only Team Head can create Super Tasks", true);
+        }
+
+        // Super needs code name
+        if (this.currentTask.taskType === "super") {
+          if (!this.currentTask.codeMeta || !this.currentTask.codeMeta.codeName || !this.currentTask.codeMeta.codeName.trim()) {
+            return this.showToastMessage("Code Name is required for Super Task", true);
+          }
+        }
+
+        const payload = this.normalizeTask(this.currentTask);
+
+        if (this.editingTask) {
+          const index = this.tasks.findIndex(t => t.id === payload.id);
+          if (index !== -1) this.tasks.splice(index, 1, payload);
+          this.showToastMessage("Task updated successfully");
+        } else {
+          const newId = this.tasks.length ? Math.max(...this.tasks.map(t => t.id)) + 1 : 1;
+          payload.id = newId;
+          this.tasks.push(payload);
+          this.showToastMessage(payload.taskType === "super" ? "Super Task created" : "Task added successfully");
+        }
+
+        this.saveData();
+        this.closeTaskModal();
+      },
+
+      closeTaskModal() {
+        this.showTaskModal = false;
+        this.editingTask = false;
+        this.resetCurrentTask();
+      },
+
+      resetCurrentTask() {
+        this.currentTask = {
+          id: null,
+          name: "",
+          description: "",
+          priority: "medium",
+          dueDate: "",
+          assignees: [],
+          boardId: 1,
+          projectId: null,
+          taskType: "normal",
+          codeMeta: {
+            codeName: "",
+            language: "javascript",
+            starterCode: "",
+            expectedOutput: "",
+            filePath: "",
+            repoUrl: "",
+            branch: ""
+          }
+        };
+      },
+
+      confirmDeleteTask(task) {
+        this.itemToDelete = { type: 'task', name: task.name, id: task.id };
+        this.showConfirmationModal = true;
+        this.closeContextMenu();
+      },
+
+      deleteTask(taskId) {
+        this.tasks = this.tasks.filter(t => t.id !== taskId);
+        this.saveData();
+        this.showToastMessage("Task deleted successfully");
+      },
+
+      openNewProject() {
+        this.editingProject = false;
+        this.resetCurrentProject();
+        this.showProjectModal = true;
+      },
+
+      viewProject(project) {
+        this.currentProject = { ...project };
+        this.editingProject = true;
+        this.showProjectModal = true;
+      },
+
+      saveProject() {
+        if (!this.currentProject.name.trim()) return this.showToastMessage("Project name is required", true);
+
+        if (this.editingProject) {
+          const index = this.projects.findIndex(p => p.id === this.currentProject.id);
+          if (index !== -1) this.projects.splice(index, 1, { ...this.currentProject });
+          this.showToastMessage("Project updated successfully");
+        } else {
+          const newId = this.projects.length ? Math.max(...this.projects.map(p => p.id)) + 1 : 1;
+          this.projects.push({ ...this.currentProject, id: newId });
+          this.showToastMessage("Project added successfully");
+        }
+        this.saveData();
+        this.closeProjectModal();
+      },
+
+      closeProjectModal() {
+        this.showProjectModal = false;
+        this.editingProject = false;
+        this.resetCurrentProject();
+      },
+
+      resetCurrentProject() {
+        this.currentProject = { id: null, name: "", description: "", status: "active", members: [] };
+      },
+
+      confirmDeleteProject(project) {
+        this.itemToDelete = { type: 'project', name: project.name, id: project.id };
+        this.showConfirmationModal = true;
+        this.closeContextMenu();
+        this.closeProjectModal();
+      },
+
+      deleteProject(projectId) {
+        this.tasks = this.tasks.map(t => t.projectId === projectId ? { ...t, projectId: null } : t);
+        this.projects = this.projects.filter(p => p.id !== projectId);
+        this.saveData();
+        this.showToastMessage("Project deleted successfully");
+      },
+
+      getProjectTaskCount(projectId) { return this.tasks.filter(t => t.projectId === projectId).length; },
+
+      createOrUpdateTeam() {
+        const name = this.newTeamName.trim();
+        if (!name) return this.showToastMessage("Team name is required", true);
+
+        if (this.editingTeamId) {
+          const idx = this.teams.findIndex(t => t.id === this.editingTeamId);
+          if (idx !== -1) {
+            this.teams[idx].name = name;
+            this.teams[idx].color = this.newTeamColor;
+          }
+          this.showToastMessage("Team updated");
+        } else {
+          const newId = this.teams.length ? Math.max(...this.teams.map(t => t.id)) + 1 : 1;
+          this.teams.push({ id: newId, name, color: this.newTeamColor });
+          this.showToastMessage("Team added");
+        }
+        this.saveData();
+        this.resetTeamForm();
+      },
+
+      startEditTeam(team) {
+        this.editingTeamId = team.id;
+        this.newTeamName = team.name;
+        this.newTeamColor = team.color;
+      },
+
+      confirmDeleteTeam(team) {
+        this.itemToDelete = { type: 'team', name: team.name, id: team.id };
+        this.showConfirmationModal = true;
+      },
+
+      deleteTeam(teamId) {
+        this.teams = this.teams.filter(t => t.id !== teamId);
+        this.saveData();
+        this.showToastMessage("Team deleted successfully");
+      },
+
+      resetTeamForm() {
+        this.editingTeamId = null;
+        this.newTeamName = "";
+        this.newTeamColor = "#00ffff";
+      },
+
+      handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        this.uploadProgress = 0;
+        const interval = setInterval(() => {
+          this.uploadProgress += 10;
+          if (this.uploadProgress >= 100) {
+            clearInterval(interval);
+            this.addFile(file);
+          }
+        }, 100);
+      },
+
+      addFile(file) {
+        const fileType = this.getFileType(file.name);
+        const newId = this.files.length ? Math.max(...this.files.map(f => f.id)) + 1 : 1;
+        this.files.push({
+          id: newId,
+          name: file.name,
+          type: fileType,
+          size: this.formatFileSize(file.size),
+          uploaded: new Date().toISOString().split('T')[0],
+          content: URL.createObjectURL(file)
+        });
+        this.saveData();
+        this.uploadProgress = 0;
+        this.showToastMessage("File uploaded successfully");
+      },
+
+      downloadFile(file) {
+        const link = document.createElement('a');
+        link.href = file.content;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        this.showToastMessage(`Downloading ${file.name}`);
+        this.closeContextMenu();
+      },
+
+      openFile(file) {
+        window.open(file.content, '_blank');
+        this.showToastMessage(`Opening ${file.name}`);
+        this.closeContextMenu();
+      },
+
+      confirmDeleteFile(file) {
+        this.itemToDelete = { type: 'file', name: file.name, id: file.id };
+        this.showConfirmationModal = true;
+        this.closeContextMenu();
+      },
+
+      deleteFile(fileId) {
+        this.files = this.files.filter(f => f.id !== fileId);
+        this.saveData();
+        this.showToastMessage("File deleted successfully");
+      },
+
+      getFileType(filename) {
+        const extension = filename.split('.').pop().toLowerCase();
+        if (['doc', 'docx'].includes(extension)) return 'docx';
+        if (['xls', 'xlsx'].includes(extension)) return 'xlsx';
+        if (['pdf'].includes(extension)) return 'pdf';
+        if (['png', 'jpg', 'jpeg'].includes(extension)) return 'png';
+        if (['zip', 'rar'].includes(extension)) return 'zip';
+        return 'other';
+      },
+
+      formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      },
+
+      showTaskContextMenu(event, task) {
+        this.contextMenu = { visible: true, type: 'task', item: task, x: event.pageX, y: event.pageY };
+      },
+
+      showFileContextMenu(event, file) {
+        this.contextMenu = { visible: true, type: 'file', item: file, x: event.pageX, y: event.pageY };
+      },
+
+      closeContextMenu() { this.contextMenu.visible = false; },
+
+      executeDelete() {
+        const { type, id } = this.itemToDelete;
+        if (type === 'task') this.deleteTask(id);
+        else if (type === 'project') this.deleteProject(id);
+        else if (type === 'file') this.deleteFile(id);
+        else if (type === 'team') this.deleteTeam(id);
+        this.showConfirmationModal = false;
+      },
+
+      formatDate(dateString) {
+        if (!dateString) return 'No date';
+        const options = { month: 'short', day: 'numeric' };
+        return new Date(dateString).toLocaleDateString(undefined, options);
+      },
+
+      formatStatus(status) { return status.charAt(0).toUpperCase() + status.slice(1); },
+      getInitials(name) { return (name || "").substring(0, 1).toUpperCase(); },
+
+      showToastMessage(message, isError = false) {
+        this.toastMessage = message;
+        this.toastIsError = !!isError;
+        this.showToast = true;
+        setTimeout(() => { this.showToast = false; }, 3000);
+      }
+    }
+  });
+</script>
+
+</body>
+</html>
+{% endverbatim %}

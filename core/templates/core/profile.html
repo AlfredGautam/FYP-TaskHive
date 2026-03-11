@@ -1,0 +1,608 @@
+{% verbatim %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskHive - Profile</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    body { font-family: 'Roboto Mono', monospace; transition: background-color 0.3s ease, color 0.3s ease; }
+    h1, h2, h3 { font-family: 'Orbitron', sans-serif; }
+    .neon-text { text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3); }
+    .glow { box-shadow: 0 0 10px rgba(0, 255, 255, 0.4); }
+    .neon-button { background: linear-gradient(to right, #00ffff, #ff00ff); box-shadow: 0 0 10px rgba(0, 255, 255, 0.3); transition: 0.3s; }
+    .neon-button:hover { box-shadow: 0 0 20px rgba(0, 255, 255, 0.6); transform: translateY(-1px); }
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease-in-out; }
+    .fade-enter, .fade-leave-to { opacity: 0; }
+
+    body.light-mode { background-color: #f9fafb; color: #111827; }
+    body.light-mode .bg-gray-900 { background-color:#f3f4f6 !important; color:#111827; }
+    body.light-mode .bg-gray-800 { background-color:#e5e7eb !important; color:#111827; }
+    body.light-mode .bg-gray-700 { background-color:#d1d5db !important; color:#111827; }
+    body.light-mode .text-gray-100 { color:#111827 !important; }
+    body.light-mode .text-gray-300 { color:#4b5563 !important; }
+  </style>
+
+  <!-- If not logged in (cookie session), backend will also protect /profile/.
+       This client redirect is just extra UX. -->
+  <script>
+    const currentUser = localStorage.getItem("taskhive_current_user");
+    if (!currentUser || currentUser === "Guest") {
+      // still allow if backend session exists, but keeping your original behavior:
+      // window.location.href = "/login/";
+    }
+  </script>
+</head>
+
+<body class="bg-gray-900 text-gray-100">
+<div id="app" class="min-h-screen flex flex-col items-center py-8 px-4 sm:px-6">
+
+  <!-- Top bar -->
+  <div class="w-full max-w-5xl flex justify-between items-center mb-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-cyan-300 neon-text">Profile & Settings</h1>
+      <p class="text-xs text-gray-400 mt-1">Manage your TaskHive identity, security, and appearance.</p>
+    </div>
+
+    <a href="/workspace/" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-sm rounded-lg flex items-center">
+      <i class="fas fa-arrow-left mr-2"></i> Back to Board
+    </a>
+  </div>
+
+  <!-- COVER + AVATAR CARD -->
+  <div class="w-full max-w-5xl bg-gray-800 rounded-2xl overflow-hidden border border-cyan-500/30 mb-6">
+    <!-- Cover -->
+    <div class="relative h-40 sm:h-48 bg-gradient-to-r from-cyan-500/40 via-purple-500/40 to-pink-500/40">
+      <img v-if="user.coverPhoto" :src="user.coverPhoto" alt="Cover"
+           class="absolute inset-0 w-full h-full object-cover" />
+      <div class="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-transparent to-transparent"></div>
+
+      <input type="file" ref="coverInput" @change="changeCover" class="hidden" accept="image/*" />
+      <button
+        @click="$refs.coverInput.click()"
+        class="absolute right-4 bottom-4 px-3 py-1.5 text-xs rounded-full bg-gray-900/80 text-gray-100 hover:bg-gray-900 flex items-center"
+      >
+        <i class="fas fa-image mr-2 text-cyan-300"></i>
+        {{ uploadingCover ? 'Uploading...' : 'Change Cover' }}
+      </button>
+    </div>
+
+    <!-- Avatar + basic info -->
+    <div class="px-6 pb-4 -mt-10 flex flex-col sm:flex-row sm:items-end sm:justify-between">
+      <div class="flex items-center space-x-4">
+        <div class="relative">
+          <img :src="user.photo || defaultPhoto"
+               class="w-24 h-24 rounded-full border-4 border-cyan-400 object-cover shadow-lg bg-gray-900" />
+
+          <input type="file" ref="photoInput" @change="changePhoto" class="hidden" accept="image/*" />
+          <button
+            @click="$refs.photoInput.click()"
+            class="absolute bottom-0 right-0 bg-cyan-500 hover:bg-cyan-400 text-gray-900 p-1.5 rounded-full shadow"
+            :title="uploadingPhoto ? 'Uploading...' : 'Change photo'"
+          >
+            <i class="fas fa-camera text-xs"></i>
+          </button>
+        </div>
+
+        <div class="mt-4 sm:mt-6">
+          <h2 class="text-xl font-semibold text-cyan-300">
+            {{ user.displayName || user.name || 'User' }}
+          </h2>
+          <p class="text-xs text-gray-400">@{{ user.username || 'username' }}</p>
+          <p class="text-xs text-gray-400 mt-1">
+            Joined: <span class="text-gray-300">{{ formatDate(user.joinDate) }}</span>
+            · Last seen: <span class="text-gray-300">{{ formatDateTime(user.lastLogin) }}</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-4 sm:mb-2 sm:mt-0 flex space-x-3">
+        <button
+          @click="saveChanges"
+          :disabled="saving"
+          class="neon-button px-4 py-2 rounded-lg text-gray-900 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <i class="fas fa-save mr-2"></i> {{ saving ? 'Saving...' : 'Save' }}
+        </button>
+        <button
+          @click="resetProfile"
+          class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-sm text-gray-100"
+        >
+          Reset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- LEFT COLUMN -->
+    <div class="space-y-6 lg:col-span-2">
+      <!-- Basic Info -->
+      <section class="bg-gray-800 rounded-2xl p-5 border border-gray-700">
+        <h3 class="text-sm font-semibold text-cyan-300 mb-4 flex items-center">
+          <i class="fas fa-id-card mr-2"></i> Profile Information
+        </h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div>
+            <label class="block text-gray-300 mb-1">Display Name</label>
+            <input v-model="user.displayName"
+              class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+          </div>
+
+          <div>
+            <label class="block text-gray-300 mb-1">Username</label>
+            <input v-model="user.username"
+              class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              placeholder="taskhiveDev" />
+          </div>
+
+          <div>
+            <label class="block text-gray-300 mb-1">Full Name</label>
+            <input v-model="user.name"
+              class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+          </div>
+
+          <div>
+            <label class="block text-gray-300 mb-1">Email</label>
+            <input v-model="user.email" type="email"
+              class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block text-gray-300 mb-1">Tagline</label>
+            <input v-model="user.tagline"
+              placeholder="Building futuristic dashboards with neon vibes ✨"
+              class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block text-gray-300 mb-1">
+              Bio <span class="text-xs text-gray-500">({{ bioLength }}/500)</span>
+            </label>
+            <textarea v-model="user.bio" rows="3" maxlength="500"
+              class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              placeholder="Tell your team who you are, what you do, and what you love working on."></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Social Links -->
+      <section class="bg-gray-800 rounded-2xl p-5 border border-gray-700">
+        <h3 class="text-sm font-semibold text-cyan-300 mb-4 flex items-center">
+          <i class="fas fa-share-nodes mr-2"></i> Social Links
+        </h3>
+
+        <div class="grid grid-cols-1 gap-4 text-sm">
+          <div>
+            <label class="block text-gray-300 mb-1"><i class="fab fa-github mr-1"></i> GitHub</label>
+            <input v-model="socials.github" placeholder="https://github.com/username"
+              class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-cyan-500" />
+          </div>
+
+          <div>
+            <label class="block text-gray-300 mb-1"><i class="fab fa-linkedin mr-1"></i> LinkedIn</label>
+            <input v-model="socials.linkedin" placeholder="https://linkedin.com/in/username"
+              class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-gray-100 focus:ring-2 focus:ring-cyan-500" />
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="space-y-6">
+
+      <!-- Appearance -->
+      <section class="bg-gray-800 rounded-2xl p-5 border border-gray-700 text-sm">
+        <h3 class="text-sm font-semibold text-cyan-300 mb-4 flex items-center">
+          <i class="fas fa-palette mr-2"></i> Appearance
+        </h3>
+
+        <p class="text-xs text-gray-400 mb-2">Theme Mode</p>
+        <div class="flex space-x-2 mb-4">
+          <button
+            v-for="mode in themeModes"
+            :key="mode.id"
+            @click="setTheme(mode.id)"
+            class="flex-1 px-2 py-2 rounded-lg border text-xs"
+            :class="{
+              'border-cyan-400 bg-cyan-900/40 text-cyan-200': themeMode === mode.id,
+              'border-gray-700 bg-gray-900 text-gray-200 hover:border-cyan-400/60': themeMode !== mode.id
+            }"
+          >
+            <i :class="mode.icon" class="mr-1"></i>{{ mode.label }}
+          </button>
+        </div>
+
+        <p class="text-xs text-gray-400 mb-2">Accent Color</p>
+        <div class="flex flex-wrap gap-2">
+          <button
+            v-for="color in accentOptions"
+            :key="color"
+            @click="setAccent(color)"
+            class="w-7 h-7 rounded-full border-2"
+            :style="{ backgroundColor: color }"
+            :class="accentColor === color ? 'border-white' : 'border-transparent opacity-70 hover:opacity-100'"
+          ></button>
+        </div>
+      </section>
+
+      <!-- Tiny status card -->
+      <section class="bg-gray-800 rounded-2xl p-5 border border-gray-700 text-sm">
+        <h3 class="text-sm font-semibold text-cyan-300 mb-2 flex items-center">
+          <i class="fas fa-database mr-2"></i> Sync Status
+        </h3>
+        <p class="text-xs text-gray-400">
+          DB: <span :class="dbLoaded ? 'text-green-400' : 'text-yellow-400'">{{ dbLoaded ? 'loaded' : 'not loaded' }}</span>
+          · Last save: <span class="text-gray-300">{{ lastSaveText }}</span>
+        </p>
+        <p v-if="errorMsg" class="text-xs text-red-400 mt-2">{{ errorMsg }}</p>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <transition name="fade">
+    <div
+      v-if="toastVisible"
+      class="fixed bottom-6 right-6 bg-gray-800 px-4 py-3 rounded-lg text-cyan-300 glow text-sm flex items-center"
+    >
+      <i class="fas fa-check-circle mr-2"></i>
+      <span>{{ toastMessage }}</span>
+    </div>
+  </transition>
+
+</div>
+
+<script>
+new Vue({
+  el: '#app',
+  data() {
+    return {
+      defaultPhoto: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+
+      // UI flags
+      saving: false,
+      uploadingPhoto: false,
+      uploadingCover: false,
+      dbLoaded: false,
+      lastSaveIso: '',
+      errorMsg: '',
+
+      user: {
+        name: '',
+        email: '',
+        displayName: '',
+        username: '',
+        tagline: '',
+        bio: '',
+        photo: '',       // URL from DB OR local base64 preview
+        coverPhoto: '',  // URL from DB OR local base64 preview
+        joinDate: '',
+        lastLogin: ''
+      },
+
+      socials: {
+        github: '',
+        linkedin: ''
+      },
+
+      // theme
+      themeMode: 'dark',
+      accentColor: '#22d3ee',
+      themeModes: [
+        { id: 'dark',  label: 'Dark',  icon: 'fas fa-moon' },
+        { id: 'light', label: 'Light', icon: 'fas fa-sun' }
+      ],
+      accentOptions: ['#22d3ee', '#6366f1', '#ec4899', '#f97316', '#22c55e', '#e11d48'],
+
+      toastVisible: false,
+      toastMessage: ''
+    };
+  },
+
+  computed: {
+    bioLength() {
+      return (this.user.bio || '').length;
+    },
+    lastSaveText() {
+      if (!this.lastSaveIso) return 'never';
+      try { return new Date(this.lastSaveIso).toLocaleString(); } catch (e) { return this.lastSaveIso; }
+    }
+  },
+
+  async mounted() {
+    // 1) apply theme from localStorage instantly
+    const savedTheme = localStorage.getItem('taskhive_theme');
+    if (savedTheme) this.themeMode = savedTheme;
+    if (this.themeMode === 'light') document.body.classList.add('light-mode');
+
+    const savedAccent = localStorage.getItem('taskhive_accent');
+    if (savedAccent) this.accentColor = savedAccent;
+
+    // 2) load from localStorage (fast)
+    const stored = JSON.parse(localStorage.getItem('taskhive_current_user') || '{}');
+    const nowIso = new Date().toISOString();
+    this.user = {
+      name: stored.name || '',
+      email: stored.email || '',
+      displayName: stored.displayName || stored.name || '',
+      username: stored.username || '',
+      tagline: stored.tagline || '',
+      bio: stored.bio || '',
+      photo: stored.photo || '',
+      coverPhoto: stored.coverPhoto || '',
+      joinDate: stored.joinDate || nowIso,
+      lastLogin: stored.lastLogin || nowIso
+    };
+    this.socials = stored.socials || this.socials;
+
+    // 3) load from DB (source of truth)
+    await this.loadFromDB();
+  },
+
+  methods: {
+    // ---------- CSRF ----------
+    getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + "=")) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    },
+
+    // ---------- DB LOAD ----------
+    async loadFromDB() {
+      this.errorMsg = '';
+      try {
+        const res = await fetch('/api/profile/', { credentials: 'same-origin' });
+        if (res.status === 401) {
+          // not logged in
+          window.location.href = '/login/?next=/profile/';
+          return;
+        }
+        const data = await res.json();
+
+        if (!res.ok || !data.ok) {
+          this.errorMsg = data.error || 'Failed to load profile from DB.';
+          return;
+        }
+
+        // expected server payload:
+        // data.profile = { name,email,display_name,username_public,tagline,bio,github,linkedin,photo_url,cover_url,theme_mode,accent_color }
+        const p = data.profile || {};
+
+        // merge DB into UI
+        this.user.name = p.name ?? this.user.name;
+        this.user.email = p.email ?? this.user.email;
+        this.user.displayName = p.display_name ?? this.user.displayName;
+        this.user.username = p.username_public ?? this.user.username;
+        this.user.tagline = p.tagline ?? this.user.tagline;
+        this.user.bio = p.bio ?? this.user.bio;
+
+        this.socials.github = p.github ?? this.socials.github;
+        this.socials.linkedin = p.linkedin ?? this.socials.linkedin;
+
+        if (p.photo_url) this.user.photo = p.photo_url;
+        if (p.cover_url) this.user.coverPhoto = p.cover_url;
+
+        if (p.theme_mode) this.setTheme(p.theme_mode, false);
+        if (p.accent_color) this.setAccent(p.accent_color, false);
+
+        this.dbLoaded = true;
+
+        // also sync localStorage after DB load
+        this.saveToLocalStorage();
+      } catch (e) {
+        this.errorMsg = 'Network error while loading profile.';
+      }
+    },
+
+    // ---------- LOCAL STORAGE ----------
+    saveToLocalStorage() {
+      const updated = {
+        ...this.user,
+        socials: this.socials,
+        displayName: this.user.displayName,
+        username: this.user.username
+      };
+      localStorage.setItem('taskhive_current_user', JSON.stringify(updated));
+    },
+    
+    // ---------- IMAGE UPLOAD ----------
+    async changePhoto(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      // preview instantly
+      const reader = new FileReader();
+      reader.onload = () => { this.user.photo = reader.result; };
+      reader.readAsDataURL(file);
+
+      // upload to DB
+      this.uploadingPhoto = true;
+      this.errorMsg = '';
+      try {
+        const form = new FormData();
+        form.append('photo', file);
+
+        const res = await fetch('/api/profile/photo/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'X-CSRFToken': this.getCookie('csrftoken') },
+          body: form
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          this.errorMsg = data.error || 'Photo upload failed.';
+          return;
+        }
+
+        // server should return photo_url
+        if (data.photo_url) this.user.photo = data.photo_url;
+
+        this.saveToLocalStorage();
+        this.showToast('Profile photo updated');
+      } catch (e2) {
+        this.errorMsg = 'Network error while uploading photo.';
+      } finally {
+        this.uploadingPhoto = false;
+      }
+    },
+
+    async changeCover(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      // preview instantly
+      const reader = new FileReader();
+      reader.onload = () => { this.user.coverPhoto = reader.result; };
+      reader.readAsDataURL(file);
+
+      // upload to DB
+      this.uploadingCover = true;
+      this.errorMsg = '';
+      try {
+        const form = new FormData();
+        form.append('cover', file);
+
+        const res = await fetch('/api/profile/cover/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'X-CSRFToken': this.getCookie('csrftoken') },
+          body: form
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          this.errorMsg = data.error || 'Cover upload failed.';
+          return;
+        }
+
+        // server should return cover_url
+        if (data.cover_url) this.user.coverPhoto = data.cover_url;
+
+        this.saveToLocalStorage();
+        this.showToast('Cover updated');
+      } catch (e2) {
+        this.errorMsg = 'Network error while uploading cover.';
+      } finally {
+        this.uploadingCover = false;
+      }
+    },
+
+    // ---------- THEME ----------
+    setTheme(mode, toast = true) {
+      this.themeMode = mode;
+      localStorage.setItem('taskhive_theme', mode);
+      if (mode === 'light') document.body.classList.add('light-mode');
+      else document.body.classList.remove('light-mode');
+      if (toast) this.showToast('Theme updated');
+    },
+
+    setAccent(color, toast = true) {
+      this.accentColor = color;
+      localStorage.setItem('taskhive_accent', color);
+      if (toast) this.showToast('Accent color updated');
+    },
+
+    // ---------- SAVE (DB + LOCAL) ----------
+    async saveChanges() {
+      this.saving = true;
+      this.errorMsg = '';
+      try {
+        const payload = {
+          display_name: this.user.displayName || '',
+          username_public: this.user.username || '',
+          name: this.user.name || '',
+          email: this.user.email || '',
+          tagline: this.user.tagline || '',
+          bio: this.user.bio || '',
+          github: this.socials.github || '',
+          linkedin: this.socials.linkedin || '',
+          theme_mode: this.themeMode || 'dark',
+          accent_color: this.accentColor || '#22d3ee'
+        };
+
+        const res = await fetch('/api/profile/save/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCookie('csrftoken')
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          this.errorMsg = data.error || 'Save failed.';
+          return;
+        }
+
+        // server can optionally return updated fields + urls
+        const p = data.profile || {};
+        if (p.photo_url) this.user.photo = p.photo_url;
+        if (p.cover_url) this.user.coverPhoto = p.cover_url;
+
+        this.lastSaveIso = new Date().toISOString();
+
+        // localStorage also updated
+        this.saveToLocalStorage();
+
+        this.showToast('Profile saved ✅');
+      } catch (e) {
+        this.errorMsg = 'Network error while saving profile.';
+      } finally {
+        this.saving = false;
+      }
+    },
+
+    resetProfile() {
+      // reload from DB again (real reset)
+      this.loadFromDB();
+      this.showToast('Reset to saved profile');
+    },
+
+    // ---------- UI ----------
+    showToast(msg) {
+      this.toastMessage = msg;
+      this.toastVisible = true;
+      setTimeout(() => { this.toastVisible = false; }, 2200);
+    },
+
+    formatDate(iso) {
+      if (!iso) return 'N/A';
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    },
+
+    formatDateTime(iso) {
+      if (!iso) return 'N/A';
+      const d = new Date(iso);
+      return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+  }
+});
+</script>
+
+</body>
+</html>
+{% endverbatim %}

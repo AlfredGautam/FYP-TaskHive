@@ -1,0 +1,270 @@
+{% verbatim %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TaskHive - CodeSpace</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs/loader.js"></script>
+
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #editor { height: calc(100vh - 64px); }
+  </style>
+
+  <script>
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + "=")) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
+    async function safeJson(res) {
+      try { return await res.json(); } catch { return null; }
+    }
+
+    function detectLanguage(filename) {
+      const ext = (filename.split(".").pop() || "").toLowerCase();
+      const map = {
+        js: "javascript", ts: "typescript", py: "python",
+        html: "html", css: "css", json: "json",
+        c: "c", cpp: "cpp", h: "c", hpp: "cpp",
+        java: "java", md: "markdown", txt: "plaintext",
+      };
+      return map[ext] || "plaintext";
+    }
+  </script>
+</head>
+
+<body class="bg-gray-900 text-gray-100">
+
+  <!-- Top bar -->
+  <div class="h-16 px-4 flex items-center justify-between bg-gray-800 border-b border-gray-700">
+    <div class="flex items-center gap-3">
+      <div class="text-cyan-300 font-bold text-lg">TaskHive CodeSpace</div>
+      <div id="fileName" class="text-sm text-gray-300">No file loaded</div>
+      <div id="status" class="text-xs text-gray-400"></div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <input id="fileInput" type="file" class="hidden" multiple />
+
+      <button id="uploadBtn" class="px-3 py-2 rounded bg-cyan-600 hover:bg-cyan-500 text-sm">
+        Upload Files
+      </button>
+
+      <button id="saveBtn" class="px-3 py-2 rounded bg-green-600 hover:bg-green-500 text-sm">
+        Save
+      </button>
+
+      <a href="/workspace/" class="px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-sm">
+        Back
+      </a>
+    </div>
+  </div>
+
+  <!-- Layout -->
+  <div class="flex" style="height: calc(100vh - 64px);">
+    <!-- Sidebar -->
+    <div class="w-72 bg-gray-800 border-r border-gray-700 overflow-y-auto">
+      <div class="p-3 text-xs uppercase tracking-wider text-gray-400 border-b border-gray-700">
+        Files
+      </div>
+
+      <div id="fileList" class="p-2 space-y-1">
+        <div class="text-sm text-gray-400 p-2">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Editor -->
+    <div class="flex-1">
+      <div id="editor"></div>
+    </div>
+  </div>
+
+  <script>
+    let editor = null;
+    let currentFileId = null;
+    let currentFileName = null;
+
+    const statusEl = document.getElementById("status");
+    const fileNameEl = document.getElementById("fileName");
+    const fileListEl = document.getElementById("fileList");
+
+    function setStatus(msg) { statusEl.textContent = msg || ""; }
+
+    function ensureEditorReady() {
+      if (!editor) { alert("Editor is loading... try again in 1 sec."); return false; }
+      return true;
+    }
+
+    function setCurrentFile(id, filename) {
+      currentFileId = id;
+      currentFileName = filename;
+      fileNameEl.textContent = filename || "No file loaded";
+      localStorage.setItem("taskhive_last_file_id", String(id || ""));
+    }
+
+    // Monaco init
+    window.require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs" } });
+    window.require(["vs/editor/editor.main"], function () {
+      editor = monaco.editor.create(document.getElementById("editor"), {
+        value: "// Select a file or upload one...\n",
+        language: "javascript",
+        theme: "vs-dark",
+        fontSize: 14,
+        minimap: { enabled: true },
+        automaticLayout: true
+      });
+      setStatus("Editor ready ✅");
+      loadFileList(true);
+    });
+
+    async function loadFileList(tryAutoOpen=false) {
+      setStatus("Loading files...");
+      const res = await fetch("/api/code/list/", { credentials: "same-origin" });
+      const data = await safeJson(res);
+
+      if (!data || !res.ok || !data.ok) {
+        setStatus("");
+        fileListEl.innerHTML = `<div class="text-sm text-red-300 p-2">Failed to load files.</div>`;
+        return;
+      }
+
+      const files = data.files || [];
+      if (!files.length) {
+        fileListEl.innerHTML = `<div class="text-sm text-gray-400 p-2">No files yet. Upload one.</div>`;
+        setStatus("");
+        return;
+      }
+
+      fileListEl.innerHTML = files.map(f => `
+        <button
+          class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm flex items-center justify-between"
+          onclick="openFile(${f.id})"
+          title="${f.filename}"
+        >
+          <span class="truncate">${f.filename}</span>
+          <span class="text-xs text-gray-500 ml-2">#${f.id}</span>
+        </button>
+      `).join("");
+
+      setStatus("");
+
+      if (tryAutoOpen) {
+        const last = localStorage.getItem("taskhive_last_file_id");
+        const found = last && files.find(x => String(x.id) === String(last));
+        if (found) openFile(found.id);
+      }
+    }
+
+    window.openFile = async function(fileId) {
+      if (!ensureEditorReady()) return;
+
+      setStatus("Opening...");
+      const res = await fetch(`/api/code/get/${fileId}/`, { credentials: "same-origin" });
+      const data = await safeJson(res);
+
+      if (!data || !res.ok || !data.ok) {
+        setStatus("");
+        alert(data?.error || `Failed to open file (${res.status})`);
+        return;
+      }
+
+      const f = data.file;
+      setCurrentFile(f.id, f.filename);
+
+      const lang = detectLanguage(f.filename);
+      monaco.editor.setModelLanguage(editor.getModel(), lang);
+      editor.setValue(f.content || "");
+
+      setStatus("Opened ✅");
+    }
+
+    // Upload multiple files
+    document.getElementById("uploadBtn").addEventListener("click", () => {
+      document.getElementById("fileInput").value = "";
+      document.getElementById("fileInput").click();
+    });
+
+    document.getElementById("fileInput").addEventListener("change", async (e) => {
+      if (!ensureEditorReady()) return;
+
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+
+      for (const file of files) {
+        setStatus(`Uploading ${file.name}...`);
+
+        const form = new FormData();
+        form.append("file", file);
+
+        const res = await fetch("/api/code/upload/", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
+          body: form
+        });
+
+        const data = await safeJson(res);
+        if (!data || !res.ok || !data.ok) {
+          setStatus("");
+          alert(`Upload failed for ${file.name}: ${data?.error || res.status}`);
+          continue;
+        }
+
+        // auto open the last uploaded file
+        await loadFileList(false);
+        await openFile(data.file_id);
+      }
+
+      setStatus("Upload done ✅");
+    });
+
+    // Save current file
+    document.getElementById("saveBtn").addEventListener("click", async () => {
+      if (!ensureEditorReady()) return;
+
+      if (!currentFileId) {
+        alert("Select a file from the left OR upload one first.");
+        return;
+      }
+
+      setStatus("Saving...");
+      const payload = { file_id: currentFileId, content: editor.getValue() };
+
+      const res = await fetch("/api/code/save/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken") || ""
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await safeJson(res);
+      if (!data || !res.ok || !data.ok) {
+        setStatus("");
+        alert(data?.error || `Save failed (${res.status})`);
+        return;
+      }
+
+      setStatus("Saved ✅");
+      await loadFileList(false);
+    });
+  </script>
+</body>
+</html>
+{% endverbatim %}

@@ -1,0 +1,389 @@
+{% verbatim %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TaskHive Dashboard</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+
+  <!-- Icons -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+  <style>
+    :root{
+      --bg1:#070b16;
+      --bg2:#0a1226;
+      --stroke: rgba(34, 211, 238, .30);
+      --text:#d7e2f0;
+      --muted:#93a4bb;
+      --cyan:#22d3ee;
+      --mag:#d946ef;
+    }
+
+    *{ box-sizing:border-box; margin:0; padding:0; }
+    html, body{
+      height:100%;
+      font-family:'Roboto Mono', monospace;
+      color:var(--text);
+      background:
+        radial-gradient(900px 600px at 50% 35%, rgba(34,211,238,.12), transparent 55%),
+        radial-gradient(700px 500px at 55% 60%, rgba(217,70,239,.10), transparent 55%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      overflow-x:hidden;
+    }
+
+    body{
+      display:flex;
+      flex-direction:column;
+      min-height:100vh;
+    }
+
+    /* Floating Collaboration Icons in Background */
+    .bg-icons{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      overflow:hidden;
+      z-index:1;
+    }
+
+    .float-icon{
+      position:absolute;
+      font-size:70px;
+      color:var(--cyan);
+      animation:float 30s infinite linear;
+      text-shadow:0 0 50px var(--cyan);
+      opacity:0;
+    }
+
+    @keyframes float{
+      0%{ transform:translateY(100vh) translateX(0) rotate(0deg); opacity:0; }
+      8%{ opacity:0.20; }
+      92%{ opacity:0.20; }
+      100%{ transform:translateY(-150px) translateX(200px) rotate(360deg); opacity:0; }
+    }
+
+    .float-icon:nth-child(1){ bottom:-100px; left:12%; animation-delay:0s; font-size:90px; color:var(--mag); animation-duration:28s; }
+    .float-icon:nth-child(2){ bottom:-100px; left:32%; animation-delay:5s; font-size:75px; animation-duration:32s; }
+    .float-icon:nth-child(3){ bottom:-100px; left:58%; animation-delay:10s; font-size:85px; color:var(--mag); animation-duration:30s; }
+    .float-icon:nth-child(4){ bottom:-100px; left:82%; animation-delay:15s; font-size:80px; animation-duration:35s; }
+
+    /* ===== HEADER ===== */
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:18px 32px;
+      max-width:1400px;
+      margin:0 auto;
+      width:100%;
+      position:relative;
+      z-index:10;
+      flex-shrink:0;
+    }
+
+    .logoWrap{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+
+    .logoIcon{
+      font-size:34px;
+      color:var(--cyan);
+      text-shadow:0 0 20px rgba(34,211,238,.6);
+      animation:pulse 3s infinite ease-in-out;
+    }
+
+    @keyframes pulse{
+      0%,100%{opacity:1; transform:scale(1);}
+      50%{opacity:.7; transform:scale(1.05);}
+    }
+
+    .logoText h1{
+      margin:0;
+      font-family:'Orbitron', sans-serif;
+      font-size:26px;
+      background:linear-gradient(90deg, var(--cyan), var(--mag));
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      text-shadow:0 0 20px rgba(34,211,238,.3);
+    }
+
+    .logoText p{
+      margin:0;
+      font-size:12px;
+      color:var(--muted);
+      letter-spacing:1px;
+    }
+
+    .navlinks{
+      display:flex;
+      gap:14px;
+      align-items:center;
+    }
+
+    .navlinks a{
+      font-size:14px;
+      padding:12px 18px;
+      border-radius:14px;
+      border:1px solid rgba(148,163,184,.18);
+      background: rgba(15, 23, 42, .35);
+      color: var(--text);
+      text-decoration:none;
+      transition:.3s ease;
+      backdrop-filter:blur(8px);
+    }
+
+    .navlinks a:hover{
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px rgba(34,211,238,.25);
+      transform: translateY(-2px);
+    }
+
+    /* ===== MAIN CONTENT (NOW SCROLLABLE) ===== */
+    main{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:flex-start;
+      padding:80px 32px 120px;
+      text-align:center;
+      position:relative;
+      z-index:10;
+    }
+
+    .introText h2{
+      font-family:'Orbitron', sans-serif;
+      font-size:48px;
+      line-height:1.1;
+      margin-bottom:16px;
+      background:linear-gradient(90deg, var(--cyan), var(--mag));
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .introText p{
+      font-size:16px;
+      color:var(--muted);
+      line-height:1.7;
+      min-width:700px;
+      margin-bottom:40px;
+      text-align:center;
+    }
+
+    .ctaRow{
+      display:flex;
+      gap:16px;
+      flex-wrap:wrap;
+      justify-content:center;
+      margin-bottom:100px;
+    }
+
+    .btn{
+      padding:14px 28px;
+      border-radius:16px;
+      font-size:15px;
+      font-weight:600;
+      border:1px solid rgba(148,163,184,.20);
+      background: rgba(15, 23, 42, .35);
+      color: var(--text);
+      text-decoration:none;
+      transition:.3s ease;
+      min-width:180px;
+      text-align:center;
+      backdrop-filter:blur(8px);
+    }
+
+    .btn:hover{
+      border-color: var(--cyan);
+      box-shadow: 0 0 28px rgba(34,211,238,.25);
+      transform: translateY(-3px);
+    }
+
+    .btnPrimary{
+      border:none;
+      color:#07121a;
+      background: linear-gradient(90deg, var(--cyan), var(--mag));
+      box-shadow: 0 0 30px rgba(34,211,238,.3);
+    }
+
+    .btnPrimary:hover{
+      box-shadow: 0 0 40px rgba(34,211,238,.5);
+    }
+
+    /* ===== FEATURES GRID ===== */
+    .features{
+      display:grid;
+      grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+      gap:32px;
+      max-width:1459px;
+      width:100%;
+    }
+
+    .feature{
+      background: rgba(15, 23, 42, .45);
+      border:1px solid var(--stroke);
+      border-radius:24px;
+      padding:40px 28px;
+      text-align:center;
+      transition:.4s ease;
+      backdrop-filter:blur(12px);
+      box-shadow: 0 8px 32px rgba(0,0,0,.3);
+    }
+
+    .feature:hover{
+      transform:translateY(-12px);
+      box-shadow:0 0 40px rgba(34,211,238,.25), 0 20px 50px rgba(0,0,0,.4);
+      border-color: var(--cyan);
+    }
+
+    .feature i{
+      font-size:56px;
+      background:linear-gradient(90deg, var(--cyan), var(--mag));
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      margin-bottom:24px;
+      display:block;
+      text-shadow:0 0 30px rgba(34,211,238,.4);
+    }
+
+    .feature h3{
+      font-family:'Orbitron', sans-serif;
+      font-size:24px;
+      margin-bottom:16px;
+      background:linear-gradient(90deg, var(--cyan), var(--mag));
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .feature p{
+      font-size:15px;
+      color:var(--muted);
+      line-height:1.6;
+    }
+
+    /* ===== FOOTER (Always at bottom after scroll) ===== */
+    footer{
+      padding:40px 32px;
+      text-align:center;
+      border-top:1px solid rgba(34,211,238,.15);
+      background:rgba(7,11,22,.9);
+      backdrop-filter:blur(12px);
+      flex-shrink:0;
+      z-index:10;
+    }
+
+    .social-links{
+      margin-bottom:24px;
+    }
+
+    .social-links a{
+      font-size:34px;
+      margin:0 24px;
+      color:var(--muted);
+      transition:.3s ease;
+    }
+
+    .social-links a:hover{
+      color:var(--cyan);
+      text-shadow:0 0 25px var(--cyan);
+      transform:translateY(-6px) scale(1.15);
+    }
+
+    .copyright{
+      font-size:14px;
+      color:var(--muted);
+      letter-spacing:0.8px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Floating Background Icons -->
+  <div class="bg-icons">
+    <div class="float-icon"><i class="fas fa-users"></i></div>
+    <div class="float-icon"><i class="fas fa-share-alt"></i></div>
+    <div class="float-icon"><i class="fas fa-user-friends"></i></div>
+    <div class="float-icon"><i class="fas fa-sync-alt"></i></div>
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logoWrap">
+      <div class="logoIcon">
+        <i class="fas fa-bug"></i>
+      </div>
+      <div class="logoText">
+        <h1>TaskHive</h1>
+        <p>Team Collaboration Platform</p>
+      </div>
+    </div>
+
+    <div class="navlinks">
+      <a href="/login/">Login</a>
+      <a href="/workspace/">Go to Workspace</a>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT - NOW SCROLLABLE -->
+  <main>
+    <div class="content">
+      <div class="introText">
+         
+        <h2>Welcome to TaskHive</h2>
+      <p>Supercharge your team's productivity with real-time collaboration, Kanban boards, team management, and seamless task tracking all wrapped in a sleek futuristic interface.</p>
+      </div>
+
+      <div class="ctaRow">
+        <a href="/login/" class="btn btnPrimary">Get Started</a>
+        <a href="/login/?next=/workspace/" class="btn">Explore Workspace</a>
+      </div>
+
+      <!-- Features -->
+      <div class="features">
+        <div class="feature">
+          <i class="fas fa-users"></i>
+          <h3>Team Sync</h3>
+          <p>Invite team members, assign roles, and collaborate in real-time.</p>
+        </div>
+        <div class="feature">
+          <i class="fas fa-user-friends"></i>
+          <h3>Group Collaboration</h3>
+          <p>Manage multiple teams and subgroups for focused project work.</p>
+        </div>
+        <div class="feature">
+          <i class="fas fa-share-alt"></i>
+          <h3>Instant Sharing</h3>
+          <p>Share files, updates, and feedback instantly across your team.</p>
+        </div>
+        <div class="feature">
+          <i class="fas fa-sync-alt"></i>
+          <h3>Real-time Sync</h3>
+          <p>Instant synchronization ensures everyone stays on the same page.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- FOOTER - Always visible at bottom after scrolling -->
+  <footer>
+    <div class="social-links">
+      <a href="https://www.facebook.com/ujjwal.gautama.9" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
+      <a href="https://www.instagram.com/ujwalgtm10/" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+      <a href="https://wa.me/9814088682s" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+    </div>
+    <div class="copyright">
+      © 2025 TaskHive. All rights reserved.
+    </div>
+  </footer>
+
+</body>
+</html>
+{% endverbatim %} 

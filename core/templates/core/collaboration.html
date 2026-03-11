@@ -1,0 +1,718 @@
+{% comment %} {% verbatim %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TaskHive - Collaboration</title>
+
+    <!-- ✅ FIX 1: AUTH GUARD (SAFE) -->
+    <script>
+      (function () {
+        const raw = localStorage.getItem("taskhive_current_user");
+        if (!raw || raw === "Guest") {
+          const next = encodeURIComponent(window.location.pathname);
+          window.location.href = `/login/?next=${next}`;
+          return;
+        }
+        try {
+          JSON.parse(raw);
+        } catch (e) {
+          localStorage.removeItem("taskhive_current_user");
+          const next = encodeURIComponent(window.location.pathname);
+          window.location.href = `/login/?next=${next}`;
+        }
+      })();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap"
+        rel="stylesheet"
+    />
+    <style>
+        body { font-family: "Roboto Mono", monospace; }
+        h1, h2, h3, h4 { font-family: "Orbitron", sans-serif; }
+        .neon-text {
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+        .neon-button {
+            background: linear-gradient(to right, #00ffff, #ff00ff);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        .neon-button:hover {
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5),
+                0 0 30px rgba(255, 0, 255, 0.3);
+        }
+        .glow { box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+        .scroll-area { scrollbar-width: thin; }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div id="app" class="flex flex-col min-h-screen">
+        <!-- Header -->
+        <header class="bg-gray-800 shadow-md py-4 px-6 flex justify-between items-center">
+            <div class="flex items-center">
+                <div class="text-cyan-400 text-2xl mr-3 neon-text">
+                    <i class="fas fa-bug"></i>
+                </div>
+                <h1 class="text-xl font-bold text-cyan-300 neon-text">
+                    TaskHive Collaboration
+                </h1>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <!-- ✅ Keep your original links (I won't force /workspace) -->
+                <a
+                    href="/"
+                    class="px-3 py-1 rounded-lg text-sm bg-gray-700 text-gray-200 hover:bg-gray-600"
+                >
+                    <i class="fas fa-arrow-left mr-1"></i> Back to Board
+                </a>
+                <a
+                    href="/analytics/"
+                    class="px-3 py-1 rounded-lg text-sm bg-gray-700 text-gray-200 hover:bg-gray-600"
+                >
+                    <i class="fas fa-chart-line mr-1"></i> Analytics
+                </a>
+
+                <!-- ✅ FIX 2: add logout button (optional but useful) -->
+                <button
+                    @click="logout"
+                    class="px-3 py-1 rounded-lg text-sm bg-red-700 text-white hover:bg-red-600"
+                >
+                    <i class="fas fa-right-from-bracket mr-1"></i> Logout
+                </button>
+            </div>
+        </header>
+
+        <!-- Main -->
+        <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Chat Panel -->
+            <section class="lg:col-span-2 bg-gray-800 rounded-xl p-4 border border-cyan-500/20 glow flex flex-col">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-sm font-semibold text-cyan-300">
+                        Team Chat
+                    </h2>
+                    <div class="text-xs text-gray-400">
+                        Logged in as:
+                        <span class="text-cyan-300">
+                            {{ currentUser.name || 'Guest' }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Messages -->
+                <div
+                    class="flex-1 bg-gray-900/60 rounded-lg p-3 overflow-y-auto mb-3 scroll-area"
+                    style="max-height: 380px"
+                    ref="chatContainer"
+                >
+                    <div
+                        v-for="msg in messages"
+                        :key="msg.id"
+                        class="mb-3 flex"
+                        :class="{
+                            'justify-end': msg.email === currentUser.email,
+                            'justify-start': msg.email !== currentUser.email
+                        }"
+                    >
+                        <div
+                            class="max-w-xs px-3 py-2 rounded-lg text-xs"
+                            :class="{
+                                'bg-cyan-600 text-gray-900': msg.email === currentUser.email,
+                                'bg-gray-700 text-gray-100': msg.email !== currentUser.email
+                            }"
+                        >
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="font-semibold mr-2">
+                                    {{ msg.name || 'User' }}
+                                </span>
+                                <span class="text-[10px] opacity-70">
+                                    {{ formatTime(msg.createdAt) }}
+                                </span>
+                            </div>
+                            <p class="whitespace-pre-line">
+                                {{ msg.text }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <p
+                        v-if="messages.length === 0"
+                        class="text-xs text-gray-500 text-center mt-6"
+                    >
+                        No messages yet. Start the conversation!
+                    </p>
+                </div>
+
+                <!-- New Message -->
+                <form @submit.prevent="sendMessage" class="flex items-center space-x-2">
+                    <textarea
+                        v-model="newMessage"
+                        rows="1"
+                        class="flex-1 px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500 text-gray-100"
+                        placeholder="Type a message and press Enter..."
+                        @keydown.enter.exact.prevent="sendMessage"
+                    ></textarea>
+                    <button
+                        type="submit"
+                        class="px-3 py-2 rounded-lg text-xs text-white neon-button flex items-center"
+                    >
+                        <i class="fas fa-paper-plane mr-1"></i> Send
+                    </button>
+                </form>
+            </section>
+
+            <!-- Activity, Comments & Simple CRUD -->
+            <section class="bg-gray-800 rounded-xl p-4 border border-purple-500/20 glow flex flex-col">
+                <h2 class="text-sm font-semibold text-purple-300 mb-3">
+                    Activity Feed
+                </h2>
+
+                <div
+                    class="bg-gray-900/60 rounded-lg p-3 mb-4 overflow-y-auto scroll-area"
+                    style="max-height: 180px"
+                >
+                    <div
+                        v-for="item in activity"
+                        :key="item.id"
+                        class="mb-3 flex items-start"
+                    >
+                        <div class="mt-1 mr-2 text-xs text-purple-300">
+                            <i :class="item.icon"></i>
+                        </div>
+                        <div class="text-xs text-gray-200">
+                            <p>
+                                <span class="text-purple-300 font-semibold">
+                                    {{ item.actor }}
+                                </span>
+                                <span class="text-gray-300">
+                                    {{ item.action }}
+                                </span>
+                            </p>
+                            <p class="text-[10px] text-gray-500">
+                                {{ formatDateTime(item.createdAt) }}
+                            </p>
+                        </div>
+                    </div>
+                    <p
+                        v-if="activity.length === 0"
+                        class="text-xs text-gray-500 text-center mt-4"
+                    >
+                        Activity will appear here as your team chats.
+                    </p>
+                </div>
+
+                <h3 class="text-xs font-semibold text-cyan-300 mb-2">
+                    Project Comments
+                </h3>
+
+                <select
+                    v-model="selectedProjectId"
+                    class="w-full mb-2 px-2 py-1 bg-gray-900 border border-gray-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500 text-gray-100"
+                >
+                    <option value="all">All Projects</option>
+                    <option
+                        v-for="project in projects"
+                        :key="project.id"
+                        :value="project.id"
+                    >
+                        {{ project.name }}
+                    </option>
+                </select>
+
+                <div
+                    class="bg-gray-900/60 rounded-lg p-2 mb-2 overflow-y-auto scroll-area"
+                    style="max-height: 120px"
+                >
+                    <div
+                        v-for="comment in filteredComments"
+                        :key="comment.id"
+                        class="mb-2 border-b border-gray-800 pb-1"
+                    >
+                        <p class="text-[11px] text-gray-200">
+                            <span class="font-semibold text-cyan-300">
+                                {{ comment.author }}
+                            </span>
+                            on
+                            <span class="text-gray-300">
+                                {{ projectName(comment.projectId) }}
+                            </span>
+                        </p>
+                        <p class="text-[11px] text-gray-300">
+                            {{ comment.text }}
+                        </p>
+                        <p class="text-[10px] text-gray-500">
+                            {{ formatDateTime(comment.createdAt) }}
+                        </p>
+                    </div>
+
+                    <p
+                        v-if="filteredComments.length === 0"
+                        class="text-xs text-gray-500 text-center mt-2"
+                    >
+                        No comments yet for this project.
+                    </p>
+                </div>
+
+                <form @submit.prevent="addComment">
+                    <textarea
+                        v-model="newComment"
+                        rows="2"
+                        class="w-full mb-2 px-2 py-1 bg-gray-900 border border-gray-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500 text-gray-100"
+                        placeholder="Add a comment for the selected project..."
+                    ></textarea>
+                    <button
+                        type="submit"
+                        class="w-full py-1.5 rounded-lg text-xs text-white neon-button flex items-center justify-center"
+                    >
+                        <i class="fas fa-comment-dots mr-1"></i> Add Comment
+                    </button>
+                </form>
+
+                <hr class="border-gray-700 my-3">
+
+                <h3 class="text-xs font-semibold text-purple-300 mb-2">
+                    Projects & Tasks
+                </h3>
+
+                <div class="mb-3 bg-gray-900/60 rounded-lg p-2">
+                    <p class="text-[11px] text-gray-400 mb-1">
+                        {{ editingProjectId ? 'Edit project' : 'Add new project' }}
+                    </p>
+                    <input
+                        v-model="newProjectName"
+                        class="w-full px-2 py-1 mb-1 bg-gray-900 border border-gray-700 rounded text-[11px] text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        placeholder="Project name"
+                    />
+                    <textarea
+                        v-model="newProjectDesc"
+                        rows="2"
+                        class="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-[11px] text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                        placeholder="Short description"
+                    ></textarea>
+                    <div class="flex items-center justify-between mt-2">
+                        <button
+                            @click="createOrUpdateProject"
+                            type="button"
+                            class="px-3 py-1.5 rounded-lg text-[11px] text-white neon-button flex items-center justify-center"
+                        >
+                            <i class="fas" :class="editingProjectId ? 'fa-save mr-1' : 'fa-plus mr-1'"></i>
+                            {{ editingProjectId ? 'Update Project' : 'Add Project' }}
+                        </button>
+                        <button
+                            v-if="editingProjectId"
+                            @click="resetProjectForm"
+                            type="button"
+                            class="text-[11px] text-gray-300 hover:text-gray-100"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900/60 rounded-lg p-2 overflow-y-auto scroll-area" style="max-height: 210px;">
+                    <div
+                        v-for="project in projects"
+                        :key="project.id"
+                        class="border-b border-gray-800 pb-2 mb-2"
+                    >
+                        <div class="flex justify-between items-center">
+                            <p class="text-[12px] text-cyan-300 font-semibold">
+                                {{ project.name }}
+                            </p>
+                            <div class="space-x-1 text-[11px]">
+                                <button
+                                    @click="startEditProject(project)"
+                                    class="text-yellow-300 hover:text-yellow-200"
+                                    type="button"
+                                >
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button
+                                    @click="deleteProject(project.id)"
+                                    class="text-red-400 hover:text-red-300"
+                                    type="button"
+                                >
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-gray-400 mb-1">
+                            {{ project.description || 'No description' }}
+                        </p>
+
+                        <div class="ml-2 mb-1">
+                            <div class="flex items-center space-x-1">
+                                <input
+                                    v-model="newTaskNames[project.id]"
+                                    class="flex-1 px-2 py-1 bg-gray-900 border border-gray-700 rounded text-[11px] text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                                    placeholder="New task name"
+                                />
+                                <button
+                                    @click="createTask(project.id)"
+                                    class="px-2 py-1 rounded-lg text-[11px] text-white neon-button"
+                                    type="button"
+                                >
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="ml-2 mt-1">
+                            <div
+                                v-for="task in projectTasks(project.id)"
+                                :key="task.id"
+                                class="text-[11px] text-gray-300 flex items-center justify-between mt-1"
+                            >
+                                <div v-if="editingTaskId !== task.id" class="flex items-center">
+                                    <i class="fas fa-circle text-[6px] mr-1 text-cyan-400"></i>
+                                    <span>{{ task.name }}</span>
+                                </div>
+
+                                <div v-else class="flex-1 flex items-center space-x-1">
+                                    <input
+                                        v-model="editingTaskName"
+                                        class="flex-1 px-2 py-1 bg-gray-900 border border-gray-700 rounded text-[11px] text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                                    />
+                                </div>
+
+                                <div class="flex items-center space-x-1 ml-2">
+                                    <template v-if="editingTaskId !== task.id">
+                                        <button
+                                            @click="startEditTask(task)"
+                                            class="text-yellow-300 hover:text-yellow-200"
+                                            type="button"
+                                        >
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button
+                                            @click="deleteTask(task.id)"
+                                            class="text-red-400 hover:text-red-300"
+                                            type="button"
+                                        >
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </template>
+                                    <template v-else>
+                                        <button
+                                            @click="saveTaskEdit(task)"
+                                            class="text-green-300 hover:text-green-200"
+                                            type="button"
+                                        >
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button
+                                            @click="cancelTaskEdit"
+                                            class="text-gray-300 hover:text-gray-100"
+                                            type="button"
+                                        >
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <p
+                                v-if="projectTasks(project.id).length === 0"
+                                class="text-[11px] text-gray-500"
+                            >
+                                No tasks yet for this project.
+                            </p>
+                        </div>
+                    </div>
+
+                    <p
+                        v-if="projects.length === 0"
+                        class="text-[11px] text-gray-500 text-center mt-2"
+                    >
+                        No projects yet. Add one above to start.
+                    </p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        new Vue({
+            el: "#app",
+            data() {
+                return {
+                    currentUser: { name: "Guest", email: "" },
+                    messages: [],
+                    newMessage: "",
+                    activity: [],
+                    projects: [],
+                    comments: [],
+                    newComment: "",
+                    selectedProjectId: "all",
+
+                    tasks: [],
+                    newProjectName: "",
+                    newProjectDesc: "",
+                    editingProjectId: null,
+                    newTaskNames: {},
+                    editingTaskId: null,
+                    editingTaskName: ""
+                };
+            },
+            computed: {
+                filteredComments() {
+                    if (this.selectedProjectId === "all") return this.comments;
+                    return this.comments.filter((c) => c.projectId === this.selectedProjectId);
+                }
+            },
+            mounted() {
+                this.loadCurrentUser();
+                this.loadProjects();
+                this.loadMessages();
+                this.loadComments();
+                this.loadTasks();
+                this.buildActivity();
+            },
+            methods: {
+                // ✅ FIX 3: proper logout (remove, don't set "Guest")
+                logout() {
+                    localStorage.removeItem("taskhive_current_user");
+                    window.location.href = "/login/";
+                },
+
+                loadCurrentUser() {
+                    const saved = localStorage.getItem("taskhive_current_user");
+                    if (saved) {
+                        try {
+                            this.currentUser = JSON.parse(saved);
+                        } catch (e) {
+                            this.currentUser = { name: "Guest", email: "" };
+                        }
+                    }
+                },
+                loadProjects() {
+                    const saved = localStorage.getItem("taskhive_projects");
+                    if (saved) {
+                        try { this.projects = JSON.parse(saved); }
+                        catch (e) { this.projects = []; }
+                    }
+                },
+                saveProjects() {
+                    localStorage.setItem("taskhive_projects", JSON.stringify(this.projects));
+                },
+                loadMessages() {
+                    const saved = localStorage.getItem("taskhive_messages");
+                    if (saved) {
+                        try { this.messages = JSON.parse(saved); }
+                        catch (e) { this.messages = []; }
+                    }
+                    this.$nextTick(this.scrollToBottom);
+                },
+                saveMessages() {
+                    localStorage.setItem("taskhive_messages", JSON.stringify(this.messages));
+                },
+                loadComments() {
+                    const saved = localStorage.getItem("taskhive_comments");
+                    if (saved) {
+                        try { this.comments = JSON.parse(saved); }
+                        catch (e) { this.comments = []; }
+                    }
+                },
+                saveComments() {
+                    localStorage.setItem("taskhive_comments", JSON.stringify(this.comments));
+                },
+                loadTasks() {
+                    const saved = localStorage.getItem("taskhive_tasks");
+                    if (saved) {
+                        try { this.tasks = JSON.parse(saved); }
+                        catch (e) { this.tasks = []; }
+                    }
+                },
+                saveTasks() {
+                    localStorage.setItem("taskhive_tasks", JSON.stringify(this.tasks));
+                },
+
+                sendMessage() {
+                    const text = this.newMessage.trim();
+                    if (!text) return;
+
+                    const now = new Date().toISOString();
+                    const msg = {
+                        id: Date.now(),
+                        name: this.currentUser.name || "Guest",
+                        email: this.currentUser.email || "",
+                        text,
+                        createdAt: now
+                    };
+
+                    this.messages.push(msg);
+                    this.newMessage = "";
+                    this.saveMessages();
+                    this.addActivityFromMessage(msg);
+                    this.$nextTick(this.scrollToBottom);
+                },
+                scrollToBottom() {
+                    const el = this.$refs.chatContainer;
+                    if (el) el.scrollTop = el.scrollHeight;
+                },
+                addActivityFromMessage(msg) {
+                    const item = {
+                        id: msg.id,
+                        actor: msg.name || "User",
+                        action: "sent a message in team chat.",
+                        icon: "fas fa-comment-dots",
+                        createdAt: msg.createdAt
+                    };
+                    this.activity.unshift(item);
+                    if (this.activity.length > 50) this.activity.pop();
+                },
+                buildActivity() {
+                    this.activity = this.messages.slice().reverse().map((msg) => ({
+                        id: msg.id,
+                        actor: msg.name || "User",
+                        action: "sent a message in team chat.",
+                        icon: "fas fa-comment-dots",
+                        createdAt: msg.createdAt
+                    }));
+                },
+
+                addComment() {
+                    const text = this.newComment.trim();
+                    if (!text) return;
+
+                    if (this.selectedProjectId === "all") {
+                        alert("Please select a specific project for your comment.");
+                        return;
+                    }
+
+                    const now = new Date().toISOString();
+                    const comment = {
+                        id: Date.now(),
+                        projectId: this.selectedProjectId,
+                        author: this.currentUser.name || "Guest",
+                        text,
+                        createdAt: now
+                    };
+
+                    this.comments.push(comment);
+                    this.newComment = "";
+                    this.saveComments();
+
+                    this.activity.unshift({
+                        id: comment.id,
+                        actor: comment.author,
+                        action: 'added a comment on project "' + this.projectName(comment.projectId) + '".',
+                        icon: "fas fa-sticky-note",
+                        createdAt: comment.createdAt
+                    });
+                },
+                projectName(id) {
+                    const p = this.projects.find((pr) => pr.id === id);
+                    return p ? p.name : "Unknown Project";
+                },
+
+                createOrUpdateProject() {
+                    const name = this.newProjectName.trim();
+                    const desc = this.newProjectDesc.trim();
+                    if (!name) { alert("Project name is required."); return; }
+
+                    if (this.editingProjectId) {
+                        const idx = this.projects.findIndex((p) => p.id === this.editingProjectId);
+                        if (idx !== -1) {
+                            this.projects[idx].name = name;
+                            this.projects[idx].description = desc;
+                        }
+                    } else {
+                        const newId = Date.now();
+                        this.projects.push({ id: newId, name, description: desc, status: "active", members: [] });
+                    }
+
+                    this.saveProjects();
+                    this.resetProjectForm();
+                },
+                startEditProject(project) {
+                    this.editingProjectId = project.id;
+                    this.newProjectName = project.name || "";
+                    this.newProjectDesc = project.description || "";
+                },
+                resetProjectForm() {
+                    this.newProjectName = "";
+                    this.newProjectDesc = "";
+                    this.editingProjectId = null;
+                },
+                deleteProject(projectId) {
+                    if (!confirm("Delete this project and all its tasks?")) return;
+                    this.projects = this.projects.filter((p) => p.id !== projectId);
+                    this.tasks = this.tasks.filter((t) => t.projectId !== projectId);
+                    this.saveProjects();
+                    this.saveTasks();
+                    if (this.selectedProjectId === projectId) this.selectedProjectId = "all";
+                },
+
+                projectTasks(projectId) {
+                    return this.tasks.filter((t) => t.projectId === projectId);
+                },
+                createTask(projectId) {
+                    const raw = this.newTaskNames[projectId] || "";
+                    const name = raw.trim();
+                    if (!name) { alert("Task name is required."); return; }
+
+                    const newId = Date.now();
+                    this.tasks.push({
+                        id: newId,
+                        projectId,
+                        name,
+                        description: "",
+                        boardId: 1,
+                        priority: "medium",
+                        dueDate: "",
+                        assignees: []
+                    });
+
+                    this.saveTasks();
+                    this.$set(this.newTaskNames, projectId, "");
+                },
+                startEditTask(task) {
+                    this.editingTaskId = task.id;
+                    this.editingTaskName = task.name || "";
+                },
+                saveTaskEdit(task) {
+                    const name = (this.editingTaskName || "").trim();
+                    if (!name) { alert("Task name is required."); return; }
+                    task.name = name;
+                    this.saveTasks();
+                    this.editingTaskId = null;
+                    this.editingTaskName = "";
+                },
+                cancelTaskEdit() {
+                    this.editingTaskId = null;
+                    this.editingTaskName = "";
+                },
+                deleteTask(taskId) {
+                    if (!confirm("Delete this task?")) return;
+                    this.tasks = this.tasks.filter((t) => t.id !== taskId);
+                    this.saveTasks();
+                },
+
+                formatTime(dateString) {
+                    if (!dateString) return "";
+                    const d = new Date(dateString);
+                    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+                },
+                formatDateTime(dateString) {
+                    if (!dateString) return "";
+                    const d = new Date(dateString);
+                    return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+{% endverbatim %} {% endcomment %}
+
