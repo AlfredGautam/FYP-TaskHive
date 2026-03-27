@@ -54,6 +54,7 @@
     }
 
     .line-clamp-2 {
+      line-clamp: 2;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
@@ -239,6 +240,48 @@
         <i class="fas fa-code mr-1"></i> Code Space
       </a>
 
+      <button v-if="currentUserRole === 'head'"
+              @click="openApprovals"
+              class="relative hidden md:inline px-3 py-1 rounded-lg text-xs bg-purple-900/50 hover:bg-purple-900/70 text-purple-200 border border-purple-500/20">
+        <i class="fas fa-clipboard-check mr-1"></i> Approvals
+        <span v-if="pendingApprovalsCount"
+              class="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-700 text-white text-[10px] flex items-center justify-center">
+          {{ pendingApprovalsCount }}
+        </span>
+      </button>
+
+      <div class="relative" @click.stop>
+        <button @click="toggleNotifications"
+                class="relative w-8 h-8 rounded-full flex items-center justify-center bg-gray-800 hover:bg-gray-700 transition-all"
+                title="Notifications">
+          <i class="fas fa-bell text-cyan-300 text-xs"></i>
+          <span v-if="unreadNotificationCount"
+                class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-700 text-white text-[10px] flex items-center justify-center">
+            {{ unreadNotificationCount > 9 ? '9+' : unreadNotificationCount }}
+          </span>
+        </button>
+
+        <div v-if="showNotifications"
+             class="absolute right-0 mt-2 w-96 max-h-[70vh] overflow-y-auto rounded-lg border border-cyan-500/20 bg-gray-900 shadow-xl z-50">
+          <div class="flex items-center justify-between px-3 py-2 border-b border-gray-700">
+            <p class="text-xs font-semibold text-cyan-300 uppercase tracking-wide">Notifications</p>
+            <button @click="markAllNotificationsRead" class="text-[11px] text-gray-300 hover:text-gray-100">Mark all read</button>
+          </div>
+
+          <div v-if="!notifications.length" class="px-3 py-4 text-sm text-gray-400">No notifications yet.</div>
+
+          <button v-for="n in notifications" :key="n.id"
+                  @click="openNotification(n)"
+                  class="w-full text-left px-3 py-2 border-b border-gray-800 hover:bg-gray-800/70">
+            <div class="flex items-start justify-between gap-3">
+              <p class="text-sm" :class="n.isRead ? 'text-gray-300' : 'text-gray-100 font-semibold'">{{ n.message }}</p>
+              <span v-if="!n.isRead" class="mt-1 w-2 h-2 rounded-full bg-cyan-400"></span>
+            </div>
+            <p class="text-[11px] text-gray-400 mt-1">{{ formatNotificationTime(n.createdAt) }}</p>
+          </button>
+        </div>
+      </div>
+
       <button @click="toggleTheme"
               class="w-8 h-8 rounded-full flex items-center justify-center bg-gray-800 hover:bg-gray-700 transition-all"
               :title="isDark ? 'Light mode' : 'Dark mode'">
@@ -364,7 +407,7 @@
               <div class="text-xs px-2 py-1 rounded-full" :class="{
                   'bg-green-900/50 text-green-300': project.status === 'active',
                   'bg-gray-900/50 text-gray-300': project.status === 'completed',
-                  'bg-yellow-900/50 text-yellow-300': project.status === 'on-hold'
+                  'bg-yellow-900/50 text-yellow-300': project.status === 'archived'
                 }">
                 {{ formatStatus(project.status) }}
               </div>
@@ -430,15 +473,16 @@
             :class="{'drag-over': dragOverBoard === board.id}"
           >
             <div class="flex justify-between items-center mb-4">
-              <h3 class="font-semibold text-gray-100 neon-text">{{ board.name }}</h3>
+              <h3 class="font-semibold text-gray-100 neon-text cursor-pointer hover:text-cyan-300"
+                  @click.stop="openBoardRedirect(board)">{{ board.name }}</h3>
               <span class="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-1 rounded-full">
-                {{ tasks.filter(t => t.boardId === board.id).length }}
+                {{ visibleTasksForBoard(board.id).length }}
               </span>
             </div>
 
             <div class="space-y-3">
               <div
-                v-for="task in tasks.filter(t => t.boardId === board.id)"
+                v-for="task in visibleTasksForBoard(board.id)"
                 :key="task.id"
                 class="task-card bg-gray-800 shadow p-4 cursor-move border-l-4"
                 :class="{
@@ -639,6 +683,38 @@
             </div>
           </div>
 
+          <!-- Assignees (Team Head only) -->
+          <div v-if="currentUserRole === 'head'" class="bg-gray-800/60 p-3 rounded-lg border border-cyan-500/10">
+            <div class="flex items-center justify-between">
+              <label class="block text-gray-300 text-sm">Assign to members</label>
+              <button type="button" @click="currentTask.assignees = []"
+                      class="text-[11px] text-gray-300 hover:text-gray-100">
+                Clear
+              </button>
+            </div>
+
+            <div v-if="!teamMembers.length" class="mt-2 text-xs text-gray-400">
+              No team members loaded.
+            </div>
+
+            <div v-else class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label v-for="m in teamMembers" :key="m.email"
+                     class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-700 cursor-pointer">
+                <input type="checkbox"
+                       class="accent-cyan-400"
+                       :value="m.email"
+                       v-model="currentTask.assignees" />
+                <span class="text-xs text-gray-100 truncate" :title="m.name + ' (' + m.email + ')'">
+                  {{ m.name }}
+                </span>
+                <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full"
+                      :class="m.role === 'head' ? 'bg-purple-900/50 text-purple-200' : 'bg-gray-900/50 text-gray-300'">
+                  {{ m.role === 'head' ? 'Head' : 'Member' }}
+                </span>
+              </label>
+            </div>
+          </div>
+
           <!-- ✅ Super Task CodeSpace Meta -->
           <div v-if="currentTask.taskType === 'super'" class="bg-gray-800/60 p-3 rounded-lg border border-purple-500/20">
             <p class="text-xs text-purple-300 mb-2">
@@ -720,6 +796,56 @@
     </div>
   </transition>
 
+  <!-- Approvals Modal (Head only) -->
+  <transition name="fade">
+    <div v-if="showApprovalsModal" class="fixed inset-0 z-50 flex items-center justify-center confirmation-modal">
+      <div class="bg-gray-900 rounded-xl shadow-xl w-full max-w-2xl p-6 border border-purple-500/40 modal max-h-[85vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-purple-300">
+            Approval Requests
+          </h3>
+          <button @click="closeApprovals"
+                  class="px-3 py-2 rounded-lg text-sm bg-gray-700 text-gray-200 hover:bg-gray-600">
+            Close
+          </button>
+        </div>
+
+        <div v-if="!approvalRequests.length" class="text-sm text-gray-300">
+          No pending requests.
+        </div>
+
+        <div v-else class="space-y-3">
+          <div v-for="req in approvalRequests"
+               :key="req.id"
+               class="p-4 rounded-lg border border-gray-700 bg-gray-800/60">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1">
+                <p class="text-sm text-gray-100">
+                  <span class="font-semibold text-cyan-300">{{ req.requestedBy }}</span>
+                  <span class="text-gray-300"> requested </span>
+                  <span class="font-semibold text-purple-200">{{ req.action }}</span>
+                  <span class="text-gray-300"> on </span>
+                  <span class="font-semibold text-gray-100">{{ req.entityType }}</span>
+                </p>
+                <p class="text-xs text-gray-400 mt-1">{{ req.summary }}</p>
+              </div>
+              <div class="flex items-center space-x-2">
+                <button @click="approveRequest(req.id)"
+                        class="px-3 py-1.5 rounded-lg text-xs bg-green-700/80 text-green-100 hover:bg-green-600">
+                  Approve
+                </button>
+                <button @click="rejectRequest(req.id)"
+                        class="px-3 py-1.5 rounded-lg text-xs bg-red-700/80 text-red-100 hover:bg-red-600">
+                  Reject
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </transition>
+
   <!-- Project Modal -->
   <transition name="fade">
     <div v-if="showProjectModal" class="fixed inset-0 z-40 flex items-center justify-center confirmation-modal">
@@ -744,8 +870,40 @@
                     class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
               <option value="active">Active</option>
               <option value="completed">Completed</option>
-              <option value="on-hold">On-hold</option>
+              <option value="archived">Archived</option>
             </select>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between">
+              <label class="block text-gray-300 mb-1">Project Members</label>
+              <button v-if="currentUserRole === 'head'" type="button" @click="currentProject.members = []"
+                      class="text-[11px] text-gray-300 hover:text-gray-100">
+                Clear
+              </button>
+            </div>
+
+            <div v-if="!currentProject.members.length" class="text-xs text-gray-400">
+              No members selected.
+            </div>
+
+            <div v-else class="flex flex-wrap gap-2 mb-2">
+              <span v-for="memberEmail in currentProject.members" :key="memberEmail"
+                    class="inline-flex items-center gap-1 px-2 py-1 rounded bg-cyan-900/40 text-cyan-200 text-xs">
+                {{ memberEmail }}
+                <button v-if="currentUserRole === 'head'" type="button" @click="removeProjectMember(memberEmail)" class="text-cyan-100 hover:text-white">
+                  <i class="fas fa-times"></i>
+                </button>
+              </span>
+            </div>
+
+            <div v-if="teamMembers.length" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label v-for="m in teamMembers" :key="m.email" class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-700 cursor-pointer">
+                <input type="checkbox" class="accent-cyan-400" :checked="isProjectMember(m.email)"
+                       :disabled="currentUserRole !== 'head'" @change="toggleProjectMember(m.email)" />
+                <span class="text-xs text-gray-100 truncate">{{ m.name }} ({{ m.email }})</span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -851,6 +1009,7 @@
         showToast: false,
         toastIsError: false,
         showConfirmationModal: false,
+        showApprovalsModal: false,
 
         toastMessage: "",
         draggedTask: null,
@@ -905,7 +1064,16 @@
 
         tasks: [],
         projects: [],
-        files: []
+        files: [],
+
+        approvalRequests: [],
+
+        notifications: [],
+        unreadNotificationCount: 0,
+        showNotifications: false,
+
+        currentTeam: null,
+        teamMembers: []
       };
     },
 
@@ -944,27 +1112,155 @@
       },
 
       currentUserName() { return this.currentUserObj.name || "User"; },
+      currentUserEmail() { return (this.currentUserObj.email || this.currentUserObj.username || "").toLowerCase(); },
       currentUserInitials() { return (this.currentUserObj.name || "U").charAt(0).toUpperCase(); },
-      currentUserRole() { return (this.currentUserObj.role || "member").toLowerCase(); }
+      currentUserRole() { return (this.currentUserObj.role || "member").toLowerCase(); },
+      pendingApprovalsCount() { return this.approvalRequests.length; }
     },
 
     mounted() {
       this.initTheme();
       this.loadData();
+      this.fetchTeamContext();
+      this.loadNotifications();
       window.addEventListener("keydown", this.handleShortcut);
-      window.addEventListener("beforeunload", this.saveData);
+      // data saved to DB per-action, no beforeunload needed
 
       // click outside context menu
-      window.addEventListener("click", this.closeContextMenu);
+      window.addEventListener("click", this.handleGlobalClick);
     },
 
     beforeDestroy() {
       window.removeEventListener("keydown", this.handleShortcut);
-      window.removeEventListener("beforeunload", this.saveData);
-      window.removeEventListener("click", this.closeContextMenu);
+      // no beforeunload to remove
+      window.removeEventListener("click", this.handleGlobalClick);
     },
 
     methods: {
+      async fetchTeamContext() {
+        try {
+          const res = await fetch("/api/team/current/", { credentials: "same-origin" });
+          const data = await res.json();
+          if (!res.ok || !data || !data.ok) return;
+
+          this.currentTeam = data.team || null;
+
+          if (data.role) {
+            try {
+              const raw = localStorage.getItem("taskhive_current_user");
+              const u = raw ? JSON.parse(raw) : null;
+              if (u && typeof u === 'object') {
+                u.role = data.role;
+                localStorage.setItem("taskhive_current_user", JSON.stringify(u));
+              }
+            } catch (e) {}
+          }
+
+          if (!this.currentTeam || !this.currentTeam.id) return;
+
+          const res2 = await fetch(`/api/team/${this.currentTeam.id}/members/`, { credentials: "same-origin" });
+          const data2 = await res2.json();
+          if (!res2.ok || !data2 || !data2.ok) return;
+
+          const members = Array.isArray(data2.members) ? data2.members : [];
+          this.teamMembers = members.map(m => ({
+            email: m.email,
+            name: m.name,
+            role: m.role
+          }));
+
+          this.loadNotifications();
+        } catch (e) {}
+      },
+      applyRouteContext() {
+        const params = new URLSearchParams(window.location.search || "");
+        const tab = params.get("tab");
+        if (tab && ['tasks', 'projects', 'files'].includes(tab)) this.currentTab = tab;
+
+        const taskId = parseInt(params.get("taskId") || "", 10);
+        if (taskId) {
+          const task = this.tasks.find(t => t.id === taskId);
+          if (task) {
+            this.currentTab = 'tasks';
+            this.editTask(task);
+          }
+        }
+
+        const projectId = parseInt(params.get("projectId") || "", 10);
+        if (projectId) {
+          const project = this.projects.find(p => p.id === projectId);
+          if (project) {
+            this.currentTab = 'projects';
+            this.viewProject(project);
+          }
+        }
+      },
+      async loadNotifications() {
+        try {
+          const res = await fetch('/api/notifications/', { credentials: 'same-origin' });
+          const data = await res.json();
+          if (data.ok) {
+            this.notifications = Array.isArray(data.notifications) ? data.notifications : [];
+            this.unreadNotificationCount = data.unreadCount || 0;
+          }
+        } catch (e) {}
+      },
+      toggleNotifications() {
+        this.showNotifications = !this.showNotifications;
+        if (this.showNotifications) this.loadNotifications();
+      },
+      async markAllNotificationsRead() {
+        const data = await this._postJson('/api/notifications/read/', { all: true });
+        if (data.ok) {
+          this.notifications = this.notifications.map(n => ({ ...n, isRead: true }));
+          this.unreadNotificationCount = 0;
+        }
+      },
+      async markNotificationRead(notificationId) {
+        const data = await this._postJson('/api/notifications/read/', { id: notificationId });
+        if (data.ok) {
+          const idx = this.notifications.findIndex(n => n.id === notificationId);
+          if (idx !== -1 && !this.notifications[idx].isRead) {
+            this.notifications[idx].isRead = true;
+            this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
+          }
+        }
+      },
+      async openNotification(n) {
+        await this.markNotificationRead(n.id);
+        this.showNotifications = false;
+
+        if (n.targetTab === 'team') {
+          window.location.href = '/user/';
+          return;
+        }
+
+        if (n.targetType === 'task' && n.targetId) {
+          this.currentTab = 'tasks';
+          const task = this.tasks.find(t => t.id === n.targetId);
+          if (task) this.editTask(task);
+          else this.showToastMessage('Task updated. Refreshing data...');
+          return;
+        }
+
+        if (n.targetType === 'project' && n.targetId) {
+          this.currentTab = 'projects';
+          const project = this.projects.find(p => p.id === n.targetId);
+          if (project) this.viewProject(project);
+          else this.showToastMessage('Project updated. Refreshing data...');
+          return;
+        }
+
+        if (n.targetTab) this.currentTab = n.targetTab;
+      },
+      formatNotificationTime(ts) {
+        if (!ts) return '';
+        try {
+          return new Date(ts).toLocaleString();
+        } catch (e) {
+          return '';
+        }
+      },
       initTheme() {
         const saved = localStorage.getItem("taskhive_theme");
         if (saved === "light") {
@@ -992,11 +1288,25 @@
         window.location.href = "/login/";
       },
 
+      _getCsrf() {
+        const v = '; ' + document.cookie;
+        const p = v.split('; csrftoken=');
+        if (p.length === 2) return p.pop().split(';').shift();
+        return '';
+      },
+
+      async _postJson(url, body) {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._getCsrf() },
+          credentials: 'same-origin',
+          body: JSON.stringify(body),
+        });
+        return res.json();
+      },
+
       saveData() {
-        localStorage.setItem('taskhive_tasks', JSON.stringify(this.tasks));
-        localStorage.setItem('taskhive_projects', JSON.stringify(this.projects));
-        localStorage.setItem('taskhive_files', JSON.stringify(this.files));
-        localStorage.setItem('taskhive_teams', JSON.stringify(this.teams));
+        // no-op: data is now saved to database per-action
       },
 
       normalizeTask(t) {
@@ -1017,73 +1327,157 @@
         return task;
       },
 
-      loadData() {
-        const savedTasks = localStorage.getItem('taskhive_tasks');
-        const savedProjects = localStorage.getItem('taskhive_projects');
-        const savedFiles = localStorage.getItem('taskhive_files');
-        const savedTeams = localStorage.getItem('taskhive_teams');
+      canViewTask(task) {
+        const assignees = Array.isArray(task.assignees) ? task.assignees : [];
+        if (!assignees.length) return true;
+        return assignees.map(a => String(a).toLowerCase()).includes(this.currentUserEmail);
+      },
 
-        if (savedTasks) {
-          try {
-            const parsed = JSON.parse(savedTasks);
-            this.tasks = Array.isArray(parsed) ? parsed.map(this.normalizeTask) : [];
-          } catch (e) { this.tasks = []; }
+      visibleTasksForBoard(boardId) {
+        return this.tasks.filter(t => t.boardId === boardId && this.canViewTask(t));
+      },
+
+      isProjectMember(email) {
+        const members = Array.isArray(this.currentProject.members) ? this.currentProject.members : [];
+        return members.map(m => String(m).toLowerCase()).includes(String(email).toLowerCase());
+      },
+
+      toggleProjectMember(email) {
+        if (this.currentUserRole !== 'head') return;
+        const members = Array.isArray(this.currentProject.members) ? [...this.currentProject.members] : [];
+        const target = String(email).toLowerCase();
+        const idx = members.findIndex(m => String(m).toLowerCase() === target);
+        if (idx >= 0) members.splice(idx, 1);
+        else members.push(email);
+        this.currentProject.members = members;
+      },
+
+      removeProjectMember(email) {
+        if (this.currentUserRole !== 'head') return;
+        this.currentProject.members = (this.currentProject.members || []).filter(
+          m => String(m).toLowerCase() !== String(email).toLowerCase()
+        );
+      },
+
+      async loadData() {
+        try {
+          const res = await fetch('/api/workspace/load/', { credentials: 'same-origin' });
+          const data = await res.json();
+          if (data.ok) {
+            this.tasks = Array.isArray(data.tasks) ? data.tasks.map(this.normalizeTask) : [];
+            this.projects = Array.isArray(data.projects) ? data.projects : [];
+            this.files = Array.isArray(data.files) ? data.files : [];
+            this.approvalRequests = Array.isArray(data.approvalRequests) ? data.approvalRequests : [];
+            this.applyRouteContext();
+          }
+        } catch (e) {
+          console.error('loadData failed', e);
+        }
+      },
+
+      handleGlobalClick() {
+        this.closeContextMenu();
+        this.showNotifications = false;
+      },
+
+      openApprovals() {
+        if (this.currentUserRole !== 'head') return;
+        this.showApprovalsModal = true;
+      },
+
+      openBoardRedirect() {
+        window.location.href = '/user/';
+      },
+
+      closeApprovals() {
+        this.showApprovalsModal = false;
+      },
+
+      _approvalSummary(entityType, action, payload) {
+        if (entityType === 'task') {
+          const name = (payload && payload.name) ? payload.name : 'Task';
+          return `${action}: ${name}`;
+        }
+        if (entityType === 'project') {
+          const name = (payload && payload.name) ? payload.name : 'Project';
+          return `${action}: ${name}`;
+        }
+        return `${action}`;
+      },
+
+      async _addApprovalRequest(entityType, action, payload, targetId = null) {
+        const summary = this._approvalSummary(entityType, action, payload);
+        const body = {
+          entityType,
+          action,
+          payload,
+          targetId,
+          requestedBy: this.currentUserName,
+          summary,
+        };
+        const data = await this._postJson('/api/workspace/approval/add/', body);
+        if (data.ok && data.approval) {
+          this.approvalRequests.unshift(data.approval);
+        }
+      },
+
+      async approveRequest(requestId) {
+        if (this.currentUserRole !== 'head') return;
+        const idx = this.approvalRequests.findIndex(r => r.id === requestId);
+        if (idx === -1) return;
+        const req = this.approvalRequests[idx];
+
+        if (req.entityType === 'task') {
+          if (req.action === 'create') {
+            const payload = this.normalizeTask(req.payload);
+            delete payload.id;
+            const data = await this._postJson('/api/workspace/task/save/', payload);
+            if (data.ok && data.task) this.tasks.push(this.normalizeTask(data.task));
+          } else if (req.action === 'update') {
+            const payload = this.normalizeTask({ ...req.payload, id: req.targetId });
+            const data = await this._postJson('/api/workspace/task/save/', payload);
+            if (data.ok && data.task) {
+              const tIdx = this.tasks.findIndex(t => t.id === data.task.id);
+              if (tIdx !== -1) this.tasks.splice(tIdx, 1, this.normalizeTask(data.task));
+            }
+          } else if (req.action === 'delete') {
+            await this._postJson('/api/workspace/task/delete/', { id: req.targetId });
+            this.tasks = this.tasks.filter(t => t.id !== req.targetId);
+          }
         }
 
-        if (savedProjects) { try { this.projects = JSON.parse(savedProjects) || []; } catch (e) { this.projects = []; } }
-        if (savedFiles) { try { this.files = JSON.parse(savedFiles) || []; } catch (e) { this.files = []; } }
-        if (savedTeams) { try { this.teams = JSON.parse(savedTeams) || []; } catch (e) { this.teams = []; } }
-
-        if (this.projects.length === 0) {
-          this.projects = [
-            { id: 10, name: "WePlan App", description: "Project management application for teams", status: "active", members: ["JD", "MA", "SP"] },
-            { id: 11, name: "TaskHive", description: "Team collaboration and task management platform", status: "active", members: ["JD", "RJ"] },
-            { id: 12, name: "Customer Portal", description: "Self-service portal for enterprise customers", status: "on-hold", members: ["MA", "SP"] }
-          ];
+        if (req.entityType === 'project') {
+          if (req.action === 'create') {
+            const payload = { ...req.payload };
+            delete payload.id;
+            const data = await this._postJson('/api/workspace/project/save/', payload);
+            if (data.ok && data.project) this.projects.push(data.project);
+          } else if (req.action === 'update') {
+            const payload = { ...req.payload, id: req.targetId };
+            const data = await this._postJson('/api/workspace/project/save/', payload);
+            if (data.ok && data.project) {
+              const pIdx = this.projects.findIndex(p => p.id === data.project.id);
+              if (pIdx !== -1) this.projects.splice(pIdx, 1, data.project);
+            }
+          } else if (req.action === 'delete') {
+            await this._postJson('/api/workspace/project/delete/', { id: req.targetId });
+            this.tasks = this.tasks.map(t => t.projectId === req.targetId ? { ...t, projectId: null } : t);
+            this.projects = this.projects.filter(p => p.id !== req.targetId);
+          }
         }
 
-        if (this.tasks.length === 0) {
-          this.tasks = [
-            this.normalizeTask({
-              id: 1, name: "Fix login bug",
-              description: "Resolve the authentication issue on mobile devices",
-              boardId: 1, priority: "high", dueDate: "2023-09-15", assignees: ["JD", "MA"],
-              projectId: 11, taskType: "normal"
-            }),
-            this.normalizeTask({
-              id: 2, name: "Middleware patch",
-              description: "Fix auth middleware in CodeSpace",
-              boardId: 2, priority: "medium", dueDate: "2023-09-20", assignees: ["SP"],
-              projectId: 11, taskType: "super",
-              codeMeta: {
-                codeName: "Fix JWT middleware",              // ✅ code name
-                language: "javascript",
-                filePath: "backend/middleware/auth.js",
-                starterCode: "export default function auth(req, res, next) {\n  // TODO: fix token parsing\n  next();\n}\n",
-                expectedOutput: "JWT validated and invalid tokens rejected",
-                repoUrl: "",
-                branch: "dev"
-              }
-            })
-          ];
-        }
+        await this._postJson('/api/workspace/approval/resolve/', { id: requestId });
+        this.approvalRequests.splice(idx, 1);
+        this.showToastMessage("Request approved");
+      },
 
-        if (this.files.length === 0) {
-          this.files = [
-            { id: 20, name: "UI Mockup.png", type: "png", size: "2.4 MB", uploaded: "2023-08-27", content: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" },
-            { id: 21, name: "ProjectPlan.docx", type: "docx", size: "1.2 MB", uploaded: "2023-08-25", content: "data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQABgAIAAAAIQC2gziS/gAAAOEBAAATAAAAW0NvbnRlbnRfVHlpeZQ==" }
-          ];
-        }
-
-        if (this.teams.length === 0) {
-          this.teams = [
-            { id: 1, name: "Frontend Squad", color: "#00ffff" },
-            { id: 2, name: "Backend Crew",   color: "#ff00ff" },
-            { id: 3, name: "QA Ninjas",      color: "#22c55e" }
-          ];
-        }
-
-        this.saveData();
+      async rejectRequest(requestId) {
+        if (this.currentUserRole !== 'head') return;
+        const idx = this.approvalRequests.findIndex(r => r.id === requestId);
+        if (idx === -1) return;
+        await this._postJson('/api/workspace/approval/resolve/', { id: requestId });
+        this.approvalRequests.splice(idx, 1);
+        this.showToastMessage("Request rejected", true);
       },
 
       handleShortcut(e) {
@@ -1117,6 +1511,15 @@
           return;
         }
 
+        if (type === 'task') {
+          this.editTask(item);
+          return;
+        }
+        if (type === 'project') {
+          this.viewProject(item);
+          return;
+        }
+
         this.showToastMessage(`Navigated to ${type}: ${item.name}`);
       },
 
@@ -1132,12 +1535,12 @@
         this.draggedTask = task;
       },
 
-      moveTask(event, boardId) {
+      async moveTask(event, boardId) {
         const taskId = parseInt(event.dataTransfer.getData("taskID"));
         const task = this.tasks.find((t) => t.id === taskId);
         if (task) {
           task.boardId = boardId;
-          this.saveData();
+          await this._postJson('/api/workspace/task/move/', { id: taskId, boardId: boardId });
           this.showToastMessage(`Task moved to ${this.getBoardName(boardId)}`);
         }
         this.draggedTask = null;
@@ -1168,8 +1571,19 @@
         this.showTaskModal = true;
       },
 
-      saveTask() {
+      async saveTask() {
         if (!this.currentTask.name.trim()) return this.showToastMessage("Task name is required", true);
+
+        // Member actions require approval
+        if (this.currentUserRole !== "head") {
+          const payload = this.normalizeTask(this.currentTask);
+          const action = this.editingTask ? 'update' : 'create';
+          const targetId = this.editingTask ? payload.id : null;
+          await this._addApprovalRequest('task', action, payload, targetId);
+          this.showToastMessage("Sent to Team Head for approval");
+          this.closeTaskModal();
+          return;
+        }
 
         // Head-only for Super
         if (this.currentTask.taskType === "super" && this.currentUserRole !== "head") {
@@ -1184,19 +1598,19 @@
         }
 
         const payload = this.normalizeTask(this.currentTask);
-
-        if (this.editingTask) {
-          const index = this.tasks.findIndex(t => t.id === payload.id);
-          if (index !== -1) this.tasks.splice(index, 1, payload);
-          this.showToastMessage("Task updated successfully");
+        const data = await this._postJson('/api/workspace/task/save/', payload);
+        if (data.ok && data.task) {
+          if (this.editingTask) {
+            const index = this.tasks.findIndex(t => t.id === data.task.id);
+            if (index !== -1) this.tasks.splice(index, 1, this.normalizeTask(data.task));
+            this.showToastMessage("Task updated successfully");
+          } else {
+            this.tasks.push(this.normalizeTask(data.task));
+            this.showToastMessage(data.task.taskType === "super" ? "Super Task created" : "Task added successfully");
+          }
         } else {
-          const newId = this.tasks.length ? Math.max(...this.tasks.map(t => t.id)) + 1 : 1;
-          payload.id = newId;
-          this.tasks.push(payload);
-          this.showToastMessage(payload.taskType === "super" ? "Super Task created" : "Task added successfully");
+          this.showToastMessage(data.error || "Failed to save task", true);
         }
-
-        this.saveData();
         this.closeTaskModal();
       },
 
@@ -1229,16 +1643,28 @@
         };
       },
 
-      confirmDeleteTask(task) {
+      async confirmDeleteTask(task) {
+        if (this.currentUserRole !== 'head') {
+          await this._addApprovalRequest('task', 'delete', { name: task.name }, task.id);
+          this.showToastMessage("Delete request sent for approval");
+          this.closeContextMenu();
+          return;
+        }
+
         this.itemToDelete = { type: 'task', name: task.name, id: task.id };
         this.showConfirmationModal = true;
         this.closeContextMenu();
       },
 
-      deleteTask(taskId) {
-        this.tasks = this.tasks.filter(t => t.id !== taskId);
-        this.saveData();
-        this.showToastMessage("Task deleted successfully");
+      async deleteTask(taskId) {
+        if (this.currentUserRole !== 'head') return;
+        const data = await this._postJson('/api/workspace/task/delete/', { id: taskId });
+        if (data.ok) {
+          this.tasks = this.tasks.filter(t => t.id !== taskId);
+          this.showToastMessage("Task deleted successfully");
+        } else {
+          this.showToastMessage(data.error || "Failed to delete task", true);
+        }
       },
 
       openNewProject() {
@@ -1248,24 +1674,42 @@
       },
 
       viewProject(project) {
-        this.currentProject = { ...project };
+        this.currentProject = { ...project, members: Array.isArray(project.members) ? [...project.members] : [] };
         this.editingProject = true;
         this.showProjectModal = true;
       },
 
-      saveProject() {
+      async saveProject() {
         if (!this.currentProject.name.trim()) return this.showToastMessage("Project name is required", true);
 
-        if (this.editingProject) {
-          const index = this.projects.findIndex(p => p.id === this.currentProject.id);
-          if (index !== -1) this.projects.splice(index, 1, { ...this.currentProject });
-          this.showToastMessage("Project updated successfully");
-        } else {
-          const newId = this.projects.length ? Math.max(...this.projects.map(p => p.id)) + 1 : 1;
-          this.projects.push({ ...this.currentProject, id: newId });
-          this.showToastMessage("Project added successfully");
+        const validTeamEmails = new Set((this.teamMembers || []).map(m => String(m.email || "").toLowerCase()));
+        const normalizedMembers = (Array.isArray(this.currentProject.members) ? this.currentProject.members : [])
+          .map(m => String(m || "").trim().toLowerCase())
+          .filter(m => m && validTeamEmails.has(m));
+        this.currentProject.members = Array.from(new Set(normalizedMembers));
+
+        if (this.currentUserRole !== 'head') {
+          const action = this.editingProject ? 'update' : 'create';
+          const targetId = this.editingProject ? this.currentProject.id : null;
+          await this._addApprovalRequest('project', action, { ...this.currentProject }, targetId);
+          this.showToastMessage("Sent to Team Head for approval");
+          this.closeProjectModal();
+          return;
         }
-        this.saveData();
+
+        const data = await this._postJson('/api/workspace/project/save/', this.currentProject);
+        if (data.ok && data.project) {
+          if (this.editingProject) {
+            const index = this.projects.findIndex(p => p.id === data.project.id);
+            if (index !== -1) this.projects.splice(index, 1, data.project);
+            this.showToastMessage("Project updated successfully");
+          } else {
+            this.projects.push(data.project);
+            this.showToastMessage("Project added successfully");
+          }
+        } else {
+          this.showToastMessage(data.error || "Failed to save project", true);
+        }
         this.closeProjectModal();
       },
 
@@ -1279,18 +1723,31 @@
         this.currentProject = { id: null, name: "", description: "", status: "active", members: [] };
       },
 
-      confirmDeleteProject(project) {
+      async confirmDeleteProject(project) {
+        if (this.currentUserRole !== 'head') {
+          await this._addApprovalRequest('project', 'delete', { name: project.name }, project.id);
+          this.showToastMessage("Delete request sent for approval");
+          this.closeContextMenu();
+          this.closeProjectModal();
+          return;
+        }
+
         this.itemToDelete = { type: 'project', name: project.name, id: project.id };
         this.showConfirmationModal = true;
         this.closeContextMenu();
         this.closeProjectModal();
       },
 
-      deleteProject(projectId) {
-        this.tasks = this.tasks.map(t => t.projectId === projectId ? { ...t, projectId: null } : t);
-        this.projects = this.projects.filter(p => p.id !== projectId);
-        this.saveData();
-        this.showToastMessage("Project deleted successfully");
+      async deleteProject(projectId) {
+        if (this.currentUserRole !== 'head') return;
+        const data = await this._postJson('/api/workspace/project/delete/', { id: projectId });
+        if (data.ok) {
+          this.tasks = this.tasks.map(t => t.projectId === projectId ? { ...t, projectId: null } : t);
+          this.projects = this.projects.filter(p => p.id !== projectId);
+          this.showToastMessage("Project deleted successfully");
+        } else {
+          this.showToastMessage(data.error || "Failed to delete project", true);
+        }
       },
 
       getProjectTaskCount(projectId) { return this.tasks.filter(t => t.projectId === projectId).length; },
@@ -1311,7 +1768,6 @@
           this.teams.push({ id: newId, name, color: this.newTeamColor });
           this.showToastMessage("Team added");
         }
-        this.saveData();
         this.resetTeamForm();
       },
 
@@ -1328,7 +1784,6 @@
 
       deleteTeam(teamId) {
         this.teams = this.teams.filter(t => t.id !== teamId);
-        this.saveData();
         this.showToastMessage("Team deleted successfully");
       },
 
@@ -1352,20 +1807,27 @@
         }, 100);
       },
 
-      addFile(file) {
-        const fileType = this.getFileType(file.name);
-        const newId = this.files.length ? Math.max(...this.files.map(f => f.id)) + 1 : 1;
-        this.files.push({
-          id: newId,
-          name: file.name,
-          type: fileType,
-          size: this.formatFileSize(file.size),
-          uploaded: new Date().toISOString().split('T')[0],
-          content: URL.createObjectURL(file)
-        });
-        this.saveData();
+      async addFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          const res = await fetch('/api/workspace/file/upload/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': this._getCsrf() },
+            credentials: 'same-origin',
+            body: formData,
+          });
+          const data = await res.json();
+          if (data.ok && data.file) {
+            this.files.push(data.file);
+            this.showToastMessage("File uploaded successfully");
+          } else {
+            this.showToastMessage(data.error || "Upload failed", true);
+          }
+        } catch (e) {
+          this.showToastMessage("Upload failed", true);
+        }
         this.uploadProgress = 0;
-        this.showToastMessage("File uploaded successfully");
       },
 
       downloadFile(file) {
@@ -1391,10 +1853,14 @@
         this.closeContextMenu();
       },
 
-      deleteFile(fileId) {
-        this.files = this.files.filter(f => f.id !== fileId);
-        this.saveData();
-        this.showToastMessage("File deleted successfully");
+      async deleteFile(fileId) {
+        const data = await this._postJson('/api/workspace/file/delete/', { id: fileId });
+        if (data.ok) {
+          this.files = this.files.filter(f => f.id !== fileId);
+          this.showToastMessage("File deleted successfully");
+        } else {
+          this.showToastMessage(data.error || "Failed to delete file", true);
+        }
       },
 
       getFileType(filename) {
@@ -1440,7 +1906,11 @@
         return new Date(dateString).toLocaleDateString(undefined, options);
       },
 
-      formatStatus(status) { return status.charAt(0).toUpperCase() + status.slice(1); },
+      formatStatus(status) {
+        if (!status) return '';
+        if (status === 'archived') return 'Archived';
+        return status.charAt(0).toUpperCase() + status.slice(1);
+      },
       getInitials(name) { return (name || "").substring(0, 1).toUpperCase(); },
 
       showToastMessage(message, isError = false) {

@@ -27,297 +27,111 @@
     })();
   </script>
 
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
-    :root {
-      --bg: #0d1117;
-      --surface: #161b22;
-      --surface-hover: #21262d;
-      --border: rgba(56, 139, 253, 0.15);
-      --accent: #58a6ff;
-      --accent-glow: #1f6feb;
-      --text: #c9d1d9;
-      --text-muted: #8b949e;
-      --text-heading: #f0f6fc;
-      --success: #3fb950;
-      --success-bg: rgba(63, 185, 80, 0.15);
-      --error: #f85149;
-      --error-bg: rgba(248, 81, 73, 0.15);
-      --gradient-start: #58a6ff;
-      --gradient-end: #c678dd;
+    body { font-family: 'Roboto Mono', monospace; }
+    h1, h2, h3, h4 { font-family: 'Orbitron', sans-serif; }
+    .neon-text { text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3); }
+    .glow { box-shadow: 0 0 12px rgba(0, 255, 255, 0.25); }
+    .panel {
+      background: linear-gradient(135deg, rgba(17, 24, 39, 0.92), rgba(31, 41, 55, 0.9));
+      border: 1px solid rgba(0, 255, 255, 0.2);
+      border-radius: 14px;
     }
-
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 32px;
-      background: rgba(13, 17, 23, 0.8);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .brand {
-      font-size: 1.8rem;
-      font-weight: 800;
-      background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .nav {
-      display: flex;
-      gap: 24px;
-      align-items: center;
-      font-weight: 500;
-    }
-
-    .btn {
-      padding: 10px 20px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      cursor: pointer;
-      font-weight: 500;
-      transition: all 0.3s ease;
-    }
-
-    .btn:hover {
-      border-color: var(--accent);
-      background: var(--surface-hover);
-      box-shadow: 0 0 12px rgba(88, 166, 255, 0.2);
-    }
-
-    .btn-primary {
-      background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
-      color: #0d1117;
-      border: none;
-      font-weight: 600;
-      box-shadow: 0 4px 14px rgba(88, 166, 255, 0.3);
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(88, 166, 255, 0.4);
-    }
-
-    main {
-      flex: 1;
-      padding: 60px 32px;
-      max-width: 1100px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    h1 {
-      font-size: 2.8rem;
-      margin: 0 0 12px;
-      font-weight: 700;
-      color: var(--text-heading);
-      text-align: center;
-    }
-
-    .subtitle {
-      color: var(--text-muted);
-      margin: 0 0 16px;
-      font-size: 1.2rem;
-      text-align: center;
-    }
-
-    .user-info {
-      text-align: center;
-      margin-bottom: 48px;
-      font-size: 1.1rem;
-      color: var(--text-muted);
-    }
-
-    .user-info span {
-      color: var(--accent);
-      font-weight: 700;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-      gap: 32px;
-      margin-top: 32px;
-    }
-
-    .card {
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 32px;
-      background: var(--surface);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, var(--gradient-start), var(--gradient-end));
-    }
-
-    .card:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 16px 40px rgba(88, 166, 255, 0.15);
-    }
-
-    .card h3 {
-      margin: 0 0 24px;
-      font-size: 1.6rem;
-      font-weight: 600;
-      color: var(--text-heading);
-      text-align: center;
-    }
-
-    input {
-      width: 100%;
-      padding: 16px 18px;
-      margin: 16px 0 24px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: var(--surface-hover);
-      color: var(--text);
-      font-size: 1.1rem;
+    .field-focus:focus {
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.35);
+      border-color: #00ffff;
       outline: none;
+    }
+    .neon-button {
+      background: linear-gradient(to right, #00ffff, #ff00ff);
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
       transition: all 0.3s ease;
-      box-sizing: border-box;
     }
-
-    input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 4px rgba(88, 166, 255, 0.2);
-    }
-
-    input::placeholder {
-      color: var(--text-muted);
-    }
-
-    .msg, .err {
-      margin-top: 16px;
-      font-weight: 500;
-      padding: 14px 18px;
-      border-radius: 12px;
-      font-size: 1rem;
-      text-align: center;
-    }
-
-    .msg {
-      color: var(--success);
-      background: var(--success-bg);
-      border: 1px solid rgba(63, 185, 80, 0.3);
-    }
-
-    .err {
-      color: var(--error);
-      background: var(--error-bg);
-      border: 1px solid rgba(248, 81, 73, 0.3);
-    }
-
-    .actions {
-      margin-top: 64px;
-      display: flex;
-      gap: 20px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    /* UI fixes */
-    .card .btn-primary {
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    @media (max-width: 768px) {
-      .topbar { padding: 16px 20px; }
-      .nav { gap: 16px; font-size: 0.95rem; }
-      main { padding: 40px 20px; }
-      h1 { font-size: 2.2rem; }
-      .grid { grid-template-columns: 1fr; gap: 24px; }
-      .card { padding: 24px; }
+    .neon-button:hover {
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.45), 0 0 30px rgba(255, 0, 255, 0.25);
+      transform: translateY(-1px);
     }
   </style>
 </head>
 
-<body>
-  <div class="topbar">
-    <div class="brand">TaskHive</div>
-
-    <div class="nav">
-      <a href="/workspace/">Workspace</a>
-      <a href="/profile/">Profile</a>
-      <button onclick="logout()" class="btn">Logout</button>
-    </div>
-  </div>
-
-  <main>
-    <h1>Team Setup</h1>
-    <p class="subtitle">Create or join a team to unlock collaborative task management.</p>
-    <p class="user-info">
-      Logged in as: <span id="who"></span>
-    </p>
-
-    <!-- Current team card (hidden by default) -->
-    <div id="currentTeamCard" class="card" style="display:none;">
-      <h3>Current Team</h3>
-      <div id="teamDetails" style="text-align: center;"></div>
-      <div class="actions" style="margin-top: 32px; justify-content: center;">
-        <button id="leaveBtn" onclick="leaveTeam()" class="btn">Leave Team</button>
-        <button onclick="window.location.href='/workspace/'" class="btn btn-primary">Go to Workspace →</button>
+<body class="bg-gray-900 text-gray-100 min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
+  <header class="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b border-cyan-500/20 sticky top-0 z-50 glow">
+    <div class="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="text-cyan-400 text-2xl neon-text animate-pulse"><i class="fas fa-bug"></i></div>
+        <div>
+          <div class="text-lg font-semibold text-cyan-300 neon-text">TaskHive</div>
+          <div class="text-[11px] text-gray-400">Team Setup</div>
+        </div>
       </div>
+      <nav class="flex items-center gap-4 text-sm text-gray-300">
+        <a class="hover:text-cyan-300" href="/workspace/">Workspace</a>
+        <a class="hover:text-cyan-300" href="/profile/">Profile</a>
+        <button onclick="logout()" class="px-3 py-1.5 rounded-md bg-gray-800 hover:bg-gray-700 border border-cyan-500/30 text-gray-100">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-5 py-10">
+    <div class="text-center">
+      <h1 class="text-2xl sm:text-3xl font-bold text-cyan-300 neon-text">Team Setup</h1>
+      <p class="mt-2 text-sm text-gray-400">Create or join a team to unlock collaborative task management.</p>
+      <p class="mt-3 text-sm text-gray-400">Logged in as: <span class="text-cyan-300 font-medium" id="who"></span></p>
     </div>
 
-    <div class="grid">
-      <section class="card">
-        <h3>Create New Team</h3>
-        <input id="teamName" placeholder="Enter team name (e.g. Frontend Squad)" />
-        <button onclick="createTeam()" class="btn btn-primary">Create Team</button>
-        <div id="createMsg"></div>
-      </section>
+    <section id="currentTeamCard" class="mt-8 hidden panel glow p-5">
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 class="text-base font-semibold text-cyan-300">Current Team</h2>
+          <div id="teamDetails" class="mt-2 text-sm text-gray-300"></div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="leaveBtn" onclick="leaveTeam()" class="px-3 py-1.5 rounded-md bg-gray-800 hover:bg-gray-700 border border-cyan-500/30 text-gray-100">Leave Team</button>
+          <button onclick="window.location.href='/workspace/'" class="px-3 py-1.5 rounded-md neon-button text-gray-900 font-semibold">Go to Workspace →</button>
+        </div>
+      </div>
+    </section>
 
-      <section class="card">
-        <h3>Join Existing Team</h3>
-        <input id="teamCode" placeholder="Enter team code (e.g. TEAM-ABCDEF)" />
-        <button onclick="joinTeam()" class="btn btn-primary">Join Team</button>
-        <div id="joinMsg"></div>
-      </section>
-    </div>
+    <section class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="panel glow p-5">
+        <h3 class="text-base font-semibold text-cyan-300">Create New Team</h3>
+        <p class="mt-1 text-sm text-gray-400">You will become the team head.</p>
+        <input id="teamName" class="mt-4 w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-gray-100 field-focus" placeholder="Enter team name (e.g. Frontend Squad)" />
+        <button onclick="createTeam()" class="mt-3 w-full px-3 py-2 rounded-md neon-button text-gray-900 font-semibold">Create Team</button>
+        <div id="createMsg" class="mt-3"></div>
+      </div>
 
-    <div class="actions">
-      <a href="/profile/" class="btn">Complete Profile</a>
-      <a href="/workspace/" class="btn btn-primary">Go to Workspace →</a>
-    </div>
+      <div class="panel glow p-5">
+        <h3 class="text-base font-semibold text-cyan-300">Join Existing Team</h3>
+        <p class="mt-1 text-sm text-gray-400">Ask your head for the team code.</p>
+        <input id="teamCode" class="mt-4 w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-gray-100 field-focus" placeholder="Enter team code (e.g. TEAM-ABCDEF)" />
+        <button onclick="joinTeam()" class="mt-3 w-full px-3 py-2 rounded-md neon-button text-gray-900 font-semibold">Join Team</button>
+        <div id="joinMsg" class="mt-3"></div>
+      </div>
+    </section>
+
+    <section class="mt-8 flex items-center justify-center gap-3 flex-wrap">
+      <a href="/profile/" class="px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700 border border-cyan-500/30 text-sm text-gray-100">Complete Profile</a>
+      <a href="/workspace/" class="px-3 py-2 rounded-md neon-button text-sm text-gray-900 font-semibold">Go to Workspace →</a>
+    </section>
   </main>
 
   <script>
-    // ✅ Safe user parsing
+    // Safe user parsing
     function getCurrentUserObj() {
       const raw = localStorage.getItem("taskhive_current_user");
       if (!raw || raw === "Guest") return null;
       try { return JSON.parse(raw); } catch (e) { return null; }
+    }
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return "";
     }
 
     function escapeHtml(text) {
@@ -326,21 +140,18 @@
       return div.innerHTML;
     }
 
-    function generateUniqueCode() {
-      const teams = JSON.parse(localStorage.getItem("taskhive_teams") || "[]");
-      let code;
-      let attempts = 0;
-      do {
-        code = "TEAM-" + Math.random().toString(36).substr(2, 8).toUpperCase();
-        attempts++;
-      } while (teams.some(t => t.code === code) && attempts < 100);
-      return code;
+    async function fetchJson(url, options = {}) {
+      const csrf = getCookie("csrftoken");
+      const headers = Object.assign({ "X-CSRFToken": csrf }, options.headers || {});
+      const res = await fetch(url, Object.assign({}, options, { headers, credentials: "same-origin" }));
+      const data = await res.json().catch(() => ({}));
+      return { res, data };
     }
 
     function copyCode(code, btn) {
       navigator.clipboard.writeText(code).then(() => {
         const originalText = btn.innerText;
-        btn.innerText = "Copied ✓";
+        btn.innerText = "Copied ";
         setTimeout(() => { btn.innerText = originalText; }, 2000);
       }).catch(() => {
         btn.innerText = "Failed";
@@ -351,7 +162,21 @@
     const display = user && (user.name || user.email || user.username) ? (user.name || user.email || user.username) : "User";
     document.getElementById("who").innerText = display;
 
-    function createTeam() {
+    function setCurrentUserRole(role) {
+      const raw = localStorage.getItem("taskhive_current_user");
+      if (!raw || raw === "Guest") return;
+      try {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === "object") {
+          obj.role = role;
+          localStorage.setItem("taskhive_current_user", JSON.stringify(obj));
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    async function createTeam() {
       const name = document.getElementById("teamName").value.trim();
       const createMsg = document.getElementById("createMsg");
 
@@ -359,38 +184,35 @@
       createMsg.innerHTML = "";
 
       if (!name) {
-        createMsg.className = "err";
+        createMsg.className = "mt-3 text-sm text-red-300";
         createMsg.innerText = "Enter a team name.";
         return;
       }
 
-      const u = getCurrentUserObj();
-      if (!u) {
-        const next = encodeURIComponent(window.location.pathname);
-        window.location.href = `/login/?next=${next}`;
+      const { res, data } = await fetchJson("/api/team/create/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+
+      if (!res.ok || !data.ok) {
+        createMsg.className = "mt-3 text-sm text-red-300";
+        createMsg.innerText = data.error || `Create failed (HTTP ${res.status}).`;
         return;
       }
 
-      const code = generateUniqueCode();
+      if (data.role) setCurrentUserRole(String(data.role).toLowerCase());
 
-      const teams = JSON.parse(localStorage.getItem("taskhive_teams") || "[]");
-      teams.push({
-        name,
-        code,
-        ownerEmail: u.email || "",
-        ownerName: u.name || "",
-        members: [{ email: u.email || "", name: u.name || "" }]
-      });
+      const code = (data.team && data.team.code) ? data.team.code : "";
+      createMsg.className = "mt-3 text-sm text-green-300";
+      createMsg.innerHTML = `Created successfully. Team code: <strong>${code}</strong>
+        <button class="ml-2 px-2 py-1 rounded bg-gray-900 border border-gray-700 text-gray-100 hover:bg-gray-800" onclick="copyCode('${code}', this)">Copy</button>`;
 
-      localStorage.setItem("taskhive_teams", JSON.stringify(teams));
-      localStorage.setItem("taskhive_team_code", code);
-
-      createMsg.className = "msg";
-      createMsg.innerHTML = `Created successfully ✅<br>Team code: <strong>${code}</strong>
-        <button class="btn" style="margin-left:12px; padding:8px 16px;" onclick="copyCode('${code}', this)">Copy</button>`;
+      await refreshCurrentTeam();
+      if (data.redirect) window.location.href = data.redirect;
     }
 
-    function joinTeam() {
+    async function joinTeam() {
       let code = document.getElementById("teamCode").value.trim().toUpperCase();
       const joinMsg = document.getElementById("joinMsg");
 
@@ -398,70 +220,50 @@
       joinMsg.innerHTML = "";
 
       if (!code) {
-        joinMsg.className = "err";
+        joinMsg.className = "mt-3 text-sm text-red-300";
         joinMsg.innerText = "Enter a team code.";
         return;
       }
 
-      const u = getCurrentUserObj();
-      if (!u) {
-        const next = encodeURIComponent(window.location.pathname);
-        window.location.href = `/login/?next=${next}`;
+      const { res, data } = await fetchJson("/api/team/join/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code })
+      });
+
+      if (!res.ok || !data.ok) {
+        joinMsg.className = "mt-3 text-sm text-red-300";
+        joinMsg.innerText = data.error || `Join failed (HTTP ${res.status}).`;
         return;
       }
 
-      const teams = JSON.parse(localStorage.getItem("taskhive_teams") || "[]");
-      const t = teams.find(x => x.code === code);
-      if (!t) {
-        joinMsg.className = "err";
-        joinMsg.innerText = "Invalid team code.";
-        return;
-      }
+      if (data.role) setCurrentUserRole(String(data.role).toLowerCase());
 
-      t.members = Array.isArray(t.members) ? t.members : [];
-      const exists = t.members.some(m => (m.email || "") === (u.email || ""));
-      if (!exists) t.members.push({ email: u.email || "", name: u.name || "" });
+      const teamName = (data.team && data.team.name) ? data.team.name : "Team";
+      const teamCode = (data.team && data.team.code) ? data.team.code : code;
+      joinMsg.className = "mt-3 text-sm text-green-300";
+      joinMsg.innerHTML = `Joined successfully. Welcome to <strong>${escapeHtml(teamName)}</strong><br>
+        Team code: <strong>${teamCode}</strong>
+        <button class="ml-2 px-2 py-1 rounded bg-gray-900 border border-gray-700 text-gray-100 hover:bg-gray-800" onclick="copyCode('${teamCode}', this)">Copy</button>`;
 
-      localStorage.setItem("taskhive_teams", JSON.stringify(teams));
-      localStorage.setItem("taskhive_team_code", code);
-
-      joinMsg.className = "msg";
-      joinMsg.innerHTML = `Joined successfully ✅<br>Welcome to <strong>${escapeHtml(t.name)}</strong><br>
-        Team code: <strong>${code}</strong>
-        <button class="btn" style="margin-left:12px; padding:8px 16px;" onclick="copyCode('${code}', this)">Copy</button>`;
+      await refreshCurrentTeam();
+      if (data.redirect) window.location.href = data.redirect;
     }
 
-    function leaveTeam() {
+    async function leaveTeam() {
       if (!confirm("Are you sure you want to leave the team? This action cannot be undone.")) return;
 
-      const u = getCurrentUserObj();
-      if (!u || !u.email) {
-        alert("Error retrieving user info.");
+      const { res, data } = await fetchJson("/api/team/leave/", {
+        method: "POST",
+      });
+
+      if (!res.ok || !data.ok) {
+        alert(data.error || `Leave failed (HTTP ${res.status}).`);
         return;
       }
 
-      const currentCode = localStorage.getItem("taskhive_team_code");
-      if (!currentCode) return;
-
-      let teams = JSON.parse(localStorage.getItem("taskhive_teams") || "[]");
-      const teamIndex = teams.findIndex(t => t.code === currentCode);
-
-      if (teamIndex === -1) {
-        localStorage.removeItem("taskhive_team_code");
-        location.reload();
-        return;
-      }
-
-      const team = teams[teamIndex];
-      team.members = team.members.filter(m => m.email !== u.email);
-
-      if (team.members.length === 0) {
-        teams.splice(teamIndex, 1);
-      }
-
-      localStorage.setItem("taskhive_teams", JSON.stringify(teams));
-      localStorage.removeItem("taskhive_team_code");
-      location.reload();
+      if (data.redirect) window.location.href = data.redirect;
+      else window.location.reload();
     }
 
     function logout() {
@@ -469,58 +271,141 @@
       window.location.href = "/login/";
     }
 
-    // Current team display logic
-    (function () {
-      const teamCode = localStorage.getItem("taskhive_team_code");
-      if (!teamCode) return;
+    async function refreshCurrentTeam() {
+      const currentCard = document.getElementById("currentTeamCard");
+      const teamDetails = document.getElementById("teamDetails");
 
-      const teams = JSON.parse(localStorage.getItem("taskhive_teams") || "[]");
-      const team = teams.find(t => t.code === teamCode);
-      if (!team) {
-        localStorage.removeItem("taskhive_team_code");
+      const { res, data } = await fetchJson("/api/team/current/");
+      if (!res.ok || !data.ok || !data.team) {
+        if (currentCard) currentCard.classList.add("hidden");
         return;
       }
 
-      const currentCard = document.getElementById("currentTeamCard");
-      if (!currentCard) return;
-      currentCard.style.display = "block";
+      const team = data.team;
+      const role = (data.role || "member").toLowerCase();
+      const roleLabel = role === "head" ? "admin" : role;
+
+      setCurrentUserRole(role);
+
+      const membersResp = await fetchJson(`/api/team/${encodeURIComponent(team.id)}/members/`);
+      const members = (membersResp.data && membersResp.data.members) ? membersResp.data.members : [];
 
       const u = getCurrentUserObj();
-      const isOwner = team.ownerEmail === (u?.email ?? "");
-      const members = team.members || [];
+      const meEmail = (u && u.email) ? u.email : "";
 
-      const membersList = members.map(m => {
-        let display = m.name || m.email || "Unknown";
-        if (m.email === (u?.email ?? "")) display += " (You)";
-        return display;
-      }).join(", ");
+      const membersHtml = members.length
+        ? `<div class="mt-4 text-sm text-gray-300">
+            <div class="font-semibold text-gray-200 mb-2">Members</div>
+            <div class="space-y-2">
+              ${members.map(m => {
+                const email = (m.email || "").toLowerCase();
+                const isYou = email === (meEmail || "").toLowerCase();
+                const isHead = (m.role || "").toLowerCase() === "head";
+                const canRemove = role === "head" && !isYou && !isHead;
+                return `
+                  <div class="flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-gray-900/60 border border-gray-700">
+                    <div>
+                      <div class="text-gray-100">
+                        <a href="/profile/${encodeURIComponent(m.username || '')}/" class="hover:text-cyan-300 underline">${escapeHtml(m.name || m.email || "Unknown")}</a>
+                      </div>
+                      <div class="text-xs text-gray-400">${escapeHtml(m.email || "")} ${isYou ? "(You)" : ""} ${isHead ? "(Head)" : ""}</div>
+                    </div>
+                    ${canRemove ? `<button class="px-2 py-1 text-xs rounded bg-red-700 hover:bg-red-600 text-white" onclick="removeMember(${team.id}, '${encodeURIComponent(email)}')">Remove</button>` : ""}
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </div>`
+        : '<div class="mt-4 text-sm text-gray-400">No members found.</div>';
 
-      const teamDetails = document.getElementById("teamDetails");
-      teamDetails.innerHTML = `
-        <p style="font-size:1.4rem; margin:16px 0;">${escapeHtml(team.name)}${isOwner ? ' <span style="color:var(--success); font-size:1rem;">(You are the owner)</span>' : ''}</p>
-        <p>Team Code: <strong>${teamCode}</strong>
-          <button class="btn" style="margin-left:12px; padding:8px 16px;" onclick="copyCode('${teamCode}', this)">Copy</button>
-        </p>
-        ${members.length > 1 ? `<p style="margin-top:24px;">Members: ${membersList}</p>` : '<p style="margin-top:24px;">You are the only member.</p>'}
-      `;
+      if (currentCard) currentCard.classList.remove("hidden");
+      if (teamDetails) {
+        teamDetails.innerHTML = `
+          <div class="text-sm text-gray-200">
+            <div class="font-semibold text-gray-100">${escapeHtml(team.name)} <span class="text-gray-400 font-normal">(You are ${escapeHtml(roleLabel)})</span></div>
+            <div class="mt-2">Team Code: <strong>${escapeHtml(team.code)}</strong>
+              <button class="ml-2 px-2 py-1 rounded bg-gray-900 border border-gray-700 text-gray-100 hover:bg-gray-800" onclick="copyCode('${team.code}', this)">Copy</button>
+            </div>
+          </div>
+          ${role === 'head' ? `
+            <div class="mt-4 pt-4 border-t border-gray-700">
+              <p class="text-sm text-gray-400">Invite member (email)</p>
+              <div class="mt-2 flex gap-2 items-center flex-wrap">
+                <input id="inviteEmail" placeholder="member@email.com" class="flex-1 min-w-[240px] px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
+                <button class="px-3 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-gray-900 font-semibold" onclick="inviteMember(${team.id})">Invite</button>
+              </div>
+              <div id="inviteMsg" class="mt-2"></div>
+            </div>
+          ` : ''}
+          ${membersHtml}
+        `;
+      }
+    }
 
-      if (members.length === 1 && isOwner) {
-        document.getElementById("leaveBtn").innerText = "Delete Team";
+    async function inviteMember(teamId) {
+      const el = document.getElementById("inviteEmail");
+      const msg = document.getElementById("inviteMsg");
+      if (!el || !msg) return;
+
+      const email = (el.value || "").trim().toLowerCase();
+      msg.className = "";
+      msg.innerHTML = "";
+
+      if (!email) {
+        msg.className = "text-sm text-red-300";
+        msg.innerText = "Enter an email to invite.";
+        return;
       }
 
-      // Switch note
-      const note = document.createElement("p");
-      note.className = "subtitle";
-      note.style.textAlign = "center";
-      note.style.margin = "48px 0 32px";
-      note.innerText = "To switch to a different team, create or join another below.";
-      currentCard.after(note);
+      const { res, data } = await fetchJson("/api/team/invite/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ team_id: teamId, email })
+      });
 
-      // Hide bottom actions (duplicated with current team card)
-      const bottomActions = document.querySelector("main > .actions");
-      if (bottomActions) bottomActions.style.display = "none";
+      if (!res.ok || !data.ok) {
+        msg.className = "text-sm text-red-300";
+        msg.innerText = data.error || `Invite failed (HTTP ${res.status}).`;
+        return;
+      }
+
+      msg.className = "text-sm text-green-300";
+      msg.innerText = data.created ? "Member invited." : "User is already in the team.";
+      el.value = "";
+      await refreshCurrentTeam();
+    }
+
+    async function removeMember(teamId, encodedEmail) {
+      const msg = document.getElementById("inviteMsg");
+      const email = decodeURIComponent(encodedEmail || "");
+      if (!email) return;
+      if (!confirm(`Remove ${email} from this team?`)) return;
+
+      const { res, data } = await fetchJson("/api/team/member/remove/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ team_id: teamId, member_email: email })
+      });
+
+      if (msg) {
+        if (!res.ok || !data.ok) {
+          msg.className = "text-sm text-red-300";
+          msg.innerText = data.error || `Remove failed (HTTP ${res.status}).`;
+        } else {
+          msg.className = "text-sm text-green-300";
+          msg.innerText = "Member removed successfully.";
+        }
+      }
+
+      if (res.ok && data.ok) await refreshCurrentTeam();
+    }
+
+    // Current team display logic
+    (function () {
+      refreshCurrentTeam();
     })();
   </script>
+
 </body>
 </html>
 {% endverbatim %}

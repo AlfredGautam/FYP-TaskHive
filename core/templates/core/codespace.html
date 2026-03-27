@@ -9,6 +9,10 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs/loader.js"></script>
 
+  <!-- (optional) for icons in modal close button -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
   <style>
     html, body { height: 100%; margin: 0; }
     #editor { height: calc(100vh - 64px); }
@@ -44,6 +48,40 @@
       };
       return map[ext] || "plaintext";
     }
+
+    function parseQuery() {
+      const params = new URLSearchParams(window.location.search || "");
+      const out = {};
+      for (const [k, v] of params.entries()) out[k] = v;
+      return out;
+    }
+
+    function looksLikeFilename(s) {
+      if (!s) return false;
+      const v = String(s).trim();
+      if (!v) return false;
+      if (v.includes("\n")) return false;
+      if (v.length > 255) return false;
+      if (v.includes("/") || v.includes("\\")) return true;
+      return /\.[a-z0-9]{1,8}$/i.test(v);
+    }
+
+    function pickFilenameFromSuperTask(task) {
+      const meta = (task && task.codeMeta) ? task.codeMeta : null;
+      if (!meta) return null;
+
+      const filePath = (meta.filePath || "").trim();
+      if (looksLikeFilename(filePath)) {
+        return filePath.split("/").pop().split("\\").pop();
+      }
+
+      const codeName = (meta.codeName || "").trim();
+      if (looksLikeFilename(codeName)) {
+        return codeName.split("/").pop().split("\\").pop();
+      }
+
+      return null;
+    }
   </script>
 </head>
 
@@ -51,14 +89,19 @@
 
   <!-- Top bar -->
   <div class="h-16 px-4 flex items-center justify-between bg-gray-800 border-b border-gray-700">
-    <div class="flex items-center gap-3">
-      <div class="text-cyan-300 font-bold text-lg">TaskHive CodeSpace</div>
-      <div id="fileName" class="text-sm text-gray-300">No file loaded</div>
-      <div id="status" class="text-xs text-gray-400"></div>
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="text-cyan-300 font-bold text-lg whitespace-nowrap">TaskHive CodeSpace</div>
+      <div id="fileName" class="text-sm text-gray-300 truncate">No file loaded</div>
+      <div id="status" class="text-xs text-gray-400 whitespace-nowrap"></div>
     </div>
 
     <div class="flex items-center gap-2">
       <input id="fileInput" type="file" class="hidden" multiple />
+
+      <!-- ✅ NEW FILE BUTTON -->
+      <button id="newBtn" class="px-3 py-2 rounded bg-purple-600 hover:bg-purple-500 text-sm">
+        + New File
+      </button>
 
       <button id="uploadBtn" class="px-3 py-2 rounded bg-cyan-600 hover:bg-cyan-500 text-sm">
         Upload Files
@@ -93,6 +136,37 @@
     </div>
   </div>
 
+  <!-- ✅ New File Modal -->
+  <div id="newModal" class="fixed inset-0 hidden items-center justify-center bg-black/70 z-50">
+    <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md p-5">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-cyan-300 font-semibold">Create New File</h3>
+        <button id="closeNewModal" class="text-gray-400 hover:text-gray-200">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <label class="block text-sm text-gray-300 mb-1">File name</label>
+      <input id="newFileName"
+             placeholder="e.g. app.js / main.py / index.html"
+             class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"/>
+
+      <div class="mt-4 flex justify-end gap-2">
+        <button id="cancelNewFile" class="px-3 py-2 rounded bg-gray-700 hover:bg-gray-600 text-sm">
+          Cancel
+        </button>
+        <button id="createNewFile" class="px-3 py-2 rounded bg-green-600 hover:bg-green-500 text-sm">
+          Create
+        </button>
+      </div>
+
+      <p id="newFileError" class="mt-3 text-sm text-red-300 hidden"></p>
+      <p class="mt-2 text-xs text-gray-400">
+        Tip: use extension to set editor language (e.g. <span class="text-gray-200">.js .py .html</span>)
+      </p>
+    </div>
+  </div>
+
   <script>
     let editor = null;
     let currentFileId = null;
@@ -101,6 +175,10 @@
     const statusEl = document.getElementById("status");
     const fileNameEl = document.getElementById("fileName");
     const fileListEl = document.getElementById("fileList");
+
+    const newModal = document.getElementById("newModal");
+    const newFileNameInput = document.getElementById("newFileName");
+    const newFileError = document.getElementById("newFileError");
 
     function setStatus(msg) { statusEl.textContent = msg || ""; }
 
@@ -116,11 +194,93 @@
       localStorage.setItem("taskhive_last_file_id", String(id || ""));
     }
 
+    async function createOrGetFile(filename, content) {
+      const res = await fetch("/api/code/create/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken") || ""
+        },
+        body: JSON.stringify({ filename, content: content || "" })
+      });
+
+      const data = await safeJson(res);
+      if (!data || !res.ok || !data.ok) {
+        throw new Error(data?.error || `Create failed (${res.status})`);
+      }
+      return data;
+    }
+
+    async function deleteFileById(fileId) {
+      const res = await fetch("/api/code/delete/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken") || ""
+        },
+        body: JSON.stringify({ file_id: fileId })
+      });
+
+      const data = await safeJson(res);
+      if (!data || !res.ok || !data.ok) {
+        throw new Error(data?.error || `Delete failed (${res.status})`);
+      }
+      return data;
+    }
+
+    async function tryAutoOpenFromSuperTask() {
+      const q = parseQuery();
+      if (!q.taskId) return;
+
+      let task = null;
+      try {
+        const raw = localStorage.getItem("taskhive_active_super_task");
+        if (raw) task = JSON.parse(raw);
+      } catch (e) {
+        task = null;
+      }
+
+      const filename = pickFilenameFromSuperTask(task);
+      const starter = (task && task.codeMeta && task.codeMeta.starterCode) ? String(task.codeMeta.starterCode) : "";
+
+      if (!filename) {
+        setStatus("Super Task opened (no filename provided)");
+        return;
+      }
+
+      setStatus(`Preparing ${filename}...`);
+      try {
+        const created = await createOrGetFile(filename, starter);
+        await loadFileList(false);
+        await openFile(created.file_id);
+        setStatus(created.exists ? "Opened existing file ✅" : "Created file ✅");
+      } catch (err) {
+        setStatus("");
+        alert(err?.message || "Failed preparing file");
+      }
+    }
+
+    function openNewModal() {
+      newFileError.classList.add("hidden");
+      newFileError.textContent = "";
+      newFileNameInput.value = "";
+      newModal.classList.remove("hidden");
+      newModal.classList.add("flex");
+      setTimeout(() => newFileNameInput.focus(), 50);
+    }
+
+    function closeNewModal() {
+      newModal.classList.add("hidden");
+      newModal.classList.remove("flex");
+    }
+
     // Monaco init
     window.require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs" } });
     window.require(["vs/editor/editor.main"], function () {
       editor = monaco.editor.create(document.getElementById("editor"), {
-        value: "// Select a file or upload one...\n",
+        value: "// Select a file or create a new one...\n",
         language: "javascript",
         theme: "vs-dark",
         fontSize: 14,
@@ -129,6 +289,7 @@
       });
       setStatus("Editor ready ✅");
       loadFileList(true);
+      tryAutoOpenFromSuperTask();
     });
 
     async function loadFileList(tryAutoOpen=false) {
@@ -144,20 +305,29 @@
 
       const files = data.files || [];
       if (!files.length) {
-        fileListEl.innerHTML = `<div class="text-sm text-gray-400 p-2">No files yet. Upload one.</div>`;
+        fileListEl.innerHTML = `<div class="text-sm text-gray-400 p-2">No files yet. Create one or upload.</div>`;
         setStatus("");
         return;
       }
 
       fileListEl.innerHTML = files.map(f => `
-        <button
-          class="w-full text-left px-3 py-2 rounded hover:bg-gray-700 text-sm flex items-center justify-between"
-          onclick="openFile(${f.id})"
-          title="${f.filename}"
-        >
-          <span class="truncate">${f.filename}</span>
-          <span class="text-xs text-gray-500 ml-2">#${f.id}</span>
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            class="flex-1 text-left px-3 py-2 rounded hover:bg-gray-700 text-sm flex items-center justify-between"
+            onclick="openFile(${f.id})"
+            title="${f.filename}"
+          >
+            <span class="truncate ${String(currentFileId) === String(f.id) ? 'text-cyan-300' : ''}">${f.filename}</span>
+            <span class="text-xs text-gray-500 ml-2">#${f.id}</span>
+          </button>
+          <button
+            class="px-2 py-2 rounded hover:bg-red-900/40 text-red-300"
+            onclick="deleteFileUi(${f.id}, '${String(f.filename).replace(/'/g, "&#39;")}')"
+            title="Delete"
+          >
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
       `).join("");
 
       setStatus("");
@@ -190,7 +360,88 @@
       editor.setValue(f.content || "");
 
       setStatus("Opened ✅");
+      await loadFileList(false);
     }
+
+    window.deleteFileUi = async function(fileId, filename) {
+      if (!ensureEditorReady()) return;
+
+      const ok = confirm(`Delete file "${filename}"?`);
+      if (!ok) return;
+
+      setStatus("Deleting...");
+      try {
+        await deleteFileById(fileId);
+
+        if (String(currentFileId) === String(fileId)) {
+          setCurrentFile(null, null);
+          editor.setValue("// Select a file or create a new one...\n");
+        }
+
+        await loadFileList(false);
+        setStatus("Deleted ✅");
+      } catch (err) {
+        setStatus("");
+        alert(err?.message || "Delete failed");
+      }
+    }
+
+    // ✅ NEW FILE BUTTON
+    document.getElementById("newBtn").addEventListener("click", () => {
+      if (!ensureEditorReady()) return;
+      openNewModal();
+    });
+
+    document.getElementById("closeNewModal").addEventListener("click", closeNewModal);
+    document.getElementById("cancelNewFile").addEventListener("click", closeNewModal);
+    newModal.addEventListener("click", (e) => { if (e.target === newModal) closeNewModal(); });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !newModal.classList.contains("hidden")) closeNewModal();
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        document.getElementById("saveBtn").click();
+      }
+    });
+
+    // ✅ Create new file API call
+    document.getElementById("createNewFile").addEventListener("click", async () => {
+      if (!ensureEditorReady()) return;
+
+      const filename = (newFileNameInput.value || "").trim();
+      if (!filename) {
+        newFileError.textContent = "Filename is required.";
+        newFileError.classList.remove("hidden");
+        return;
+      }
+
+      setStatus("Creating file...");
+
+      // IMPORTANT: you must create this endpoint in Django: POST /api/code/create/
+      const res = await fetch("/api/code/create/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken") || ""
+        },
+        body: JSON.stringify({ filename, content: "" })
+      });
+
+      const data = await safeJson(res);
+
+      if (!data || !res.ok || !data.ok) {
+        setStatus("");
+        newFileError.textContent = data?.error || `Create failed (${res.status})`;
+        newFileError.classList.remove("hidden");
+        return;
+      }
+
+      closeNewModal();
+      await loadFileList(false);
+      await openFile(data.file_id);
+      setStatus("New file created ✅");
+    });
 
     // Upload multiple files
     document.getElementById("uploadBtn").addEventListener("click", () => {
@@ -224,7 +475,6 @@
           continue;
         }
 
-        // auto open the last uploaded file
         await loadFileList(false);
         await openFile(data.file_id);
       }
@@ -237,7 +487,7 @@
       if (!ensureEditorReady()) return;
 
       if (!currentFileId) {
-        alert("Select a file from the left OR upload one first.");
+        alert("Select a file from the left OR create/upload one first.");
         return;
       }
 

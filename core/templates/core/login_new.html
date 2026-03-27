@@ -1,0 +1,385 @@
+{% verbatim %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskHive - Login</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Roboto Mono', monospace; }
+    h1, h2, h3, h4 { font-family: 'Orbitron', sans-serif; }
+    .neon-text { text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3); }
+    .glow { box-shadow: 0 0 10px rgba(0, 255, 255, 0.45); }
+    .neon-button {
+      background: linear-gradient(to right, #00ffff, #ff00ff);
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+      transition: all 0.3s ease;
+    }
+    .neon-button:hover {
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
+      transform: translateY(-1px);
+    }
+    .field-focus:focus {
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.35);
+      border-color: #00ffff;
+      outline: none;
+    }
+    .modal-backdrop { background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(8px); }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 flex items-center justify-center">
+  <div id="app" class="w-full max-w-md px-4">
+    <div class="mb-6 flex items-center justify-center gap-3">
+      <div class="text-cyan-400 text-3xl neon-text animate-pulse"><i class="fas fa-bug"></i></div>
+      <div>
+        <h1 class="text-2xl font-bold text-cyan-300 neon-text">TaskHive</h1>
+        <p class="text-xs text-gray-400">Team Collaboration Platform</p>
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-6 border border-cyan-500/30 glow">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-cyan-300">{{ isLogin ? 'Login' : 'Create Account' }}</h2>
+        <button class="text-xs text-cyan-300 hover:text-cyan-200 underline" @click="toggleMode">
+          {{ isLogin ? 'Need an account?' : 'Already have account?' }}
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div v-if="!isLogin">
+          <label class="block text-sm text-gray-300 mb-1">Full Name</label>
+          <input v-model="form.name" class="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100 field-focus" />
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Email</label>
+          <input v-model="form.email" type="email" class="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100 field-focus" />
+        </div>
+
+        <div>
+          <label class="block text-sm text-gray-300 mb-1">Password</label>
+          <input v-model="form.password" :type="showPassword ? 'text' : 'password'" class="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100 field-focus" />
+          <button class="text-xs text-cyan-300 hover:text-cyan-200 mt-1" @click="showPassword = !showPassword">Toggle Password</button>
+        </div>
+
+        <button @click="handleSubmit" :disabled="loading" class="w-full py-2 rounded text-gray-900 font-semibold neon-button">
+          {{ loading ? 'Please wait...' : (isLogin ? 'Login' : 'Register') }}
+        </button>
+
+        <div v-if="message" class="text-sm" :class="isError ? 'text-red-400' : 'text-green-400'">{{ message }}</div>
+
+        <button v-if="isLogin" class="text-xs text-cyan-300 hover:text-cyan-200 underline" @click="openForgot">Forgot password?</button>
+      </div>
+    </div>
+
+    <div v-if="registerVerify.show" class="fixed inset-0 modal-backdrop flex items-center justify-center px-4">
+      <div class="w-full max-w-md bg-gray-900 border border-cyan-500/30 rounded-xl p-5 glow">
+        <h3 class="text-cyan-300 font-semibold mb-2">Verify your email</h3>
+        <p class="text-sm text-gray-300 mb-3">Enter the code sent to {{ registerVerify.email }}</p>
+        <input v-model="registerVerify.code" maxlength="6" class="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-gray-100 field-focus" placeholder="6-digit code" />
+        <div v-if="registerVerify.message" class="mt-2 text-sm" :class="registerVerify.isError ? 'text-red-400' : 'text-green-400'">{{ registerVerify.message }}</div>
+        <div class="flex gap-2 mt-4">
+          <button @click="closeRegisterVerify" class="w-1/3 py-2 rounded bg-gray-700 hover:bg-gray-600">Cancel</button>
+          <button @click="verifyRegistrationCode" :disabled="registerVerify.loading" class="w-2/3 py-2 rounded bg-green-600 hover:bg-green-500">{{ registerVerify.loading ? 'Verifying...' : 'Verify & Create Account' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="forgot.show" class="fixed inset-0 modal-backdrop flex items-center justify-center px-4">
+      <div class="w-full max-w-md bg-gray-900 border border-cyan-500/30 rounded-xl p-5 glow">
+        <h3 class="text-cyan-300 font-semibold mb-2">Reset password</h3>
+        <div v-if="forgot.step === 1">
+          <input v-model="forgot.email" type="email" class="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-gray-100 field-focus" placeholder="you@gmail.com" />
+          <button @click="requestOtp" class="w-full mt-3 py-2 rounded text-gray-900 font-semibold neon-button">Send OTP</button>
+        </div>
+        <div v-else>
+          <input v-model="forgot.otp" maxlength="6" class="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-gray-100 field-focus mb-2" placeholder="OTP" />
+          <input v-model="forgot.newPassword" type="password" class="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-gray-100 field-focus mb-2" placeholder="New password" />
+          <input v-model="forgot.confirmPassword" type="password" class="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-gray-100 field-focus mb-2" placeholder="Confirm password" />
+          <button @click="resetPassword" class="w-full py-2 rounded bg-green-600 hover:bg-green-500">Verify OTP & Reset</button>
+        </div>
+        <div v-if="forgot.message" class="mt-2 text-sm" :class="forgot.isError ? 'text-red-400' : 'text-green-400'">{{ forgot.message }}</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          isLogin: true,
+          loading: false,
+          showPassword: false,
+          form: { name: '', email: '', password: '' },
+          message: '',
+          isError: false,
+          nextUrl: '/user/',
+          forgot: {
+            show: false,
+            step: 1,
+            email: '',
+            otp: '',
+            newPassword: '',
+            confirmPassword: '',
+            message: '',
+            isError: false,
+          },
+          registerVerify: {
+            show: false,
+            email: '',
+            code: '',
+            message: '',
+            isError: false,
+            loading: false,
+          },
+        };
+      },
+      mounted() {
+        const params = new URLSearchParams(window.location.search);
+        const next = params.get('next');
+        if (next) this.nextUrl = next;
+      },
+      methods: {
+        getCookie(name) {
+          const value = `; ${document.cookie}`;
+          const parts = value.split(`; ${name}=`);
+          if (parts.length === 2) return parts.pop().split(';').shift();
+          return '';
+        },
+        toggleMode() {
+          this.isLogin = !this.isLogin;
+          this.message = '';
+          this.isError = false;
+        },
+        isValidEmail(email) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim().toLowerCase());
+        },
+        saveUserToLocalStorage() {
+          const email = (this.form.email || '').trim().toLowerCase();
+          const fallbackName = (this.form.name || '').trim() || (email ? email.split('@')[0] : 'User');
+          localStorage.setItem('taskhive_current_user', JSON.stringify({
+            name: fallbackName,
+            email,
+            username: email,
+            displayName: fallbackName,
+            lastLogin: new Date().toISOString(),
+          }));
+        },
+        handleSubmit() {
+          this.message = '';
+          this.isError = false;
+          const email = (this.form.email || '').trim().toLowerCase();
+          if (!email || !this.form.password || (!this.isLogin && !this.form.name)) {
+            this.isError = true;
+            this.message = 'Please fill all required fields.';
+            return;
+          }
+          if (!this.isValidEmail(email)) {
+            this.isError = true;
+            this.message = 'Please enter a valid email address.';
+            return;
+          }
+          if (this.form.password.length < 6) {
+            this.isError = true;
+            this.message = 'Password should be at least 6 characters.';
+            return;
+          }
+          if (this.isLogin) this.djangoLogin();
+          else this.djangoRegister();
+        },
+        async djangoLogin() {
+          this.loading = true;
+          try {
+            const email = this.form.email.trim().toLowerCase();
+            const csrf = this.getCookie('csrftoken');
+            const res = await fetch('/api/login/', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              body: JSON.stringify({ username: email, password: this.form.password }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              this.isError = true;
+              this.message = data.error || `Login failed (HTTP ${res.status}).`;
+              return;
+            }
+            this.message = 'Login successful! Redirecting...';
+            this.isError = false;
+            this.saveUserToLocalStorage();
+            setTimeout(() => { window.location.href = this.nextUrl || '/user/'; }, 350);
+          } catch (e) {
+            this.isError = true;
+            this.message = 'Network error. Try again.';
+          } finally {
+            this.loading = false;
+          }
+        },
+        async djangoRegister() {
+          this.loading = true;
+          try {
+            const email = this.form.email.trim().toLowerCase();
+            const csrf = this.getCookie('csrftoken');
+            const res = await fetch('/api/register/', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              body: JSON.stringify({ name: this.form.name.trim(), email, password: this.form.password }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              this.isError = true;
+              this.message = data.error || `Registration failed (HTTP ${res.status}).`;
+              return;
+            }
+            this.isError = false;
+            this.message = data.message || 'Verification code sent. Check your email.';
+            this.registerVerify.show = true;
+            this.registerVerify.email = email;
+            this.registerVerify.code = '';
+            this.registerVerify.message = '';
+            this.registerVerify.isError = false;
+          } catch (e) {
+            this.isError = true;
+            this.message = 'Network error. Try again.';
+          } finally {
+            this.loading = false;
+          }
+        },
+        closeRegisterVerify() {
+          this.registerVerify.show = false;
+          this.registerVerify.code = '';
+          this.registerVerify.message = '';
+          this.registerVerify.isError = false;
+          this.registerVerify.loading = false;
+        },
+        async verifyRegistrationCode() {
+          const email = (this.registerVerify.email || '').trim().toLowerCase();
+          const code = (this.registerVerify.code || '').trim();
+          this.registerVerify.message = '';
+          this.registerVerify.isError = false;
+          if (!/^\d{6}$/.test(code)) {
+            this.registerVerify.isError = true;
+            this.registerVerify.message = 'Verification code must be 6 digits.';
+            return;
+          }
+          this.registerVerify.loading = true;
+          try {
+            const csrf = this.getCookie('csrftoken');
+            const res = await fetch('/api/register/verify/', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              body: JSON.stringify({ email, code }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              this.registerVerify.isError = true;
+              this.registerVerify.message = data.error || `Verification failed (HTTP ${res.status}).`;
+              return;
+            }
+            this.form.email = email;
+            this.saveUserToLocalStorage();
+            this.registerVerify.message = 'Email verified. Redirecting...';
+            setTimeout(() => { window.location.href = this.nextUrl || data.redirect || '/user/'; }, 350);
+          } catch (e) {
+            this.registerVerify.isError = true;
+            this.registerVerify.message = 'Network error. Try again.';
+          } finally {
+            this.registerVerify.loading = false;
+          }
+        },
+        openForgot() {
+          this.forgot.show = true;
+          this.forgot.step = 1;
+          this.forgot.email = (this.form.email || '').trim().toLowerCase();
+          this.forgot.otp = '';
+          this.forgot.newPassword = '';
+          this.forgot.confirmPassword = '';
+          this.forgot.message = '';
+          this.forgot.isError = false;
+        },
+        async requestOtp() {
+          const email = (this.forgot.email || '').trim().toLowerCase();
+          if (!email || !this.isValidEmail(email)) {
+            this.forgot.isError = true;
+            this.forgot.message = 'Enter a valid email address.';
+            return;
+          }
+          try {
+            const csrf = this.getCookie('csrftoken');
+            const res = await fetch('/api/password/request-otp/', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              body: JSON.stringify({ email }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              this.forgot.isError = true;
+              this.forgot.message = data.error || `Failed (HTTP ${res.status}).`;
+              return;
+            }
+            this.forgot.isError = false;
+            this.forgot.message = 'OTP sent';
+            this.forgot.step = 2;
+          } catch (e) {
+            this.forgot.isError = true;
+            this.forgot.message = 'Network error. Try again.';
+          }
+        },
+        async resetPassword() {
+          const email = (this.forgot.email || '').trim().toLowerCase();
+          const otp = (this.forgot.otp || '').trim();
+          const np = this.forgot.newPassword || '';
+          const cp = this.forgot.confirmPassword || '';
+          if (!/^\d{6}$/.test(otp)) {
+            this.forgot.isError = true;
+            this.forgot.message = 'OTP must be 6 digits.';
+            return;
+          }
+          if (np.length < 6) {
+            this.forgot.isError = true;
+            this.forgot.message = 'New password must be at least 6 characters.';
+            return;
+          }
+          if (np !== cp) {
+            this.forgot.isError = true;
+            this.forgot.message = 'Passwords do not match.';
+            return;
+          }
+          try {
+            const csrf = this.getCookie('csrftoken');
+            const res = await fetch('/api/password/reset/', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              body: JSON.stringify({ email, otp, new_password: np }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              this.forgot.isError = true;
+              this.forgot.message = data.error || `Reset failed (HTTP ${res.status}).`;
+              return;
+            }
+            this.forgot.isError = false;
+            this.forgot.message = 'Password reset successful. You can login now.';
+            this.forgot.show = false;
+            this.form.email = email;
+            this.form.password = '';
+          } catch (e) {
+            this.forgot.isError = true;
+            this.forgot.message = 'Network error. Try again.';
+          }
+        },
+      },
+    });
+  </script>
+</body>
+</html>
+{% endverbatim %}

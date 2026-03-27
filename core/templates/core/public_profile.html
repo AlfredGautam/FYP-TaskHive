@@ -1,0 +1,70 @@
+{% verbatim %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaskHive - Public Profile</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+  <div id="app" class="max-w-4xl mx-auto px-4 py-8">
+    <a href="/user/" class="inline-flex items-center text-sm text-cyan-300 hover:text-cyan-200 mb-4">
+      ← Back
+    </a>
+
+    <div class="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden">
+      <div class="h-44 bg-gradient-to-r from-cyan-700/50 to-indigo-700/50 relative">
+        <img v-if="profile.cover_url" :src="profile.cover_url" class="absolute inset-0 w-full h-full object-cover" alt="cover" />
+      </div>
+
+      <div class="px-6 pb-6 -mt-10">
+        <img :src="profile.photo_url || defaultPhoto" class="w-24 h-24 rounded-full border-4 border-cyan-400 bg-gray-900 object-cover" alt="profile" />
+        <h1 class="text-2xl font-bold mt-4">{{ profile.display_name || profile.name || 'User' }}</h1>
+        <p class="text-sm text-gray-400">@{{ profile.username_public || username }}</p>
+        <p class="text-sm text-gray-300 mt-3">{{ profile.tagline || '' }}</p>
+        <p class="text-sm text-gray-400 mt-3 whitespace-pre-line">{{ profile.bio || 'No bio provided.' }}</p>
+
+        <div class="mt-5 flex flex-wrap gap-3 text-sm">
+          <a v-if="profile.github" :href="profile.github" target="_blank" class="px-3 py-1 rounded bg-gray-900 border border-gray-700 hover:border-cyan-500">GitHub</a>
+          <a v-if="profile.linkedin" :href="profile.linkedin" target="_blank" class="px-3 py-1 rounded bg-gray-900 border border-gray-700 hover:border-cyan-500">LinkedIn</a>
+          <span class="px-3 py-1 rounded bg-gray-900 border border-gray-700 text-gray-400">{{ profile.email }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          username: '',
+          defaultPhoto: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+          profile: {},
+        };
+      },
+      async mounted() {
+        const parts = window.location.pathname.split('/').filter(Boolean);
+        this.username = decodeURIComponent(parts[1] || '');
+        await this.loadProfile();
+      },
+      methods: {
+        async loadProfile() {
+          if (!this.username) return;
+          try {
+            const res = await fetch(`/api/profile/public/${encodeURIComponent(this.username)}/`, { credentials: 'same-origin' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) return;
+            this.profile = data.profile || {};
+          } catch (e) {
+            // no-op
+          }
+        },
+      },
+    });
+  </script>
+</body>
+</html>
+{% endverbatim %}

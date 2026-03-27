@@ -95,10 +95,6 @@
             {{ user.displayName || user.name || 'User' }}
           </h2>
           <p class="text-xs text-gray-400">@{{ user.username || 'username' }}</p>
-          <p class="text-xs text-gray-400 mt-1">
-            Joined: <span class="text-gray-300">{{ formatDate(user.joinDate) }}</span>
-            · Last seen: <span class="text-gray-300">{{ formatDateTime(user.lastLogin) }}</span>
-          </p>
         </div>
       </div>
 
@@ -236,15 +232,17 @@
       </section>
 
       <!-- Tiny status card -->
-      <section class="bg-gray-800 rounded-2xl p-5 border border-gray-700 text-sm">
-        <h3 class="text-sm font-semibold text-cyan-300 mb-2 flex items-center">
-          <i class="fas fa-database mr-2"></i> Sync Status
+      <section class="bg-gray-800 rounded-2xl p-5 border border-red-800/50 text-sm">
+        <h3 class="text-sm font-semibold text-red-300 mb-3 flex items-center">
+          <i class="fas fa-triangle-exclamation mr-2"></i> Danger Zone
         </h3>
-        <p class="text-xs text-gray-400">
-          DB: <span :class="dbLoaded ? 'text-green-400' : 'text-yellow-400'">{{ dbLoaded ? 'loaded' : 'not loaded' }}</span>
-          · Last save: <span class="text-gray-300">{{ lastSaveText }}</span>
-        </p>
-        <p v-if="errorMsg" class="text-xs text-red-400 mt-2">{{ errorMsg }}</p>
+        <p class="text-xs text-gray-400 mb-3">Delete your account permanently. This cannot be undone.</p>
+        <button
+          @click="deleteAccount"
+          class="w-full px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-white font-semibold"
+        >
+          Delete My Account
+        </button>
       </section>
 
     </div>
@@ -581,6 +579,30 @@ new Vue({
       this.showToast('Reset to saved profile');
     },
 
+    async deleteAccount() {
+      const sure = confirm('Delete your account permanently? This action cannot be undone.');
+      if (!sure) return;
+      const finalSure = confirm('Final confirmation: delete account now?');
+      if (!finalSure) return;
+
+      try {
+        const res = await fetch('/api/profile/delete-account/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'X-CSRFToken': this.getCookie('csrftoken') }
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          this.errorMsg = data.error || 'Failed to delete account.';
+          return;
+        }
+        localStorage.removeItem('taskhive_current_user');
+        window.location.href = data.redirect || '/login/';
+      } catch (e) {
+        this.errorMsg = 'Network error while deleting account.';
+      }
+    },
+
     // ---------- UI ----------
     showToast(msg) {
       this.toastMessage = msg;
@@ -606,4 +628,3 @@ new Vue({
 </body>
 </html>
 {% endverbatim %}
-
