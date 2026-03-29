@@ -71,6 +71,8 @@ urlpatterns = [
     # --------------------
     path("api/login/", views.api_login, name="api_login"),
     path("api/login/google/", views.api_login_google, name="api_login_google"),
+    path("auth/google/", views.google_auth_redirect, name="google_auth_redirect"),
+    path("auth/google/callback/", views.google_auth_callback, name="google_auth_callback"),
     path("api/register/", views.api_register, name="api_register"),
     path("api/register/verify/", views.api_register_verify, name="api_register_verify"),
     path("api/logout/", views.api_logout, name="api_logout"),
@@ -132,4 +134,30 @@ urlpatterns = [
     path("api/notifications/read/", views.api_notifications_read, name="api_notifications_read"),
     path("api/analytics/summary/", views.api_analytics_summary, name="api_analytics_summary"),
     path("api/notifications/deadline-reminders/", views.api_send_deadline_reminders, name="api_send_deadline_reminders"),
+
+    # --------------------
+    # Activity Log API
+    # --------------------
+    path("api/activity-log/", views.api_activity_log, name="api_activity_log"),
+
+    # --------------------
+    # Task Comments API
+    # --------------------
+    path("api/task/<int:task_id>/comments/", views.api_task_comments, name="api_task_comments"),
+    path("api/task/<int:task_id>/comments/add/", views.api_task_comment_add, name="api_task_comment_add"),
+    path("api/task/<int:task_id>/comments/<int:comment_id>/delete/", views.api_task_comment_delete, name="api_task_comment_delete"),
+
+    # --------------------
+    # Task Attachments API
+    # --------------------
+    path("api/task/<int:task_id>/attachments/", views.api_task_attachments, name="api_task_attachments"),
+    path("api/task/<int:task_id>/attachments/upload/", views.api_task_attachment_upload, name="api_task_attachment_upload"),
+    path("api/task/<int:task_id>/attachments/<int:attachment_id>/delete/", views.api_task_attachment_delete, name="api_task_attachment_delete"),
+
+    # --------------------
+    # Subtasks / Checklists API
+    # --------------------
+    path("api/task/<int:task_id>/subtasks/", views.api_task_subtasks, name="api_task_subtasks"),
+    path("api/task/<int:task_id>/subtasks/save/", views.api_task_subtask_save, name="api_task_subtask_save"),
+    path("api/task/<int:task_id>/subtasks/<int:subtask_id>/delete/", views.api_task_subtask_delete, name="api_task_subtask_delete"),
 ]

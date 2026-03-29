@@ -1,417 +1,3 @@
-# import json
-# import random
-# from datetime import timedelta
-
-# from django.conf import settings
-# from django.core.mail import send_mail
-# from django.contrib.auth import authenticate, login, logout
-# from django.contrib.auth.decorators import login_required
-# from django.contrib.auth.hashers import make_password, check_password
-# from django.contrib.auth.models import User
-# from django.http import JsonResponse
-# from django.shortcuts import render
-# from django.utils import timezone
-# from django.views.decorators.csrf import ensure_csrf_cookie
-# from django.views.decorators.http import require_POST
-
-# from .models import CodeFile, PasswordOTP
-
-
-# # =========================
-# # PAGES
-# # =========================
-
-# def dashboard_page(request):
-#     # Public landing page (dashboard.html)
-#     return render(request, "core/dashboard.html")
-
-
-# @ensure_csrf_cookie
-# def login_page(request):
-#     # Public login page
-#     return render(request, "core/login.html")
-
-
-# @login_required
-# def user_page(request):
-#     # After login/register user setup page
-#     return render(request, "core/user.html")
-
-
-# @login_required
-# def workspace(request):
-#     # Main board page (index.html)
-#     return render(request, "core/index.html")
-
-
-# @login_required
-# def analytics_page(request):
-#     return render(request, "core/analytics.html")
-
-
-# @ensure_csrf_cookie
-# @login_required
-# def codespace_page(request):
-#     # Monaco editor page
-#     return render(request, "core/codespace.html")
-
-
-# @login_required
-# def profile_page(request):
-#     return render(request, "core/profile.html")
-
-
-# # =========================
-# # AUTH APIs
-# # =========================
-
-# @login_required
-# def api_me(request):
-#     u = request.user
-#     return JsonResponse({
-#         "ok": True,
-#         "user": {
-#             "name": (u.first_name or u.username),
-#             "email": (u.email or u.username),
-#             "username": u.username,
-#         }
-#     })
-
-
-# @require_POST
-# def api_login(request):
-#     try:
-#         data = json.loads(request.body.decode("utf-8"))
-#     except Exception:
-#         return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
-
-#     email = (data.get("email") or data.get("username") or "").strip().lower()
-#     password = data.get("password") or ""
-
-#     if not email or not password:
-#         return JsonResponse({"ok": False, "error": "Email and password required"}, status=400)
-
-#     user = authenticate(request, username=email, password=password)
-#     if user is None:
-#         return JsonResponse({"ok": False, "error": "Invalid credentials"}, status=401)
-
-#     login(request, user)
-
-#     # Always go to /user/ first
-#     return JsonResponse({"ok": True, "redirect": "/user/"})
-
-
-# @require_POST
-# def api_register(request):
-#     try:
-#         data = json.loads(request.body.decode("utf-8"))
-#     except Exception:
-#         return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
-
-#     name = (data.get("name") or "").strip()
-#     email = (data.get("email") or "").strip().lower()
-#     password = data.get("password") or ""
-
-#     if not name or not email or not password:
-#         return JsonResponse({"ok": False, "error": "Name, email, password required"}, status=400)
-
-#     if len(password) < 6:
-#         return JsonResponse({"ok": False, "error": "Password must be at least 6 characters"}, status=400)
-
-#     # we use email as username
-#     if User.objects.filter(username=email).exists():
-#         return JsonResponse({"ok": False, "error": "User already exists"}, status=409)
-
-#     user = User.objects.create_user(username=email, email=email, password=password)
-#     user.first_name = name
-#     user.save()
-
-#     login(request, user)
-
-#     # After register also go /user/
-#     return JsonResponse({"ok": True, "redirect": "/user/"})
-
-
-# @require_POST
-# def api_logout(request):
-#     logout(request)
-#     return JsonResponse({"ok": True})
-
-
-# # =========================
-# # CODESPACE APIs (DB based)
-# # =========================
-
-# @login_required
-# def api_code_list(request):
-#     files = CodeFile.objects.filter(owner=request.user).order_by("-updated_at")
-#     return JsonResponse({
-#         "ok": True,
-#         "files": [
-#             {
-#                 "id": f.id,
-#                 "filename": f.filename,
-#                 "updated_at": f.updated_at.isoformat() if f.updated_at else None,
-#             }
-#             for f in files
-#         ]
-#     })
-
-
-# @login_required
-# def api_code_get(request, file_id):
-#     try:
-#         f = CodeFile.objects.get(id=file_id, owner=request.user)
-#     except CodeFile.DoesNotExist:
-#         return JsonResponse({"ok": False, "error": "File not found"}, status=404)
-
-#     return JsonResponse({
-#         "ok": True,
-#         "file": {
-#             "id": f.id,
-#             "filename": f.filename,
-#             "content": f.content or ""
-#         }
-#     })
-
-
-# @require_POST
-# @login_required
-# def api_code_upload(request):
-#     """
-#     Upload file -> store in DB (filename + content).
-#     Allows many files.
-#     """
-#     up = request.FILES.get("file")
-#     if not up:
-#         return JsonResponse({"ok": False, "error": "No file uploaded"}, status=400)
-
-#     try:
-#         text = up.read().decode("utf-8", errors="ignore")
-#     except Exception:
-#         text = ""
-
-#     # Always create new file (many files allowed)
-#     f = CodeFile.objects.create(
-#         owner=request.user,
-#         filename=up.name,
-#         content=text
-#     )
-
-#     return JsonResponse({"ok": True, "file_id": f.id, "filename": f.filename})
-
-
-# @require_POST
-# @login_required
-# def api_code_save(request):
-#     """
-#     Save editor content into existing DB file
-#     """
-#     try:
-#         data = json.loads(request.body.decode("utf-8"))
-#     except Exception:
-#         return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
-
-#     file_id = data.get("file_id")
-#     content = data.get("content", "")
-
-#     if not file_id:
-#         return JsonResponse({"ok": False, "error": "file_id required"}, status=400)
-
-#     try:
-#         f = CodeFile.objects.get(id=file_id, owner=request.user)
-#     except CodeFile.DoesNotExist:
-#         return JsonResponse({"ok": False, "error": "File not found"}, status=404)
-
-#     f.content = content
-#     f.updated_at = timezone.now()
-#     f.save(update_fields=["content", "updated_at"])
-
-#     return JsonResponse({"ok": True})
-
-
-# # =========================
-# # FORGOT PASSWORD (OTP)
-# # =========================
-
-# def _gen_otp():
-#     return f"{random.randint(0, 999999):06d}"
-
-
-# @require_POST
-# def api_password_request_otp(request):
-#     try:
-#         data = json.loads(request.body.decode("utf-8"))
-#     except Exception:
-#         return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
-
-#     email = (data.get("email") or "").strip().lower()
-#     if not email:
-#         return JsonResponse({"ok": False, "error": "Email required"}, status=400)
-
-#     # Your users are created with username=email
-#     if not User.objects.filter(username=email).exists():
-#         return JsonResponse({"ok": False, "error": "No account found with this email."}, status=404)
-
-#     otp = _gen_otp()
-#     expires = timezone.now() + timedelta(minutes=10)
-
-#     # invalidate previous OTPs
-#     PasswordOTP.objects.filter(email=email, used=False).update(used=True)
-
-#     PasswordOTP.objects.create(
-#         email=email,
-#         otp_hash=make_password(otp),
-#         expires_at=expires,
-#         used=False,
-#     )
-
-#     subject = "TaskHive Password Reset OTP"
-#     message = (
-#         f"Your TaskHive OTP is: {otp}\n\n"
-#         f"Expires in 10 minutes.\n"
-#         f"If you didn’t request this, ignore."
-#     )
-
-#     # sender must be configured in settings.py (EMAIL_HOST_USER)
-#     from_email = getattr(settings, "DEFAULT_FROM_EMAIL", None) or getattr(settings, "EMAIL_HOST_USER", None)
-
-#     try:
-#         send_mail(subject, message, from_email, [email], fail_silently=False)
-#     except Exception as e:
-#         return JsonResponse({"ok": False, "error": f"Email send failed: {str(e)}"}, status=500)
-
-#     return JsonResponse({"ok": True})
-
-
-# @require_POST
-# def api_password_reset(request):
-#     try:
-#         data = json.loads(request.body.decode("utf-8"))
-#     except Exception:
-#         return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
-
-#     email = (data.get("email") or "").strip().lower()
-#     otp = (data.get("otp") or "").strip()
-#     new_password = data.get("new_password") or ""
-
-#     if not email or not otp or not new_password:
-#         return JsonResponse({"ok": False, "error": "email, otp, new_password required"}, status=400)
-
-#     if len(new_password) < 6:
-#         return JsonResponse({"ok": False, "error": "Password must be at least 6 characters"}, status=400)
-
-#     record = PasswordOTP.objects.filter(email=email, used=False).order_by("-created_at").first()
-#     if not record:
-#         return JsonResponse({"ok": False, "error": "OTP not found. Request a new OTP."}, status=400)
-
-#     if timezone.now() > record.expires_at:
-#         record.used = True
-#         record.save(update_fields=["used"])
-#         return JsonResponse({"ok": False, "error": "OTP expired. Request a new OTP."}, status=400)
-
-#     if not check_password(otp, record.otp_hash):
-#         return JsonResponse({"ok": False, "error": "Invalid OTP."}, status=400)
-
-#     try:
-#         user = User.objects.get(username=email)
-#     except User.DoesNotExist:
-#         return JsonResponse({"ok": False, "error": "User not found."}, status=404)
-
-#     user.set_password(new_password)
-#     user.save()
-
-#     record.used = True
-#     record.save(update_fields=["used"])
-
-#     return JsonResponse({"ok": True})
-
-# from django.http import JsonResponse
-# from django.contrib.auth.decorators import login_required
-# from .models import UserProfile
-
-# @login_required
-# def api_me(request):
-#     u = request.user
-#     profile, _ = UserProfile.objects.get_or_create(user=u)
-
-#     return JsonResponse({
-#         "ok": True,
-#         "user": {
-#             "name": u.first_name,
-#             "email": u.email,
-#             "displayName": profile.display_name,
-#             "username": profile.username,
-#             "tagline": profile.tagline,
-#             "bio": profile.bio,
-#             "github": profile.github,
-#             "linkedin": profile.linkedin,
-#             "themeMode": profile.theme_mode,
-#             "accentColor": profile.accent_color,
-#             "photoUrl": profile.photo.url if profile.photo else "",
-#             "coverUrl": profile.cover_photo.url if profile.cover_photo else "",
-#         }
-#     })
-
-# @login_required
-# def api_profile_update(request):
-#     if request.method != "POST":
-#         return JsonResponse({"ok": False, "error": "POST required"}, status=405)
-
-#     profile, _ = UserProfile.objects.get_or_create(user=request.user)
-
-#     # normal fields from POST
-#     profile.display_name = request.POST.get("displayName", profile.display_name)
-#     profile.username = request.POST.get("username", profile.username)
-#     profile.tagline = request.POST.get("tagline", profile.tagline)
-#     profile.bio = request.POST.get("bio", profile.bio)
-#     profile.github = request.POST.get("github", profile.github)
-#     profile.linkedin = request.POST.get("linkedin", profile.linkedin)
-#     profile.theme_mode = request.POST.get("themeMode", profile.theme_mode)
-#     profile.accent_color = request.POST.get("accentColor", profile.accent_color)
-
-#     # file uploads
-#     if request.FILES.get("photo"):
-#         profile.photo = request.FILES["photo"]
-#     if request.FILES.get("cover"):
-#         profile.cover_photo = request.FILES["cover"]
-
-#     profile.save()
-
-#     # also update Django user fields
-#     request.user.first_name = request.POST.get("name", request.user.first_name)
-#     request.user.email = request.POST.get("email", request.user.email)
-#     request.user.save()
-
-#     return JsonResponse({"ok": True})
-# from django.http import JsonResponse
-# from django.contrib.auth.decorators import login_required
-# from .models import UserProfile
-
-# @login_required
-# def api_profile_get(request):
-#     profile, _ = UserProfile.objects.get_or_create(user=request.user)
-
-#     return JsonResponse({
-#         "ok": True,
-#         "profile": {
-#             "display_name": profile.display_name,
-#             "username_public": profile.username_public,
-#             "tagline": profile.tagline,
-#             "bio": profile.bio,
-#             "github": profile.github,
-#             "linkedin": profile.linkedin,
-#             "theme_mode": profile.theme_mode,
-#             "accent_color": profile.accent_color,
-#             "photo_url": profile.photo.url if profile.photo else "",
-#             "cover_url": profile.cover_photo.url if profile.cover_photo else "",
-#             "email": request.user.email,
-#             "name": request.user.get_full_name() or request.user.username,
-#         }
-#     })
-
-
-
 
 
 import json
@@ -426,7 +12,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.models import User
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from urllib.parse import urlencode
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.csrf import csrf_exempt
@@ -447,12 +34,32 @@ from .models import (
     ProjectFile,
     ApprovalRequest,
     Notification,
+    ActivityLog,
+    Subtask,
+    TaskAttachment,
+    TaskComment,
 )
 from .email_utils import (
     send_welcome_email,
     send_task_assigned_email,
     send_deadline_reminder_email,
 )
+
+
+def _verify_google_access_token(access_token: str):
+    """Verify Google access token via the userinfo endpoint."""
+    import requests as http_requests
+    try:
+        resp = http_requests.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            return None, "Invalid Google access token"
+        return resp.json(), None
+    except Exception:
+        return None, "Failed to verify Google access token"
 
 
 def _verify_google_id_token(id_token: str):
@@ -478,6 +85,93 @@ def _verify_google_id_token(id_token: str):
         return None, "Invalid Google token"
 
 
+def google_auth_redirect(request):
+    """Redirect user to Google's OAuth consent screen (no popup needed)."""
+    client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
+    if not client_id:
+        return JsonResponse({"error": "Google OAuth not configured"}, status=500)
+    callback_url = request.build_absolute_uri("/auth/google/callback/")
+    params = urlencode({
+        "client_id": client_id,
+        "redirect_uri": callback_url,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "online",
+        "prompt": "select_account",
+    })
+    return redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
+
+
+def google_auth_callback(request):
+    """Handle Google OAuth callback, exchange code for tokens, log user in."""
+    import requests as http_requests
+
+    code = request.GET.get("code", "")
+    error = request.GET.get("error", "")
+    if error or not code:
+        return redirect("/login/?error=google_denied")
+
+    client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
+    client_secret = getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", "")
+    callback_url = request.build_absolute_uri("/auth/google/callback/")
+
+    # Exchange code for tokens
+    token_resp = http_requests.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "code": code,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": callback_url,
+            "grant_type": "authorization_code",
+        },
+        timeout=15,
+    )
+    if token_resp.status_code != 200:
+        return redirect("/login/?error=google_token_failed")
+
+    tokens = token_resp.json()
+    access_token = tokens.get("access_token", "")
+    if not access_token:
+        return redirect("/login/?error=google_no_token")
+
+    # Get user info
+    userinfo_resp = http_requests.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=10,
+    )
+    if userinfo_resp.status_code != 200:
+        return redirect("/login/?error=google_userinfo_failed")
+
+    payload = userinfo_resp.json()
+    email = (payload.get("email") or "").strip().lower()
+    if not email or not payload.get("email_verified", False):
+        return redirect("/login/?error=google_email_not_verified")
+
+    name = (payload.get("name") or "").strip() or email.split("@")[0]
+
+    user, created = User.objects.get_or_create(
+        username=email,
+        defaults={"email": email, "first_name": name},
+    )
+    if not created:
+        changed = False
+        if not user.email:
+            user.email = email
+            changed = True
+        if not user.first_name and name:
+            user.first_name = name
+            changed = True
+        if changed:
+            user.save(update_fields=["email", "first_name"])
+    else:
+        send_welcome_email(user_name=name, user_email=email)
+
+    login(request, user)
+    return redirect("/user/")
+
+
 # =========================
 # PAGES
 # =========================
@@ -488,7 +182,9 @@ def dashboard_page(request):
 
 @ensure_csrf_cookie
 def login_page(request):
-    return render(request, "core/login_new.html")
+    return render(request, "core/login_new.html", {
+        "google_client_id": getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", ""),
+    })
 
 
 @login_required
@@ -561,7 +257,7 @@ def api_me(request):
 
             # profile extras
             "displayName": profile.display_name,
-            "profileUsername": profile.username,
+            "profileUsername": profile.username_public,
             "tagline": profile.tagline,
             "bio": profile.bio,
             "github": profile.github,
@@ -811,6 +507,7 @@ def api_team_leave(request):
     return JsonResponse({"ok": True, "redirect": "/user/"})
 
 
+@csrf_exempt
 @require_POST
 def api_login_google(request):
     try:
@@ -818,12 +515,17 @@ def api_login_google(request):
     except Exception:
         return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
 
-    token = data.get("credential") or data.get("id_token") or ""
-    token = token.strip()
-    if not token:
+    token = (data.get("credential") or data.get("id_token") or "").strip()
+    access_token = (data.get("access_token") or "").strip()
+
+    if not token and not access_token:
         return JsonResponse({"ok": False, "error": "Missing credential"}, status=400)
 
-    payload, err = _verify_google_id_token(token)
+    if access_token:
+        payload, err = _verify_google_access_token(access_token)
+    else:
+        payload, err = _verify_google_id_token(token)
+
     if not payload:
         return JsonResponse({"ok": False, "error": err or "Google token verification failed"}, status=401)
 
@@ -853,7 +555,14 @@ def api_login_google(request):
         send_welcome_email(user_name=name, user_email=email)
 
     login(request, user)
-    return JsonResponse({"ok": True, "redirect": "/user/"})
+    return JsonResponse({
+        "ok": True,
+        "redirect": "/user/",
+        "user": {
+            "name": user.get_full_name() or user.first_name or user.username,
+            "email": user.email or user.username,
+        },
+    })
 
 
 @csrf_exempt
@@ -1416,9 +1125,22 @@ def _notify_team(
             created_at=now,
         )
         for m in memberships
+        if not actor or m.user_id != actor.id
     ]
     if notifs:
         Notification.objects.bulk_create(notifs)
+
+
+def _log_activity(team, actor, action, target_type="", target_id=None, target_name="", detail=""):
+    ActivityLog.objects.create(
+        team=team,
+        actor=actor,
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        target_name=target_name,
+        detail=detail,
+    )
 
 
 def _serialize_notification(n):
@@ -1605,11 +1327,14 @@ def api_workspace_task_save(request):
         code_meta["_projectId"] = project_id
 
     is_update = bool(task_id)
+    old_assignee_ids = set()
     if task_id:
         try:
             task = Task.objects.get(id=task_id, board=board)
         except Task.DoesNotExist:
             return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+        # Capture old state before any modification
+        old_assignee_ids = set(task.assignees.values_list("id", flat=True))
         task.title = name
         task.description = data.get("description", "")
         task.priority = data.get("priority", "medium")
@@ -1643,6 +1368,9 @@ def api_workspace_task_save(request):
         ))
         task.assignees.set(new_assignee_users)
 
+    # Determine which assignees are truly new (not previously assigned)
+    truly_new_assignee_users = [u for u in new_assignee_users if u.id not in old_assignee_ids]
+
     _notify_team(
         team,
         request.user,
@@ -1654,9 +1382,14 @@ def api_workspace_task_save(request):
         extra={"taskName": task.title},
     )
 
+    _log_activity(team, request.user, "updated" if is_update else "created", "task", task.id, task.title,
+                  f"{_actor_name(request.user)} {'updated' if is_update else 'created'} task '{task.title}'")
+
     actor_name = _actor_name(request.user)
     due_str = _safe_date_iso(task.due_date)
-    for assignee_user in new_assignee_users:
+    # On update: only email newly added assignees. On create: email all assignees.
+    email_targets = truly_new_assignee_users if is_update else new_assignee_users
+    for assignee_user in email_targets:
         assignee_email = assignee_user.email or assignee_user.username
         if assignee_email and assignee_email != (request.user.email or request.user.username):
             assignee_name = assignee_user.get_full_name() or assignee_user.first_name or assignee_user.username
@@ -1722,6 +1455,8 @@ def api_workspace_task_delete(request):
             target_id=task_id,
             extra={"taskName": task_name},
         )
+        _log_activity(team, request.user, "deleted", "task", task_id, task_name,
+                      f"{_actor_name(request.user)} deleted task '{task_name}'")
     return JsonResponse({"ok": True})
 
 
@@ -1761,6 +1496,8 @@ def api_workspace_task_move(request):
             target_id=task.id,
             extra={"toColumn": task.column.name},
         )
+        _log_activity(team, request.user, "moved", "task", task.id, task.title,
+                      f"{_actor_name(request.user)} moved task '{task.title}' to {task.column.name}")
 
     return JsonResponse({"ok": True})
 
@@ -1839,6 +1576,9 @@ def api_workspace_project_save(request):
         extra={"projectName": project.name},
     )
 
+    _log_activity(team, request.user, "updated" if is_update else "created", "project", project.id, project.name,
+                  f"{_actor_name(request.user)} {'updated' if is_update else 'created'} project '{project.name}'")
+
     if is_update:
         before = {str(m).lower() for m in previous_members}
         added_members = [m for m in cleaned_members if str(m).lower() not in before]
@@ -1904,6 +1644,8 @@ def api_workspace_project_delete(request):
             target_id=project.id,
             extra={"projectName": project.name},
         )
+        _log_activity(team, request.user, "deleted", "project", project.id, project.name,
+                      f"{_actor_name(request.user)} deleted project '{project.name}'")
     return JsonResponse({"ok": True})
 
 
@@ -2319,3 +2061,300 @@ def api_analytics_summary(request):
     ]
 
     return JsonResponse({"ok": True, "tasks": tasks, "projects": projects})
+
+
+# =========================
+# ACTIVITY LOG API
+# =========================
+
+@login_required
+def api_activity_log(request):
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": True, "activities": []})
+
+    qs = ActivityLog.objects.filter(team=team).select_related("actor")[:100]
+    activities = []
+    for a in qs:
+        activities.append({
+            "id": a.id,
+            "actor": _actor_name(a.actor) if a.actor else "System",
+            "action": a.action,
+            "targetType": a.target_type,
+            "targetId": a.target_id,
+            "targetName": a.target_name,
+            "detail": a.detail,
+            "createdAt": a.created_at.isoformat() if a.created_at else "",
+        })
+    return JsonResponse({"ok": True, "activities": activities})
+
+
+# =========================
+# TASK COMMENTS API
+# =========================
+
+@login_required
+def api_task_comments(request, task_id):
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    comments = TaskComment.objects.filter(task=task).select_related("author")
+    data = []
+    for c in comments:
+        data.append({
+            "id": c.id,
+            "body": c.body,
+            "author": _actor_name(c.author) if c.author else "Unknown",
+            "createdAt": c.created_at.isoformat() if c.created_at else "",
+        })
+    return JsonResponse({"ok": True, "comments": data})
+
+
+@require_POST
+@login_required
+def api_task_comment_add(request, task_id):
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    body = (data.get("body") or "").strip()
+    if not body:
+        return JsonResponse({"ok": False, "error": "Comment body required"}, status=400)
+
+    comment = TaskComment.objects.create(task=task, author=request.user, body=body)
+
+    _log_activity(team, request.user, "commented", "task", task.id, task.title,
+                  f"{_actor_name(request.user)} commented on '{task.title}'")
+
+    _notify_team(
+        team, request.user,
+        f"{_actor_name(request.user)} commented on task '{task.title}'.",
+        event_type="task_comment", target_tab="tasks", target_type="task", target_id=task.id,
+        extra={"taskName": task.title},
+    )
+
+    return JsonResponse({
+        "ok": True,
+        "comment": {
+            "id": comment.id,
+            "body": comment.body,
+            "author": _actor_name(comment.author),
+            "createdAt": comment.created_at.isoformat(),
+        }
+    })
+
+
+@require_POST
+@login_required
+def api_task_comment_delete(request, task_id, comment_id):
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    comment = TaskComment.objects.filter(id=comment_id, task=task).first()
+    if comment:
+        comment.delete()
+    return JsonResponse({"ok": True})
+
+
+# =========================
+# TASK ATTACHMENTS API
+# =========================
+
+@login_required
+def api_task_attachments(request, task_id):
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    attachments = TaskAttachment.objects.filter(task=task)
+    data = []
+    for a in attachments:
+        data.append({
+            "id": a.id,
+            "name": a.original_name,
+            "size": a.file_size,
+            "url": a.file.url if a.file else "",
+            "createdAt": a.created_at.isoformat() if a.created_at else "",
+        })
+    return JsonResponse({"ok": True, "attachments": data})
+
+
+@require_POST
+@login_required
+def api_task_attachment_upload(request, task_id):
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    uploaded = request.FILES.get("file")
+    if not uploaded:
+        return JsonResponse({"ok": False, "error": "No file"}, status=400)
+
+    size_str = ""
+    if uploaded.size < 1024:
+        size_str = f"{uploaded.size} B"
+    elif uploaded.size < 1024 * 1024:
+        size_str = f"{uploaded.size / 1024:.1f} KB"
+    else:
+        size_str = f"{uploaded.size / (1024 * 1024):.1f} MB"
+
+    att = TaskAttachment.objects.create(
+        task=task,
+        file=uploaded,
+        original_name=uploaded.name,
+        file_size=size_str,
+        uploaded_by=request.user,
+    )
+
+    _log_activity(team, request.user, "attached_file", "task", task.id, task.title,
+                  f"{_actor_name(request.user)} attached '{uploaded.name}' to '{task.title}'")
+
+    return JsonResponse({
+        "ok": True,
+        "attachment": {
+            "id": att.id,
+            "name": att.original_name,
+            "size": att.file_size,
+            "url": att.file.url if att.file else "",
+            "createdAt": att.created_at.isoformat(),
+        }
+    })
+
+
+@require_POST
+@login_required
+def api_task_attachment_delete(request, task_id, attachment_id):
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    att = TaskAttachment.objects.filter(id=attachment_id, task=task).first()
+    if att:
+        att.delete()
+    return JsonResponse({"ok": True})
+
+
+# =========================
+# SUBTASKS / CHECKLISTS API
+# =========================
+
+@login_required
+def api_task_subtasks(request, task_id):
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    subtasks = Subtask.objects.filter(task=task)
+    data = [{
+        "id": s.id,
+        "title": s.title,
+        "isDone": s.is_done,
+        "position": s.position,
+    } for s in subtasks]
+    return JsonResponse({"ok": True, "subtasks": data})
+
+
+@require_POST
+@login_required
+def api_task_subtask_save(request, task_id):
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    subtask_id = data.get("id")
+    title = (data.get("title") or "").strip()
+
+    if subtask_id:
+        sub = Subtask.objects.filter(id=subtask_id, task=task).first()
+        if not sub:
+            return JsonResponse({"ok": False, "error": "Subtask not found"}, status=404)
+        if title:
+            sub.title = title
+        if "isDone" in data:
+            sub.is_done = bool(data["isDone"])
+        sub.save()
+    else:
+        if not title:
+            return JsonResponse({"ok": False, "error": "Title required"}, status=400)
+        max_pos = Subtask.objects.filter(task=task).count()
+        sub = Subtask.objects.create(task=task, title=title, position=max_pos)
+
+    return JsonResponse({
+        "ok": True,
+        "subtask": {
+            "id": sub.id,
+            "title": sub.title,
+            "isDone": sub.is_done,
+            "position": sub.position,
+        }
+    })
+
+
+@require_POST
+@login_required
+def api_task_subtask_delete(request, task_id, subtask_id):
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    sub = Subtask.objects.filter(id=subtask_id, task=task).first()
+    if sub:
+        sub.delete()
+    return JsonResponse({"ok": True})

@@ -7,15 +7,12 @@ from django.utils import timezone
 
 class Team(models.Model):
     name = models.CharField(max_length=120)
-    code = models.CharField(max_length=20, unique=True, db_index=True)
+    code = models.CharField(max_length=20, unique=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="teams_created")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
-        indexes = [
-            models.Index(fields=["code"]),
-        ]
 
     def __str__(self):
         return self.name
@@ -398,12 +395,67 @@ def create_user_profile(sender, instance: User, created: bool, **kwargs):
 
 # ✅ If user updates, ensure profile still exists (safety)
 @receiver(post_save, sender=User)
-def save_user_profile(sender, instance: User, **kwargs):
+def save_user_profile(sender, instance: User, created: bool, **kwargs):
+    if created:
+        return  # already handled by create_user_profile
     if not hasattr(instance, "profile"):
         UserProfile.objects.create(
             user=instance,
             display_name=instance.get_full_name() or instance.username,
             username_public=(instance.username.split("@")[0] if "@" in instance.username else instance.username),
         )
-    else:
-        instance.profile.save()
+
+
+class ActivityLog(models.Model):
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="activity_logs")
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="activity_logs")
+    action = models.CharField(max_length=40)
+    target_type = models.CharField(max_length=30, blank=True, default="")
+    target_id = models.IntegerField(null=True, blank=True)
+    target_name = models.CharField(max_length=220, blank=True, default="")
+    detail = models.CharField(max_length=400, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["team", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"activity:{self.team_id}:{self.action}:{self.target_type}"
+
+
+class Subtask(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="subtasks")
+    title = models.CharField(max_length=220)
+    is_done = models.BooleanField(default=False)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+        indexes = [
+            models.Index(fields=["task", "position"]),
+        ]
+
+    def __str__(self):
+        return f"subtask:{self.task_id}:{self.title}"
+
+
+class TaskAttachment(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="attachments")
+    file = models.FileField(upload_to="task_attachments/")
+    original_name = models.CharField(max_length=255)
+    file_size = models.CharField(max_length=50, blank=True, default="")
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="task_attachments")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["task", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"attachment:{self.task_id}:{self.original_name}"
