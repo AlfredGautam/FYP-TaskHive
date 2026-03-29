@@ -286,7 +286,12 @@ def api_login(request):
 
     user = authenticate(request, username=email, password=password)
     if user is None:
-        return JsonResponse({"ok": False, "error": "Invalid credentials"}, status=401)
+        # Check if user exists but password is wrong or unset (e.g. Google-only account)
+        from django.contrib.auth.models import User as _U
+        existing = _U.objects.filter(username=email).first() or _U.objects.filter(email__iexact=email).first()
+        if existing and not existing.has_usable_password():
+            return JsonResponse({"ok": False, "error": "This account uses Google sign-in. Use the Google button or reset your password."}, status=401)
+        return JsonResponse({"ok": False, "error": "Invalid email or password."}, status=401)
 
     login(request, user)
     return JsonResponse({"ok": True, "redirect": "/user/"})
@@ -438,6 +443,26 @@ def api_team_join(request):
         "role": membership.role,
         "redirect": f"/workspace/{team.id}/",
     })
+
+
+@login_required
+def api_my_teams(request):
+    memberships = (
+        TeamMembership.objects
+        .select_related("team")
+        .filter(user=request.user)
+        .order_by("-joined_at")
+    )
+    teams = []
+    for m in memberships:
+        teams.append({
+            "id": m.team.id,
+            "name": m.team.name,
+            "code": m.team.code,
+            "role": m.role,
+            "joined_at": m.joined_at.isoformat(),
+        })
+    return JsonResponse({"ok": True, "teams": teams})
 
 
 @login_required

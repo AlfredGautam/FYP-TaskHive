@@ -10,16 +10,12 @@
   <script>
     (function () {
       const raw = localStorage.getItem("taskhive_current_user");
-
       if (!raw || raw === "Guest") {
         const next = encodeURIComponent(window.location.pathname);
         window.location.href = `/login/?next=${next}`;
         return;
       }
-
-      try {
-        JSON.parse(raw);
-      } catch (e) {
+      try { JSON.parse(raw); } catch (e) {
         localStorage.removeItem("taskhive_current_user");
         const next = encodeURIComponent(window.location.pathname);
         window.location.href = `/login/?next=${next}`;
@@ -27,6 +23,7 @@
     })();
   </script>
 
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -35,10 +32,14 @@
     h1, h2, h3, h4 { font-family: 'Orbitron', sans-serif; }
     .neon-text { text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3); }
     .glow { box-shadow: 0 0 12px rgba(0, 255, 255, 0.25); }
+    .glow-strong { box-shadow: 0 0 18px rgba(0, 255, 255, 0.35), 0 0 40px rgba(0, 255, 255, 0.08); }
     .panel {
-      background: linear-gradient(135deg, rgba(17, 24, 39, 0.92), rgba(31, 41, 55, 0.9));
-      border: 1px solid rgba(0, 255, 255, 0.2);
-      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(31, 41, 55, 0.92));
+      border: 1px solid rgba(0, 255, 255, 0.18);
+      border-radius: 16px;
+    }
+    .panel-active {
+      border-color: rgba(0, 255, 255, 0.4);
     }
     .field-focus:focus {
       box-shadow: 0 0 15px rgba(0, 255, 255, 0.35);
@@ -54,357 +55,492 @@
       box-shadow: 0 0 20px rgba(0, 255, 255, 0.45), 0 0 30px rgba(255, 0, 255, 0.25);
       transform: translateY(-1px);
     }
+    .slide-enter-active, .slide-leave-active { transition: all 0.3s ease; }
+    .slide-enter, .slide-leave-to { opacity: 0; max-height: 0; overflow: hidden; }
+    .slide-enter-to, .slide-leave { opacity: 1; max-height: 800px; }
+    .member-row { transition: background 0.2s ease; }
+    .member-row:hover { background: rgba(0, 255, 255, 0.04); }
+    .badge { font-size: 10px; padding: 2px 8px; border-radius: 9999px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+    .badge-head { background: rgba(0, 255, 255, 0.15); color: #22d3ee; border: 1px solid rgba(0, 255, 255, 0.3); }
+    .badge-member { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
+    .badge-you { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
   </style>
 </head>
 
 <body class="bg-gray-900 text-gray-100 min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
-  <header class="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b border-cyan-500/20 sticky top-0 z-50 glow">
-    <div class="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="text-cyan-400 text-2xl neon-text animate-pulse"><i class="fas fa-bug"></i></div>
+<div id="app">
+
+  <!-- ========== HEADER ========== -->
+  <header class="bg-gray-900/95 border-b border-gray-700/60 sticky top-0 z-50 backdrop-blur-sm">
+    <div class="w-full px-6 lg:px-10 py-4 flex items-center justify-between">
+      <a href="/user/" class="flex items-center gap-3 no-underline" @click.prevent="goHome">
+        <div class="text-cyan-400 text-2xl neon-text"><i class="fas fa-bug"></i></div>
         <div>
-          <div class="text-lg font-semibold text-cyan-300 neon-text">TaskHive</div>
-          <div class="text-[11px] text-gray-400">Team Setup</div>
+          <div class="text-lg font-bold text-cyan-300 neon-text leading-tight">TaskHive</div>
+          <div class="text-[10px] text-gray-500 tracking-wider uppercase">Dashboard</div>
         </div>
+      </a>
+      <div class="flex items-center gap-5">
+        <nav class="hidden sm:flex items-center gap-5 text-sm text-gray-400">
+          <a class="hover:text-cyan-300 transition-colors" href="/profile/"><i class="fas fa-user mr-1.5"></i>Profile</a>
+        </nav>
+        <button @click="doLogout" class="px-4 py-1.5 rounded-lg bg-red-600/90 hover:bg-red-500 text-white text-sm font-medium transition-all shadow-sm shadow-red-900/30"><i class="fas fa-sign-out-alt mr-1.5"></i>Logout</button>
       </div>
-      <nav class="flex items-center gap-4 text-sm text-gray-300">
-        <a class="hover:text-cyan-300" href="/workspace/">Workspace</a>
-        <a class="hover:text-cyan-300" href="/profile/">Profile</a>
-        <button onclick="logout()" class="px-3 py-1.5 rounded-md bg-gray-800 hover:bg-gray-700 border border-cyan-500/30 text-gray-100">Logout</button>
-      </nav>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-5 py-10">
-    <div class="text-center">
-      <h1 class="text-2xl sm:text-3xl font-bold text-cyan-300 neon-text">Team Setup</h1>
-      <p class="mt-2 text-sm text-gray-400">Create or join a team to unlock collaborative task management.</p>
-      <p class="mt-3 text-sm text-gray-400">Logged in as: <span class="text-cyan-300 font-medium" id="who"></span></p>
+  <!-- ========== MAIN ========== -->
+  <main class="w-full mx-auto px-6 lg:px-10 py-8 space-y-8 max-w-5xl">
+
+    <!-- Welcome -->
+    <div class="space-y-1">
+      <h1 class="text-2xl sm:text-3xl font-bold text-cyan-300 neon-text">Welcome, {{ displayName }}</h1>
+      <p class="text-sm text-gray-500">Manage your teams or create a new one.</p>
     </div>
 
-    <section id="currentTeamCard" class="mt-8 hidden panel glow p-5">
-      <div class="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 class="text-base font-semibold text-cyan-300">Current Team</h2>
-          <div id="teamDetails" class="mt-2 text-sm text-gray-300"></div>
+    <!-- ===================== YOUR TEAMS DROPDOWN ===================== -->
+    <section>
+      <div class="flex items-center gap-4 flex-wrap">
+        <label class="text-sm font-semibold text-gray-300 whitespace-nowrap"><i class="fas fa-layer-group mr-2 text-cyan-400"></i>Your Teams</label>
+
+        <!-- Loading spinner -->
+        <div v-if="loading" class="flex items-center gap-2 text-sm text-gray-400">
+          <i class="fas fa-circle-notch animate-spin text-cyan-400"></i> Loading...
         </div>
-        <div class="flex items-center gap-2">
-          <button id="leaveBtn" onclick="leaveTeam()" class="px-3 py-1.5 rounded-md bg-gray-800 hover:bg-gray-700 border border-cyan-500/30 text-gray-100">Leave Team</button>
-          <button onclick="window.location.href='/workspace/'" class="px-3 py-1.5 rounded-md neon-button text-gray-900 font-semibold">Go to Workspace →</button>
-        </div>
-      </div>
-    </section>
 
-    <section class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="panel glow p-5">
-        <h3 class="text-base font-semibold text-cyan-300">Create New Team</h3>
-        <p class="mt-1 text-sm text-gray-400">You will become the team head.</p>
-        <input id="teamName" class="mt-4 w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-gray-100 field-focus" placeholder="Enter team name (e.g. Frontend Squad)" />
-        <button onclick="createTeam()" class="mt-3 w-full px-3 py-2 rounded-md neon-button text-gray-900 font-semibold">Create Team</button>
-        <div id="createMsg" class="mt-3"></div>
-      </div>
-
-      <div class="panel glow p-5">
-        <h3 class="text-base font-semibold text-cyan-300">Join Existing Team</h3>
-        <p class="mt-1 text-sm text-gray-400">Ask your head for the team code.</p>
-        <input id="teamCode" class="mt-4 w-full px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-gray-100 field-focus" placeholder="Enter team code (e.g. TEAM-ABCDEF)" />
-        <button onclick="joinTeam()" class="mt-3 w-full px-3 py-2 rounded-md neon-button text-gray-900 font-semibold">Join Team</button>
-        <div id="joinMsg" class="mt-3"></div>
-      </div>
-    </section>
-
-    <section class="mt-8 flex items-center justify-center gap-3 flex-wrap">
-      <a href="/profile/" class="px-3 py-2 rounded-md bg-gray-800 hover:bg-gray-700 border border-cyan-500/30 text-sm text-gray-100">Complete Profile</a>
-      <a href="/workspace/" class="px-3 py-2 rounded-md neon-button text-sm text-gray-900 font-semibold">Go to Workspace →</a>
-    </section>
-  </main>
-
-  <script>
-    // Safe user parsing
-    function getCurrentUserObj() {
-      const raw = localStorage.getItem("taskhive_current_user");
-      if (!raw || raw === "Guest") return null;
-      try { return JSON.parse(raw); } catch (e) { return null; }
-    }
-
-    function getCookie(name) {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop().split(";").shift();
-      return "";
-    }
-
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.innerText = text;
-      return div.innerHTML;
-    }
-
-    async function fetchJson(url, options = {}) {
-      const csrf = getCookie("csrftoken");
-      const headers = Object.assign({ "X-CSRFToken": csrf }, options.headers || {});
-      const res = await fetch(url, Object.assign({}, options, { headers, credentials: "same-origin" }));
-      const data = await res.json().catch(() => ({}));
-      return { res, data };
-    }
-
-    function copyCode(code, btn) {
-      navigator.clipboard.writeText(code).then(() => {
-        const originalText = btn.innerText;
-        btn.innerText = "Copied ";
-        setTimeout(() => { btn.innerText = originalText; }, 2000);
-      }).catch(() => {
-        btn.innerText = "Failed";
-      });
-    }
-
-    const user = getCurrentUserObj();
-    const display = user && (user.name || user.email || user.username) ? (user.name || user.email || user.username) : "User";
-    document.getElementById("who").innerText = display;
-
-    function setCurrentUserRole(role) {
-      const raw = localStorage.getItem("taskhive_current_user");
-      if (!raw || raw === "Guest") return;
-      try {
-        const obj = JSON.parse(raw);
-        if (obj && typeof obj === "object") {
-          obj.role = role;
-          localStorage.setItem("taskhive_current_user", JSON.stringify(obj));
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    async function createTeam() {
-      const name = document.getElementById("teamName").value.trim();
-      const createMsg = document.getElementById("createMsg");
-
-      createMsg.className = "";
-      createMsg.innerHTML = "";
-
-      if (!name) {
-        createMsg.className = "mt-3 text-sm text-red-300";
-        createMsg.innerText = "Enter a team name.";
-        return;
-      }
-
-      const { res, data } = await fetchJson("/api/team/create/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name })
-      });
-
-      if (!res.ok || !data.ok) {
-        createMsg.className = "mt-3 text-sm text-red-300";
-        createMsg.innerText = data.error || `Create failed (HTTP ${res.status}).`;
-        return;
-      }
-
-      if (data.role) setCurrentUserRole(String(data.role).toLowerCase());
-
-      const code = (data.team && data.team.code) ? data.team.code : "";
-      createMsg.className = "mt-3 text-sm text-green-300";
-      createMsg.innerHTML = `Created successfully. Team code: <strong>${code}</strong>
-        <button class="ml-2 px-2 py-1 rounded bg-gray-900 border border-gray-700 text-gray-100 hover:bg-gray-800" onclick="copyCode('${code}', this)">Copy</button>`;
-
-      await refreshCurrentTeam();
-      if (data.redirect) window.location.href = data.redirect;
-    }
-
-    async function joinTeam() {
-      let code = document.getElementById("teamCode").value.trim().toUpperCase();
-      const joinMsg = document.getElementById("joinMsg");
-
-      joinMsg.className = "";
-      joinMsg.innerHTML = "";
-
-      if (!code) {
-        joinMsg.className = "mt-3 text-sm text-red-300";
-        joinMsg.innerText = "Enter a team code.";
-        return;
-      }
-
-      const { res, data } = await fetchJson("/api/team/join/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code })
-      });
-
-      if (!res.ok || !data.ok) {
-        joinMsg.className = "mt-3 text-sm text-red-300";
-        joinMsg.innerText = data.error || `Join failed (HTTP ${res.status}).`;
-        return;
-      }
-
-      if (data.role) setCurrentUserRole(String(data.role).toLowerCase());
-
-      const teamName = (data.team && data.team.name) ? data.team.name : "Team";
-      const teamCode = (data.team && data.team.code) ? data.team.code : code;
-      joinMsg.className = "mt-3 text-sm text-green-300";
-      joinMsg.innerHTML = `Joined successfully. Welcome to <strong>${escapeHtml(teamName)}</strong><br>
-        Team code: <strong>${teamCode}</strong>
-        <button class="ml-2 px-2 py-1 rounded bg-gray-900 border border-gray-700 text-gray-100 hover:bg-gray-800" onclick="copyCode('${teamCode}', this)">Copy</button>`;
-
-      await refreshCurrentTeam();
-      if (data.redirect) window.location.href = data.redirect;
-    }
-
-    async function leaveTeam() {
-      if (!confirm("Are you sure you want to leave the team? This action cannot be undone.")) return;
-
-      const { res, data } = await fetchJson("/api/team/leave/", {
-        method: "POST",
-      });
-
-      if (!res.ok || !data.ok) {
-        alert(data.error || `Leave failed (HTTP ${res.status}).`);
-        return;
-      }
-
-      if (data.redirect) window.location.href = data.redirect;
-      else window.location.reload();
-    }
-
-    function logout() {
-      localStorage.removeItem("taskhive_current_user");
-      window.location.href = "/login/";
-    }
-
-    async function refreshCurrentTeam() {
-      const currentCard = document.getElementById("currentTeamCard");
-      const teamDetails = document.getElementById("teamDetails");
-
-      const { res, data } = await fetchJson("/api/team/current/");
-      if (!res.ok || !data.ok || !data.team) {
-        if (currentCard) currentCard.classList.add("hidden");
-        return;
-      }
-
-      const team = data.team;
-      const role = (data.role || "member").toLowerCase();
-      const roleLabel = role === "head" ? "admin" : role;
-
-      setCurrentUserRole(role);
-
-      const membersResp = await fetchJson(`/api/team/${encodeURIComponent(team.id)}/members/`);
-      const members = (membersResp.data && membersResp.data.members) ? membersResp.data.members : [];
-
-      const u = getCurrentUserObj();
-      const meEmail = (u && u.email) ? u.email : "";
-
-      const membersHtml = members.length
-        ? `<div class="mt-4 text-sm text-gray-300">
-            <div class="font-semibold text-gray-200 mb-2">Members</div>
-            <div class="space-y-2">
-              ${members.map(m => {
-                const email = (m.email || "").toLowerCase();
-                const isYou = email === (meEmail || "").toLowerCase();
-                const isHead = (m.role || "").toLowerCase() === "head";
-                const canRemove = role === "head" && !isYou && !isHead;
-                return `
-                  <div class="flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-gray-900/60 border border-gray-700">
-                    <div>
-                      <div class="text-gray-100">
-                        <a href="/profile/${encodeURIComponent(m.username || '')}/" class="hover:text-cyan-300 underline">${escapeHtml(m.name || m.email || "Unknown")}</a>
-                      </div>
-                      <div class="text-xs text-gray-400">${escapeHtml(m.email || "")} ${isYou ? "(You)" : ""} ${isHead ? "(Head)" : ""}</div>
-                    </div>
-                    ${canRemove ? `<button class="px-2 py-1 text-xs rounded bg-red-700 hover:bg-red-600 text-white" onclick="removeMember(${team.id}, '${encodeURIComponent(email)}')">Remove</button>` : ""}
-                  </div>
-                `;
-              }).join("")}
-            </div>
-          </div>`
-        : '<div class="mt-4 text-sm text-gray-400">No members found.</div>';
-
-      if (currentCard) currentCard.classList.remove("hidden");
-      if (teamDetails) {
-        teamDetails.innerHTML = `
-          <div class="text-sm text-gray-200">
-            <div class="font-semibold text-gray-100">${escapeHtml(team.name)} <span class="text-gray-400 font-normal">(You are ${escapeHtml(roleLabel)})</span></div>
-            <div class="mt-2">Team Code: <strong>${escapeHtml(team.code)}</strong>
-              <button class="ml-2 px-2 py-1 rounded bg-gray-900 border border-gray-700 text-gray-100 hover:bg-gray-800" onclick="copyCode('${team.code}', this)">Copy</button>
+        <!-- Dropdown (has teams) -->
+        <div v-else-if="teams.length" class="relative flex-1 max-w-xs">
+          <button @click="dropdownOpen = !dropdownOpen" class="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-600 hover:border-cyan-500/40 text-sm text-gray-100 transition-all">
+            <span v-if="selectedTeam" class="truncate">{{ selectedTeam.name }}</span>
+            <span v-else class="text-gray-500">Select a team...</span>
+            <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform" :class="{ 'rotate-180': dropdownOpen }"></i>
+          </button>
+          <div v-if="dropdownOpen" class="absolute z-40 mt-1 w-full rounded-lg bg-gray-800 border border-gray-600 shadow-xl shadow-black/40 overflow-hidden">
+            <div v-for="t in teams" :key="t.id"
+                 @click="selectTeam(t)"
+                 class="px-4 py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-cyan-500/10 transition-colors"
+                 :class="selectedTeam && selectedTeam.id === t.id ? 'bg-cyan-500/10 border-l-2 border-cyan-400' : 'border-l-2 border-transparent'">
+              <div class="min-w-0">
+                <div class="text-sm text-gray-100 truncate">{{ t.name }}</div>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <span class="text-[10px] text-gray-500">{{ t.code }}</span>
+                  <span class="badge" :class="t.role === 'head' ? 'badge-head' : 'badge-member'">{{ t.role === 'head' ? 'Admin' : 'Member' }}</span>
+                </div>
+              </div>
+              <i v-if="selectedTeam && selectedTeam.id === t.id" class="fas fa-check text-cyan-400 text-xs"></i>
             </div>
           </div>
-          ${role === 'head' ? `
-            <div class="mt-4 pt-4 border-t border-gray-700">
-              <p class="text-sm text-gray-400">Invite member (email)</p>
-              <div class="mt-2 flex gap-2 items-center flex-wrap">
-                <input id="inviteEmail" placeholder="member@email.com" class="flex-1 min-w-[240px] px-3 py-2 rounded-md bg-gray-900 border border-gray-700 text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500" />
-                <button class="px-3 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-gray-900 font-semibold" onclick="inviteMember(${team.id})">Invite</button>
-              </div>
-              <div id="inviteMsg" class="mt-2"></div>
+        </div>
+
+        <!-- No teams -->
+        <span v-else class="text-sm text-gray-500 italic">No teams yet</span>
+      </div>
+    </section>
+
+    <!-- ===================== TEAM DETAIL (after selection) ===================== -->
+    <template v-if="selectedTeam">
+
+      <!-- Team Info Bar -->
+      <div class="panel panel-active glow-strong p-5">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <div class="flex items-center gap-4">
+            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-lg">
+              <i class="fas fa-users"></i>
             </div>
-          ` : ''}
-          ${membersHtml}
-        `;
-      }
-    }
+            <div>
+              <h2 class="text-lg font-bold text-cyan-300">{{ selectedTeam.name }}</h2>
+              <div class="flex items-center gap-3 mt-0.5">
+                <span class="text-xs text-gray-500">Code: <strong class="text-gray-300">{{ selectedTeam.code }}</strong></span>
+                <button @click="copyCode(selectedTeam.code)" class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"><i class="fas fa-copy"></i> Copy</button>
+                <span class="badge" :class="selectedTeam.role === 'head' ? 'badge-head' : 'badge-member'">{{ selectedTeam.role === 'head' ? 'Admin' : 'Member' }}</span>
+                <span v-if="copyMsg" class="text-xs text-green-400 animate-pulse">{{ copyMsg }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <a :href="'/workspace/' + selectedTeam.id + '/'" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg neon-button text-gray-900 font-semibold text-sm">
+              <i class="fas fa-rocket"></i> Go to Workspace
+            </a>
+            <a href="/profile/" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-600 text-sm text-gray-200 transition-all">
+              <i class="fas fa-user-edit"></i> Edit Profile
+            </a>
+            <button @click="leaveTeam" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-red-900/60 border border-gray-600 hover:border-red-500/50 text-gray-300 hover:text-red-300 text-sm transition-all">
+              <i class="fas fa-sign-out-alt"></i> Leave Team
+            </button>
+          </div>
+        </div>
+      </div>
 
-    async function inviteMember(teamId) {
-      const el = document.getElementById("inviteEmail");
-      const msg = document.getElementById("inviteMsg");
-      if (!el || !msg) return;
+      <!-- Invite (admin only) -->
+      <div v-if="selectedTeam.role === 'head'" class="panel glow p-5 space-y-3">
+        <h3 class="text-sm font-semibold text-gray-300"><i class="fas fa-paper-plane mr-2 text-cyan-400"></i>Invite Member</h3>
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex-1 min-w-[220px]">
+            <input v-model="inviteEmail" @keyup.enter="inviteMember" placeholder="Enter email address..." class="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-gray-100 text-sm field-focus" />
+          </div>
+          <button @click="inviteMember" :disabled="inviteLoading" class="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-gray-900 font-semibold text-sm transition-all">
+            {{ inviteLoading ? 'Sending...' : 'Invite' }}
+          </button>
+        </div>
+        <div v-if="inviteMsg" class="text-xs" :class="inviteError ? 'text-red-400' : 'text-green-400'">{{ inviteMsg }}</div>
+      </div>
 
-      const email = (el.value || "").trim().toLowerCase();
-      msg.className = "";
-      msg.innerHTML = "";
+      <!-- Members -->
+      <section class="panel glow p-0 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-700/50 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-gray-300"><i class="fas fa-users mr-2 text-cyan-400"></i>Team Members</h3>
+          <span class="text-xs text-gray-500">{{ members.length }} member{{ members.length !== 1 ? 's' : '' }}</span>
+        </div>
 
-      if (!email) {
-        msg.className = "text-sm text-red-300";
-        msg.innerText = "Enter an email to invite.";
-        return;
-      }
+        <div v-if="detailLoading" class="px-5 py-6 flex items-center gap-3">
+          <div class="text-cyan-400 animate-spin"><i class="fas fa-circle-notch"></i></div>
+          <span class="text-sm text-gray-400">Loading members...</span>
+        </div>
 
-      const { res, data } = await fetchJson("/api/team/invite/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ team_id: teamId, email })
-      });
+        <div v-else class="divide-y divide-gray-700/40">
+          <div v-for="m in members" :key="m.email" class="member-row px-5 py-3 flex items-center justify-between gap-3">
+            <a :href="'/profile/' + encodeURIComponent(m.username || '') + '/'" class="flex items-center gap-3 flex-1 min-w-0 no-underline group">
+              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-gray-600 flex items-center justify-center text-sm font-bold text-cyan-300 shrink-0">
+                {{ (m.name || m.email || '?').charAt(0).toUpperCase() }}
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm text-gray-100 group-hover:text-cyan-300 transition-colors truncate">{{ m.name || m.email || 'Unknown' }}</span>
+                  <span v-if="isMe(m.email)" class="badge badge-you">You</span>
+                  <span class="badge" :class="(m.role || '').toLowerCase() === 'head' ? 'badge-head' : 'badge-member'">{{ (m.role || '').toLowerCase() === 'head' ? 'Admin' : 'Member' }}</span>
+                </div>
+                <div class="text-xs text-gray-500 truncate">{{ m.email }}</div>
+              </div>
+            </a>
+            <button v-if="canRemove(m)" @click.stop="removeMember(m.email)" class="px-3 py-1 text-xs rounded-lg bg-gray-700 hover:bg-red-900/60 border border-gray-600 hover:border-red-500/50 text-gray-400 hover:text-red-300 transition-all shrink-0">
+              <i class="fas fa-user-minus mr-1"></i> Remove
+            </button>
+          </div>
+        </div>
 
-      if (!res.ok || !data.ok) {
-        msg.className = "text-sm text-red-300";
-        msg.innerText = data.error || `Invite failed (HTTP ${res.status}).`;
-        return;
-      }
+        <div v-if="!detailLoading && !members.length" class="px-5 py-6 flex items-center gap-3 text-sm text-gray-500">
+          <i class="fas fa-user-friends text-gray-600"></i>
+          <span>No team members yet.</span>
+        </div>
+      </section>
 
-      msg.className = "text-sm text-green-300";
-      msg.innerText = data.created ? "Member invited." : "User is already in the team.";
-      el.value = "";
-      await refreshCurrentTeam();
-    }
+    </template>
 
-    async function removeMember(teamId, encodedEmail) {
-      const msg = document.getElementById("inviteMsg");
-      const email = decodeURIComponent(encodedEmail || "");
-      if (!email) return;
-      if (!confirm(`Remove ${email} from this team?`)) return;
+    <!-- ===================== CREATE / JOIN ===================== -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div class="panel glow p-6 space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-green-500/20 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+            <i class="fas fa-plus-circle text-lg"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-cyan-300">Create New Team</h3>
+            <p class="text-xs text-gray-500">You will become the team admin.</p>
+          </div>
+        </div>
+        <input v-model="createName" @keyup.enter="createTeam" class="w-full px-3 py-2.5 rounded-lg bg-gray-900 border border-gray-700 text-gray-100 text-sm field-focus" placeholder="Enter team name (e.g. Frontend Squad)" />
+        <button @click="createTeam" :disabled="createLoading" class="w-full px-3 py-2.5 rounded-lg neon-button text-gray-900 font-semibold text-sm">
+          {{ createLoading ? 'Creating...' : 'Create Team' }}
+        </button>
+        <div v-if="createMsg" class="text-sm" :class="createError ? 'text-red-400' : 'text-green-400'">{{ createMsg }}</div>
+      </div>
 
-      const { res, data } = await fetchJson("/api/team/member/remove/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ team_id: teamId, member_email: email })
-      });
+      <div class="panel glow p-6 space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20 flex items-center justify-center text-purple-400">
+            <i class="fas fa-link text-lg"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-semibold text-cyan-300">Join Existing Team</h3>
+            <p class="text-xs text-gray-500">Ask your admin for the team code.</p>
+          </div>
+        </div>
+        <input v-model="joinCode" @keyup.enter="joinTeam" class="w-full px-3 py-2.5 rounded-lg bg-gray-900 border border-gray-700 text-gray-100 text-sm field-focus" placeholder="Enter team code (e.g. TEAM-ABCDEF)" />
+        <button @click="joinTeam" :disabled="joinLoading" class="w-full px-3 py-2.5 rounded-lg neon-button text-gray-900 font-semibold text-sm">
+          {{ joinLoading ? 'Joining...' : 'Join Team' }}
+        </button>
+        <div v-if="joinMsg" class="text-sm" :class="joinError ? 'text-red-400' : 'text-green-400'">{{ joinMsg }}</div>
+      </div>
+    </section>
 
-      if (msg) {
-        if (!res.ok || !data.ok) {
-          msg.className = "text-sm text-red-300";
-          msg.innerText = data.error || `Remove failed (HTTP ${res.status}).`;
-        } else {
-          msg.className = "text-sm text-green-300";
-          msg.innerText = "Member removed successfully.";
+  </main>
+</div>
+
+<script>
+new Vue({
+  el: '#app',
+  data() {
+    return {
+      loading: true,
+      detailLoading: false,
+      dropdownOpen: false,
+      displayName: 'User',
+      teams: [],
+      selectedTeam: null,
+      members: [],
+      copyMsg: '',
+
+      createName: '',
+      createLoading: false,
+      createMsg: '',
+      createError: false,
+
+      joinCode: '',
+      joinLoading: false,
+      joinMsg: '',
+      joinError: false,
+
+      inviteEmail: '',
+      inviteLoading: false,
+      inviteMsg: '',
+      inviteError: false,
+    };
+  },
+  mounted() {
+    const raw = localStorage.getItem('taskhive_current_user');
+    try {
+      const u = JSON.parse(raw);
+      this.displayName = (u && (u.name || u.email || u.username)) || 'User';
+    } catch (e) { /* keep default */ }
+    this.loadTeams();
+  },
+  methods: {
+    getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+      return '';
+    },
+    async fetchJson(url, options = {}) {
+      const csrf = this.getCookie('csrftoken');
+      const headers = Object.assign({ 'X-CSRFToken': csrf }, options.headers || {});
+      const res = await fetch(url, Object.assign({}, options, { headers, credentials: 'same-origin' }));
+      const data = await res.json().catch(() => ({}));
+      return { res, data };
+    },
+    setLocalRole(role) {
+      try {
+        const obj = JSON.parse(localStorage.getItem('taskhive_current_user'));
+        if (obj && typeof obj === 'object') {
+          obj.role = role;
+          localStorage.setItem('taskhive_current_user', JSON.stringify(obj));
         }
+      } catch (e) { /* ignore */ }
+    },
+    isMe(email) {
+      try {
+        const u = JSON.parse(localStorage.getItem('taskhive_current_user'));
+        return (u && u.email || '').toLowerCase() === (email || '').toLowerCase();
+      } catch (e) { return false; }
+    },
+    canRemove(m) {
+      if (!this.selectedTeam || this.selectedTeam.role !== 'head') return false;
+      if (this.isMe(m.email)) return false;
+      if ((m.role || '').toLowerCase() === 'head') return false;
+      return true;
+    },
+    copyCode(code) {
+      navigator.clipboard.writeText(code).then(() => {
+        this.copyMsg = 'Copied!';
+        setTimeout(() => { this.copyMsg = ''; }, 2000);
+      }).catch(() => {
+        this.copyMsg = 'Copy failed';
+      });
+    },
+
+    // ---- Navigation ----
+    goHome() {
+      this.selectedTeam = null;
+      this.members = [];
+      this.dropdownOpen = false;
+      this.inviteEmail = '';
+      this.inviteMsg = '';
+      this.inviteError = false;
+      this.loadTeams();
+    },
+
+    // ---- Select team from dropdown ----
+    async selectTeam(t) {
+      this.dropdownOpen = false;
+      this.selectedTeam = t;
+      this.members = [];
+      this.inviteEmail = '';
+      this.inviteMsg = '';
+      this.inviteError = false;
+      this.detailLoading = true;
+      try {
+        const { data } = await this.fetchJson(`/api/team/${t.id}/members/`);
+        this.members = (data && data.members) ? data.members : [];
+      } catch (e) {
+        this.members = [];
       }
+      this.detailLoading = false;
+    },
 
-      if (res.ok && data.ok) await refreshCurrentTeam();
-    }
+    // ---- Load all teams ----
+    async loadTeams() {
+      this.loading = true;
+      try {
+        const { res, data } = await this.fetchJson('/api/my-teams/');
+        this.teams = (res.ok && data.ok && data.teams) ? data.teams : [];
+      } catch (e) {
+        this.teams = [];
+      }
+      this.loading = false;
+    },
 
-    // Current team display logic
-    (function () {
-      refreshCurrentTeam();
-    })();
-  </script>
+    // ---- Create team ----
+    async createTeam() {
+      this.createMsg = '';
+      this.createError = false;
+      const name = (this.createName || '').trim();
+      if (!name) {
+        this.createError = true;
+        this.createMsg = 'Enter a team name.';
+        return;
+      }
+      this.createLoading = true;
+      try {
+        const { res, data } = await this.fetchJson('/api/team/create/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        if (!res.ok || !data.ok) {
+          this.createError = true;
+          this.createMsg = data.error || `Create failed (HTTP ${res.status}).`;
+          return;
+        }
+        if (data.role) this.setLocalRole(String(data.role).toLowerCase());
+        const code = (data.team && data.team.code) || '';
+        this.createMsg = `Team created! Code: ${code}`;
+        this.createName = '';
+        await this.loadTeams();
+      } catch (e) {
+        this.createError = true;
+        this.createMsg = 'Network error. Try again.';
+      } finally {
+        this.createLoading = false;
+      }
+    },
+
+    // ---- Join team ----
+    async joinTeam() {
+      this.joinMsg = '';
+      this.joinError = false;
+      const code = (this.joinCode || '').trim().toUpperCase();
+      if (!code) {
+        this.joinError = true;
+        this.joinMsg = 'Enter a team code.';
+        return;
+      }
+      this.joinLoading = true;
+      try {
+        const { res, data } = await this.fetchJson('/api/team/join/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        });
+        if (!res.ok || !data.ok) {
+          this.joinError = true;
+          this.joinMsg = data.error || `Join failed (HTTP ${res.status}).`;
+          return;
+        }
+        if (data.role) this.setLocalRole(String(data.role).toLowerCase());
+        const teamName = (data.team && data.team.name) || 'Team';
+        this.joinMsg = `Joined ${teamName} successfully!`;
+        this.joinCode = '';
+        await this.loadTeams();
+      } catch (e) {
+        this.joinError = true;
+        this.joinMsg = 'Network error. Try again.';
+      } finally {
+        this.joinLoading = false;
+      }
+    },
+
+    // ---- Leave team ----
+    async leaveTeam() {
+      if (!this.selectedTeam) return;
+      if (!confirm('Are you sure you want to leave this team? This cannot be undone.')) return;
+      try {
+        const { res, data } = await this.fetchJson('/api/team/leave/', { method: 'POST' });
+        if (!res.ok || !data.ok) {
+          alert(data.error || `Leave failed (HTTP ${res.status}).`);
+          return;
+        }
+        this.goHome();
+      } catch (e) {
+        alert('Network error. Try again.');
+      }
+    },
+
+    // ---- Invite member ----
+    async inviteMember() {
+      this.inviteMsg = '';
+      this.inviteError = false;
+      const email = (this.inviteEmail || '').trim().toLowerCase();
+      if (!email) {
+        this.inviteError = true;
+        this.inviteMsg = 'Enter an email to invite.';
+        return;
+      }
+      if (!this.selectedTeam) return;
+      this.inviteLoading = true;
+      try {
+        const { res, data } = await this.fetchJson('/api/team/invite/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ team_id: this.selectedTeam.id, email }),
+        });
+        if (!res.ok || !data.ok) {
+          this.inviteError = true;
+          this.inviteMsg = data.error || `Invite failed (HTTP ${res.status}).`;
+          return;
+        }
+        this.inviteMsg = data.created ? 'Member invited successfully!' : 'User is already in the team.';
+        this.inviteEmail = '';
+        await this.selectTeam(this.selectedTeam);
+      } catch (e) {
+        this.inviteError = true;
+        this.inviteMsg = 'Network error. Try again.';
+      } finally {
+        this.inviteLoading = false;
+      }
+    },
+
+    // ---- Remove member ----
+    async removeMember(email) {
+      if (!email || !this.selectedTeam) return;
+      if (!confirm(`Remove ${email} from this team?`)) return;
+      try {
+        const { res, data } = await this.fetchJson('/api/team/member/remove/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ team_id: this.selectedTeam.id, member_email: email }),
+        });
+        if (!res.ok || !data.ok) {
+          this.inviteError = true;
+          this.inviteMsg = data.error || `Remove failed (HTTP ${res.status}).`;
+          return;
+        }
+        this.inviteMsg = 'Member removed.';
+        this.inviteError = false;
+        await this.selectTeam(this.selectedTeam);
+      } catch (e) {
+        this.inviteError = true;
+        this.inviteMsg = 'Network error. Try again.';
+      }
+    },
+
+    // ---- Logout ----
+    doLogout() {
+      localStorage.removeItem('taskhive_current_user');
+      window.location.href = '/login/';
+    },
+  },
+});
+</script>
 
 </body>
 </html>

@@ -115,6 +115,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = "/user/"
 LOGIN_URL = "/login/"
 
+AUTHENTICATION_BACKENDS = [
+    "core.backends.EmailBackend",
+]
+
 
 # =========================
 # EMAIL (OTP) SETTINGS

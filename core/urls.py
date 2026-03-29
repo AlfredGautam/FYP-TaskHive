@@ -86,6 +86,7 @@ urlpatterns = [
     path("api/team/invite/", views.api_team_invite, name="api_team_invite"),
     path("api/team/member/remove/", views.api_team_member_remove, name="api_team_member_remove"),
     path("api/team/current/", views.api_team_current, name="api_team_current"),
+    path("api/my-teams/", views.api_my_teams, name="api_my_teams"),
     path("api/team/leave/", views.api_team_leave, name="api_team_leave"),
     path("api/team/<int:team_id>/members/", views.api_team_members, name="api_team_members"),
 
