@@ -111,6 +111,8 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Site URL (used in emails, links, etc.)
+SITE_URL = os.getenv("SITE_URL", "http://127.0.0.1:8000")
 
 # Login URLs
 LOGIN_REDIRECT_URL = "/user/"
