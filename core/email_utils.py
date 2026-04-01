@@ -8,6 +8,7 @@ Provides formatted HTML email senders for:
 
 import html as _html
 import logging
+import threading
 import time
 
 from django.core.mail import EmailMultiAlternatives
@@ -67,6 +68,17 @@ def _send_html_email(subject, text_body, html_body, recipient_list):
         exc_info=True,
     )
     return False
+
+
+def _send_html_email_async(subject, text_body, html_body, recipient_list):
+    """Fire-and-forget email sending in a background thread."""
+    thread = threading.Thread(
+        target=_send_html_email,
+        args=(subject, text_body, html_body, recipient_list),
+        daemon=True,
+    )
+    thread.start()
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -159,7 +171,7 @@ def send_welcome_email(user_name: str, user_email: str):
       <a href="{site}/" class="btn">Go to TaskHive &rarr;</a>"""
 
     html_body = _base_html("Collaborative Task Management", content)
-    return _send_html_email(subject, text_body, html_body, [user_email])
+    return _send_html_email_async(subject, text_body, html_body, [user_email])
 
 
 # ---------------------------------------------------------------------------
@@ -227,7 +239,7 @@ def send_task_assigned_email(
       <a href="{site}/workspace/" class="btn">View My Tasks &rarr;</a>"""
 
     html_body = _base_html("New Task Assignment", content)
-    return _send_html_email(subject, text_body, html_body, [assignee_email])
+    return _send_html_email_async(subject, text_body, html_body, [assignee_email])
 
 
 # ---------------------------------------------------------------------------

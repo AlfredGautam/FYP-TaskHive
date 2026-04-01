@@ -47,6 +47,7 @@ from .email_utils import (
     send_task_assigned_email,
     send_deadline_reminder_email,
 )
+from .rate_limit import rate_limit
 
 
 def _verify_google_access_token(access_token: str):
@@ -86,6 +87,21 @@ def _verify_google_id_token(id_token: str):
         return payload, None
     except ValueError:
         return None, "Invalid Google token"
+
+
+def api_health(request):
+    """Health check endpoint for monitoring."""
+    from django.db import connection
+    try:
+        connection.ensure_connection()
+        db_ok = True
+    except Exception:
+        db_ok = False
+    status = 200 if db_ok else 503
+    return JsonResponse({
+        "status": "ok" if db_ok else "degraded",
+        "database": "connected" if db_ok else "unavailable",
+    }, status=status)
 
 
 def google_auth_redirect(request):
@@ -275,6 +291,7 @@ def api_me(request):
 
 @csrf_exempt
 @require_POST
+@rate_limit(max_requests=10, window_seconds=60)
 def api_login(request):
     try:
         data = json.loads(request.body.decode("utf-8"))
@@ -537,6 +554,7 @@ def api_team_leave(request):
 
 @csrf_exempt
 @require_POST
+@rate_limit(max_requests=10, window_seconds=60)
 def api_login_google(request):
     try:
         data = json.loads(request.body.decode("utf-8"))
@@ -595,6 +613,7 @@ def api_login_google(request):
 
 @csrf_exempt
 @require_POST
+@rate_limit(max_requests=5, window_seconds=60)
 def api_register(request):
     try:
         data = json.loads(request.body.decode("utf-8"))
@@ -854,6 +873,7 @@ def _send_email_verification_code(email: str, name: str, code: str):
 
 @csrf_exempt
 @require_POST
+@rate_limit(max_requests=3, window_seconds=60)
 def api_password_request_otp(request):
     try:
         data = json.loads(request.body.decode("utf-8"))
@@ -898,6 +918,7 @@ def api_password_request_otp(request):
 
 @csrf_exempt
 @require_POST
+@rate_limit(max_requests=5, window_seconds=60)
 def api_password_reset(request):
     try:
         data = json.loads(request.body.decode("utf-8"))

@@ -275,7 +275,7 @@
 
           <div v-if="!notifications.length" class="px-3 py-4 text-sm text-gray-400">No notifications yet.</div>
 
-          <button v-for="n in notifications" :key="n.id"
+          <button v-for="n in notifications.slice(0, 8)" :key="n.id"
                   @click="openNotification(n)"
                   class="w-full text-left px-3 py-2 border-b border-gray-800 hover:bg-gray-800/70">
             <div class="flex items-start justify-between gap-3">
@@ -284,6 +284,10 @@
             </div>
             <p class="text-[11px] text-gray-400 mt-1">{{ formatNotificationTime(n.createdAt) }}</p>
           </button>
+
+          <div v-if="notifications.length > 0" class="px-3 py-2 border-t border-gray-700 text-center">
+            <button @click="showNotifications = false; switchTab('notifications')" class="text-xs text-cyan-300 hover:text-cyan-200 underline">View all notifications</button>
+          </div>
         </div>
       </div>
 
@@ -619,6 +623,51 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Notifications History -->
+      <div v-if="currentTab === 'notifications'" class="space-y-6">
+        <div class="flex justify-between items-center">
+          <h2 class="text-2xl font-bold text-cyan-300 neon-text">Notifications</h2>
+          <div class="flex gap-2">
+            <button @click="markAllNotificationsRead" class="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
+              <i class="fas fa-check-double mr-1"></i> Mark all read
+            </button>
+            <button @click="loadNotifications" class="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
+              <i class="fas fa-sync-alt mr-1"></i> Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="flex gap-2 mb-2">
+          <button @click="notifFilter = 'all'" class="text-xs px-3 py-1 rounded-full" :class="notifFilter === 'all' ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'">All ({{ notifications.length }})</button>
+          <button @click="notifFilter = 'unread'" class="text-xs px-3 py-1 rounded-full" :class="notifFilter === 'unread' ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'">Unread ({{ unreadNotificationCount }})</button>
+        </div>
+
+        <div v-if="!filteredNotifications.length" class="empty-state p-8 text-center">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 glow">
+            <i class="fas fa-bell text-2xl"></i>
+          </div>
+          <h3 class="text-lg font-medium text-gray-100 mb-2">{{ notifFilter === 'unread' ? 'No unread notifications' : 'No notifications yet' }}</h3>
+          <p class="text-gray-400">When your team assigns tasks or deadlines approach, notifications will appear here.</p>
+        </div>
+
+        <div v-else class="space-y-2">
+          <button v-for="n in filteredNotifications" :key="n.id"
+                  @click="openNotification(n)"
+                  class="w-full text-left flex items-start gap-3 p-3 rounded-lg border transition-colors"
+                  :class="n.isRead ? 'bg-gray-800/40 border-gray-700/50 hover:border-gray-600' : 'bg-gray-800/80 border-cyan-500/30 hover:border-cyan-500/50'">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                 :class="n.isRead ? 'bg-gray-700 text-gray-400' : 'bg-cyan-900/60 text-cyan-300'">
+              <i class="fas fa-bell text-xs"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm" :class="n.isRead ? 'text-gray-300' : 'text-gray-100 font-semibold'">{{ n.message }}</p>
+              <p class="text-[11px] text-gray-400 mt-1">{{ formatNotificationTime(n.createdAt) }}</p>
+            </div>
+            <span v-if="!n.isRead" class="mt-2 w-2 h-2 rounded-full bg-cyan-400 flex-shrink-0"></span>
+          </button>
         </div>
       </div>
 
@@ -1227,7 +1276,8 @@
           { id: 'projects', name: 'Projects', icon: 'fas fa-project-diagram' },
           { id: 'tasks',    name: 'Tasks',    icon: 'fas fa-tasks' },
           { id: 'files',    name: 'Files',    icon: 'fas fa-file-alt' },
-          { id: 'activity', name: 'Activity Log', icon: 'fas fa-history' }
+          { id: 'activity', name: 'Activity Log', icon: 'fas fa-history' },
+          { id: 'notifications', name: 'Notifications', icon: 'fas fa-bell' }
         ],
 
         boards: [
@@ -1245,6 +1295,7 @@
         notifications: [],
         unreadNotificationCount: 0,
         showNotifications: false,
+        notifFilter: 'all',
 
         currentTeam: null,
         teamMembers: [],
@@ -1292,6 +1343,11 @@
           ...this.globalResults.projects.map((r) => ({ ...r, type: "project" })),
           ...this.globalResults.files.map((r) => ({ ...r, type: "file" })),
         ];
+      },
+
+      filteredNotifications() {
+        if (this.notifFilter === 'unread') return this.notifications.filter(n => !n.isRead);
+        return this.notifications;
       },
 
       currentUserObj() {
@@ -1380,7 +1436,7 @@
       applyRouteContext() {
         const params = new URLSearchParams(window.location.search || "");
         const tab = params.get("tab");
-        if (tab && ['tasks', 'projects', 'files', 'activity'].includes(tab)) { this.currentTab = tab; if (tab === 'activity') this.loadActivityLog(); }
+        if (tab && ['tasks', 'projects', 'files', 'activity', 'notifications'].includes(tab)) { this.currentTab = tab; if (tab === 'activity') this.loadActivityLog(); }
 
         const taskId = parseInt(params.get("taskId") || "", 10);
         if (taskId) {
@@ -1461,7 +1517,14 @@
       formatNotificationTime(ts) {
         if (!ts) return '';
         try {
-          return new Date(ts).toLocaleString();
+          const now = Date.now();
+          const then = new Date(ts).getTime();
+          const diff = Math.floor((now - then) / 1000);
+          if (diff < 60) return 'Just now';
+          if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+          if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+          if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+          return new Date(ts).toLocaleDateString();
         } catch (e) {
           return '';
         }

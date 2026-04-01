@@ -50,6 +50,11 @@ from . import views
 
 urlpatterns = [
     # --------------------
+    # Health check
+    # --------------------
+    path("api/health/", views.api_health, name="api_health"),
+
+    # --------------------
     # Public landing
     # --------------------
     path("", views.dashboard_page, name="dashboard"),

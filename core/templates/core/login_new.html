@@ -66,6 +66,12 @@
           <label class="block text-sm text-gray-300 mb-1">Password</label>
           <input v-model="form.password" :type="showPassword ? 'text' : 'password'" class="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100 field-focus" />
           <button class="text-xs text-cyan-300 hover:text-cyan-200 mt-1" @click="showPassword = !showPassword">Toggle Password</button>
+          <div v-if="!isLogin && form.password" class="mt-2">
+            <div class="flex gap-1 mb-1">
+              <div v-for="i in 4" :key="i" class="h-1 flex-1 rounded-full" :class="i <= passwordStrength.score ? passwordStrength.color : 'bg-gray-700'"></div>
+            </div>
+            <p class="text-xs" :class="passwordStrength.textColor">{{ passwordStrength.label }}</p>
+          </div>
         </div>
 
         <button @click="handleSubmit" :disabled="loading" class="w-full py-2 rounded text-gray-900 font-semibold neon-button">
@@ -105,6 +111,11 @@
         <div class="flex gap-2 mt-4">
           <button @click="closeRegisterVerify" class="w-1/3 py-2 rounded bg-gray-700 hover:bg-gray-600">Cancel</button>
           <button @click="verifyRegistrationCode" :disabled="registerVerify.loading" class="w-2/3 py-2 rounded bg-green-600 hover:bg-green-500">{{ registerVerify.loading ? 'Verifying...' : 'Verify & Create Account' }}</button>
+        </div>
+        <div class="mt-3 text-center">
+          <button @click="resendVerificationCode" :disabled="registerVerify.resendCooldown > 0" class="text-xs text-cyan-300 hover:text-cyan-200 underline disabled:opacity-40 disabled:no-underline">
+            {{ registerVerify.resendCooldown > 0 ? ('Resend in ' + registerVerify.resendCooldown + 's') : 'Resend code' }}
+          </button>
         </div>
       </div>
     </div>
@@ -157,8 +168,27 @@
             message: '',
             isError: false,
             loading: false,
+            resendCooldown: 0,
           },
         };
+      },
+      computed: {
+        passwordStrength() {
+          const p = this.form.password || '';
+          let score = 0;
+          if (p.length >= 6) score++;
+          if (p.length >= 10) score++;
+          if (/[A-Z]/.test(p) && /[a-z]/.test(p)) score++;
+          if (/[0-9]/.test(p) && /[^A-Za-z0-9]/.test(p)) score++;
+          const levels = [
+            { label: 'Too weak', color: 'bg-red-500', textColor: 'text-red-400' },
+            { label: 'Weak', color: 'bg-orange-500', textColor: 'text-orange-400' },
+            { label: 'Fair', color: 'bg-yellow-500', textColor: 'text-yellow-400' },
+            { label: 'Strong', color: 'bg-green-500', textColor: 'text-green-400' },
+            { label: 'Very strong', color: 'bg-cyan-400', textColor: 'text-cyan-300' },
+          ];
+          return { score, ...levels[score] };
+        },
       },
       mounted() {
         const params = new URLSearchParams(window.location.search);
@@ -267,11 +297,47 @@
             this.registerVerify.code = '';
             this.registerVerify.message = '';
             this.registerVerify.isError = false;
+            this.startResendCooldown();
           } catch (e) {
             this.isError = true;
             this.message = 'Network error. Try again.';
           } finally {
             this.loading = false;
+          }
+        },
+        startResendCooldown() {
+          this.registerVerify.resendCooldown = 30;
+          const timer = setInterval(() => {
+            this.registerVerify.resendCooldown--;
+            if (this.registerVerify.resendCooldown <= 0) clearInterval(timer);
+          }, 1000);
+        },
+        async resendVerificationCode() {
+          if (this.registerVerify.resendCooldown > 0) return;
+          const email = (this.registerVerify.email || '').trim().toLowerCase();
+          if (!email) return;
+          this.registerVerify.message = '';
+          this.registerVerify.isError = false;
+          try {
+            const csrf = this.getCookie('csrftoken');
+            const res = await fetch('/api/register/', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              body: JSON.stringify({ name: this.form.name.trim(), email, password: this.form.password }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              this.registerVerify.isError = true;
+              this.registerVerify.message = data.error || 'Failed to resend code.';
+              return;
+            }
+            this.registerVerify.isError = false;
+            this.registerVerify.message = 'New code sent! Check your email.';
+            this.startResendCooldown();
+          } catch (e) {
+            this.registerVerify.isError = true;
+            this.registerVerify.message = 'Network error. Try again.';
           }
         },
         closeRegisterVerify() {
