@@ -28,6 +28,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1",
     "http://localhost",
     "http://127.0.0.1:64110",
+    "http://127.0.0.1:64389",
 ]
 
 
@@ -140,3 +141,26 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
 GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
+
+# =========================
+# LOGGING
+# =========================
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "core.email_utils": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+        },
+        "core.views": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+        },
+    },
+}

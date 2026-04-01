@@ -1,9 +1,12 @@
 
 
 import json
+import logging
 import random
 import secrets
 from datetime import timedelta, date
+
+logger = logging.getLogger(__name__)
 
 from django.conf import settings
 from django.core.mail import send_mail
@@ -1414,11 +1417,17 @@ def api_workspace_task_save(request):
     due_str = _safe_date_iso(task.due_date)
     # On update: only email newly added assignees. On create: email all assignees.
     email_targets = truly_new_assignee_users if is_update else new_assignee_users
+    logger.info(
+        "Task '%s' saved (is_update=%s). email_targets=%d, assignees_payload=%s",
+        task.title, is_update, len(email_targets),
+        [u.email for u in email_targets],
+    )
     for assignee_user in email_targets:
         assignee_email = assignee_user.email or assignee_user.username
         if assignee_email and assignee_email != (request.user.email or request.user.username):
             assignee_name = assignee_user.get_full_name() or assignee_user.first_name or assignee_user.username
-            send_task_assigned_email(
+            logger.info("Sending task-assigned email to %s for task '%s'", assignee_email, task.title)
+            ok = send_task_assigned_email(
                 assignee_name=assignee_name,
                 assignee_email=assignee_email,
                 task_title=task.title,
@@ -1426,6 +1435,13 @@ def api_workspace_task_save(request):
                 assigned_by_name=actor_name,
                 due_date=due_str,
                 priority=task.priority,
+            )
+            if not ok:
+                logger.error("send_task_assigned_email FAILED for %s on task '%s'", assignee_email, task.title)
+        else:
+            logger.info(
+                "Skipped email for assignee %s (same as requester or empty)",
+                assignee_user.email,
             )
 
     col_id_to_board_id = {}

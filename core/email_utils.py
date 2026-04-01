@@ -6,12 +6,20 @@ Provides formatted HTML email senders for:
 - Deadline reminder notification
 """
 
+import logging
+
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
 
+logger = logging.getLogger(__name__)
+
 
 def _from_email():
-    return getattr(settings, "DEFAULT_FROM_EMAIL", "taskhive65@gmail.com")
+    return (
+        getattr(settings, "DEFAULT_FROM_EMAIL", None)
+        or getattr(settings, "EMAIL_HOST_USER", None)
+        or "taskhive65@gmail.com"
+    )
 
 
 def _send_html_email(subject, text_body, html_body, recipient_list):
@@ -25,8 +33,14 @@ def _send_html_email(subject, text_body, html_body, recipient_list):
         )
         msg.attach_alternative(html_body, "text/html")
         msg.send(fail_silently=False)
+        logger.info("Email sent successfully to %s | subject=%s", recipient_list, subject)
         return True
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "Failed to send email to %s | subject=%s | error=%s",
+            recipient_list, subject, exc,
+            exc_info=True,
+        )
         return False
 
 
