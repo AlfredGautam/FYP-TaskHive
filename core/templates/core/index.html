@@ -1261,6 +1261,8 @@
         newCommentBody: "",
         newSubtaskTitle: "",
         notificationPollTimer: null,
+        dataPollTimer: null,
+        cachedUserObj: null,
         isSaving: false
       };
     },
@@ -1293,6 +1295,7 @@
       },
 
       currentUserObj() {
+        if (this.cachedUserObj) return this.cachedUserObj;
         const raw = localStorage.getItem("taskhive_current_user");
         if (!raw || raw === "Guest") return { name: "User", role: "member" };
         try { return JSON.parse(raw) || { name: "User", role: "member" }; }
@@ -1307,6 +1310,7 @@
     },
 
     mounted() {
+      this._initCachedUser();
       this.initTheme();
       this.loadData();
       this.fetchTeamContext();
@@ -1316,17 +1320,33 @@
       // click outside context menu
       window.addEventListener("click", this.handleGlobalClick);
 
-      // Real-time notification polling every 15 seconds
-      this.notificationPollTimer = setInterval(() => { this.loadNotifications(); }, 15000);
+      // Poll notifications every 10 seconds
+      this.notificationPollTimer = setInterval(() => { this.loadNotifications(); }, 10000);
+      // Poll workspace data (tasks, projects, approvals) every 20 seconds
+      this.dataPollTimer = setInterval(() => { this.loadData(); }, 20000);
     },
 
     beforeDestroy() {
       window.removeEventListener("keydown", this.handleShortcut);
       window.removeEventListener("click", this.handleGlobalClick);
       if (this.notificationPollTimer) clearInterval(this.notificationPollTimer);
+      if (this.dataPollTimer) clearInterval(this.dataPollTimer);
     },
 
     methods: {
+      _initCachedUser() {
+        try {
+          const raw = localStorage.getItem("taskhive_current_user");
+          if (raw && raw !== "Guest") {
+            this.cachedUserObj = JSON.parse(raw) || { name: "User", role: "member" };
+          } else {
+            this.cachedUserObj = { name: "User", role: "member" };
+          }
+        } catch (e) {
+          this.cachedUserObj = { name: "User", role: "member" };
+        }
+      },
+
       async fetchTeamContext() {
         try {
           const res = await fetch("/api/team/current/", { credentials: "same-origin" });
@@ -1336,14 +1356,9 @@
           this.currentTeam = data.team || null;
 
           if (data.role) {
-            try {
-              const raw = localStorage.getItem("taskhive_current_user");
-              const u = raw ? JSON.parse(raw) : null;
-              if (u && typeof u === 'object') {
-                u.role = data.role;
-                localStorage.setItem("taskhive_current_user", JSON.stringify(u));
-              }
-            } catch (e) {}
+            const updated = { ...this.cachedUserObj, role: data.role };
+            this.cachedUserObj = updated;
+            localStorage.setItem("taskhive_current_user", JSON.stringify(updated));
           }
 
           if (!this.currentTeam || !this.currentTeam.id) return;
