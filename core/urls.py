@@ -75,9 +75,6 @@ urlpatterns = [
     # Auth APIs
     # --------------------
     path("api/login/", views.api_login, name="api_login"),
-    path("api/login/google/", views.api_login_google, name="api_login_google"),
-    path("auth/google/", views.google_auth_redirect, name="google_auth_redirect"),
-    path("auth/google/callback/", views.google_auth_callback, name="google_auth_callback"),
     path("api/register/", views.api_register, name="api_register"),
     path("api/register/verify/", views.api_register_verify, name="api_register_verify"),
     path("api/logout/", views.api_logout, name="api_logout"),

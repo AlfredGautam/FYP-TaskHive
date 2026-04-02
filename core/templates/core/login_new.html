@@ -4,11 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TaskHive - Login</title>
-  <script>window.__GOOGLE_CLIENT_ID = "{{ google_client_id }}";</script>
 {% verbatim %}
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
@@ -80,24 +78,6 @@
 
         <div v-if="message" class="text-sm" :class="isError ? 'text-red-400' : 'text-green-400'">{{ message }}</div>
 
-        <!-- Google Sign-In -->
-        <div class="relative flex items-center my-3">
-          <div class="flex-grow border-t border-gray-700"></div>
-          <span class="mx-3 text-xs text-gray-400">or</span>
-          <div class="flex-grow border-t border-gray-700"></div>
-        </div>
-
-        <a href="/auth/google/"
-           class="w-full py-2 rounded border border-gray-600 bg-gray-800 hover:bg-gray-700 flex items-center justify-center gap-2 transition-all no-underline">
-          <svg width="18" height="18" viewBox="0 0 48 48">
-            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-            <path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.02 24.02 0 0 0 0 21.56l7.98-6.19z"/>
-            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-          </svg>
-          <span class="text-sm text-gray-200">{{ isLogin ? 'Sign in with Google' : 'Sign up with Google' }}</span>
-        </a>
-
         <button v-if="isLogin" class="text-xs text-cyan-300 hover:text-cyan-200 underline" @click="openForgot">Forgot password?</button>
       </div>
     </div>
@@ -149,7 +129,6 @@
           form: { name: '', email: '', password: '' },
           message: '',
           isError: false,
-          googleLoading: false,
           nextUrl: '/user/',
           forgot: {
             show: false,
@@ -194,7 +173,6 @@
         const params = new URLSearchParams(window.location.search);
         const next = params.get('next');
         if (next) this.nextUrl = next;
-        this.initGoogleSignIn();
       },
       methods: {
         getCookie(name) {
@@ -420,92 +398,6 @@
           } catch (e) {
             this.forgot.isError = true;
             this.forgot.message = 'Network error. Try again.';
-          }
-        },
-        initGoogleSignIn() {
-          const clientId = window.__GOOGLE_CLIENT_ID;
-          if (!clientId) return;
-          const self = this;
-          const tryInit = function() {
-            if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-              setTimeout(tryInit, 200);
-              return;
-            }
-            self._googleTokenClient = google.accounts.oauth2.initTokenClient({
-              client_id: clientId,
-              scope: 'email profile openid',
-              callback: function(tokenResponse) {
-                if (self._googleTimeout) { clearTimeout(self._googleTimeout); self._googleTimeout = null; }
-                if (tokenResponse && tokenResponse.access_token) {
-                  self.handleGoogleAccessToken(tokenResponse.access_token);
-                } else {
-                  self.googleLoading = false;
-                  self.isError = true;
-                  self.message = 'Google sign-in was cancelled.';
-                }
-              },
-              error_callback: function(err) {
-                if (self._googleTimeout) { clearTimeout(self._googleTimeout); self._googleTimeout = null; }
-                self.googleLoading = false;
-                self.isError = true;
-                self.message = 'Google popup was blocked or closed. Please allow popups and try again.';
-                console.error('Google Sign-In error:', err);
-              },
-            });
-          };
-          tryInit();
-        },
-        googleSignIn() {
-          if (!this._googleTokenClient) {
-            this.isError = true;
-            this.message = 'Google Sign-In not ready yet. Please wait a moment and try again.';
-            return;
-          }
-          this.googleLoading = true;
-          this.message = '';
-          this.isError = false;
-          const self = this;
-          this._googleTimeout = setTimeout(function() {
-            if (self.googleLoading) {
-              self.googleLoading = false;
-              self.isError = true;
-              self.message = 'Google sign-in timed out. Please try again.';
-            }
-          }, 120000);
-          this._googleTokenClient.requestAccessToken();
-        },
-        async handleGoogleAccessToken(accessToken) {
-          this.googleLoading = true;
-          try {
-            const csrf = this.getCookie('csrftoken');
-            const res = await fetch('/api/login/google/', {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-              body: JSON.stringify({ access_token: accessToken }),
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.ok) {
-              this.isError = true;
-              this.message = data.error || 'Google login failed.';
-              return;
-            }
-            this.isError = false;
-            this.message = 'Login successful! Redirecting...';
-            const user = data.user || {};
-            localStorage.setItem('taskhive_current_user', JSON.stringify({
-              name: user.name || user.email || 'User',
-              email: user.email || '',
-              username: user.email || '',
-              displayName: user.name || user.email || 'User',
-              lastLogin: new Date().toISOString(),
-            }));
-            setTimeout(() => { window.location.href = this.nextUrl || '/user/'; }, 350);
-          } catch (e) {
-            this.isError = true;
-            this.message = 'Network error during Google login.';
-          } finally {
-            this.googleLoading = false;
           }
         },
         async resetPassword() {

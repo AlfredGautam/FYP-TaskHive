@@ -16,7 +16,6 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
-from urllib.parse import urlencode
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.csrf import csrf_exempt
@@ -50,45 +49,6 @@ from .email_utils import (
 from .rate_limit import rate_limit
 
 
-def _verify_google_access_token(access_token: str):
-    """Verify Google access token via the userinfo endpoint."""
-    import requests as http_requests
-    try:
-        resp = http_requests.get(
-            "https://www.googleapis.com/oauth2/v3/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"},
-            timeout=10,
-        )
-        if resp.status_code != 200:
-            return None, "Invalid Google access token"
-        return resp.json(), None
-    except Exception:
-        return None, "Failed to verify Google access token"
-
-
-def _verify_google_id_token(id_token: str):
-    """Verify Google ID token and return the decoded payload."""
-    try:
-        from google.oauth2 import id_token as google_id_token
-        from google.auth.transport import requests as google_requests
-    except Exception:
-        return None, "google-auth not installed"
-
-    client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
-    if not client_id:
-        return None, "GOOGLE_OAUTH_CLIENT_ID not configured"
-
-    try:
-        payload = google_id_token.verify_oauth2_token(
-            id_token,
-            google_requests.Request(),
-            audience=client_id,
-        )
-        return payload, None
-    except ValueError:
-        return None, "Invalid Google token"
-
-
 def api_health(request):
     """Health check endpoint for monitoring."""
     from django.db import connection
@@ -104,93 +64,6 @@ def api_health(request):
     }, status=status)
 
 
-def google_auth_redirect(request):
-    """Redirect user to Google's OAuth consent screen (no popup needed)."""
-    client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
-    if not client_id:
-        return JsonResponse({"error": "Google OAuth not configured"}, status=500)
-    callback_url = request.build_absolute_uri("/auth/google/callback/")
-    params = urlencode({
-        "client_id": client_id,
-        "redirect_uri": callback_url,
-        "response_type": "code",
-        "scope": "openid email profile",
-        "access_type": "online",
-        "prompt": "select_account",
-    })
-    return redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
-
-
-def google_auth_callback(request):
-    """Handle Google OAuth callback, exchange code for tokens, log user in."""
-    import requests as http_requests
-
-    code = request.GET.get("code", "")
-    error = request.GET.get("error", "")
-    if error or not code:
-        return redirect("/login/?error=google_denied")
-
-    client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
-    client_secret = getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", "")
-    callback_url = request.build_absolute_uri("/auth/google/callback/")
-
-    # Exchange code for tokens
-    token_resp = http_requests.post(
-        "https://oauth2.googleapis.com/token",
-        data={
-            "code": code,
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "redirect_uri": callback_url,
-            "grant_type": "authorization_code",
-        },
-        timeout=15,
-    )
-    if token_resp.status_code != 200:
-        return redirect("/login/?error=google_token_failed")
-
-    tokens = token_resp.json()
-    access_token = tokens.get("access_token", "")
-    if not access_token:
-        return redirect("/login/?error=google_no_token")
-
-    # Get user info
-    userinfo_resp = http_requests.get(
-        "https://www.googleapis.com/oauth2/v3/userinfo",
-        headers={"Authorization": f"Bearer {access_token}"},
-        timeout=10,
-    )
-    if userinfo_resp.status_code != 200:
-        return redirect("/login/?error=google_userinfo_failed")
-
-    payload = userinfo_resp.json()
-    email = (payload.get("email") or "").strip().lower()
-    if not email or not payload.get("email_verified", False):
-        return redirect("/login/?error=google_email_not_verified")
-
-    name = (payload.get("name") or "").strip() or email.split("@")[0]
-
-    user, created = User.objects.get_or_create(
-        username=email,
-        defaults={"email": email, "first_name": name},
-    )
-    if not created:
-        changed = False
-        if not user.email:
-            user.email = email
-            changed = True
-        if not user.first_name and name:
-            user.first_name = name
-            changed = True
-        if changed:
-            user.save(update_fields=["email", "first_name"])
-    else:
-        send_welcome_email(user_name=name, user_email=email)
-
-    login(request, user)
-    return redirect("/user/")
-
-
 # =========================
 # PAGES
 # =========================
@@ -201,9 +74,7 @@ def dashboard_page(request):
 
 @ensure_csrf_cookie
 def login_page(request):
-    return render(request, "core/login_new.html", {
-        "google_client_id": getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", ""),
-    })
+    return render(request, "core/login_new.html")
 
 
 @login_required
@@ -310,7 +181,7 @@ def api_login(request):
         from django.contrib.auth.models import User as _U
         existing = _U.objects.filter(username=email).first() or _U.objects.filter(email__iexact=email).first()
         if existing and not existing.has_usable_password():
-            return JsonResponse({"ok": False, "error": "This account uses Google sign-in. Use the Google button or reset your password."}, status=401)
+            return JsonResponse({"ok": False, "error": "This account has no password set. Please use 'Forgot password?' to create one."}, status=401)
         return JsonResponse({"ok": False, "error": "Invalid email or password."}, status=401)
 
     login(request, user)
@@ -550,65 +421,6 @@ def api_team_leave(request):
         Team.objects.filter(id=team_id).delete()
 
     return JsonResponse({"ok": True, "redirect": "/user/"})
-
-
-@csrf_exempt
-@require_POST
-@rate_limit(max_requests=10, window_seconds=60)
-def api_login_google(request):
-    try:
-        data = json.loads(request.body.decode("utf-8"))
-    except Exception:
-        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
-
-    token = (data.get("credential") or data.get("id_token") or "").strip()
-    access_token = (data.get("access_token") or "").strip()
-
-    if not token and not access_token:
-        return JsonResponse({"ok": False, "error": "Missing credential"}, status=400)
-
-    if access_token:
-        payload, err = _verify_google_access_token(access_token)
-    else:
-        payload, err = _verify_google_id_token(token)
-
-    if not payload:
-        return JsonResponse({"ok": False, "error": err or "Google token verification failed"}, status=401)
-
-    email = (payload.get("email") or "").strip().lower()
-    if not email:
-        return JsonResponse({"ok": False, "error": "Google account has no email"}, status=400)
-
-    name = (payload.get("name") or "").strip() or email.split("@")[0]
-    if not payload.get("email_verified", False):
-        return JsonResponse({"ok": False, "error": "Google email not verified"}, status=401)
-
-    user, created = User.objects.get_or_create(
-        username=email,
-        defaults={"email": email, "first_name": name},
-    )
-    if not created:
-        changed = False
-        if not user.email:
-            user.email = email
-            changed = True
-        if not user.first_name and name:
-            user.first_name = name
-            changed = True
-        if changed:
-            user.save(update_fields=["email", "first_name"])
-    else:
-        send_welcome_email(user_name=name, user_email=email)
-
-    login(request, user)
-    return JsonResponse({
-        "ok": True,
-        "redirect": "/user/",
-        "user": {
-            "name": user.get_full_name() or user.first_name or user.username,
-            "email": user.email or user.username,
-        },
-    })
 
 
 @csrf_exempt
