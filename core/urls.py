@@ -163,4 +163,24 @@ urlpatterns = [
     path("api/task/<int:task_id>/subtasks/", views.api_task_subtasks, name="api_task_subtasks"),
     path("api/task/<int:task_id>/subtasks/save/", views.api_task_subtask_save, name="api_task_subtask_save"),
     path("api/task/<int:task_id>/subtasks/<int:subtask_id>/delete/", views.api_task_subtask_delete, name="api_task_subtask_delete"),
+
+    # --------------------
+    # Time Tracking API
+    # --------------------
+    path("api/task/<int:task_id>/time/start/", views.api_time_start, name="api_time_start"),
+    path("api/task/<int:task_id>/time/stop/", views.api_time_stop, name="api_time_stop"),
+    path("api/task/<int:task_id>/time/log/", views.api_time_log, name="api_time_log"),
+    path("api/task/<int:task_id>/time/", views.api_time_entries, name="api_time_entries"),
+
+    # --------------------
+    # Enhanced Analytics & Calendar
+    # --------------------
+    path("api/analytics/enhanced/", views.api_analytics_enhanced, name="api_analytics_enhanced"),
+    path("api/calendar/tasks/", views.api_calendar_tasks, name="api_calendar_tasks"),
+
+    # --------------------
+    # Export
+    # --------------------
+    path("api/export/csv/", views.api_export_csv, name="api_export_csv"),
+    path("api/export/pdf/", views.api_export_pdf, name="api_export_pdf"),
 ]

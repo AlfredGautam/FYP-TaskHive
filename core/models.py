@@ -443,6 +443,26 @@ class Subtask(models.Model):
         return f"subtask:{self.task_id}:{self.title}"
 
 
+class TimeEntry(models.Model):
+    """Tracks time spent on a task by a user."""
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="time_entries")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="time_entries")
+    started_at = models.DateTimeField()
+    stopped_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.PositiveIntegerField(default=0)
+    note = models.CharField(max_length=255, blank=True, default="")
+
+    class Meta:
+        ordering = ["-started_at"]
+        indexes = [
+            models.Index(fields=["task", "-started_at"]),
+            models.Index(fields=["user", "-started_at"]),
+        ]
+
+    def __str__(self):
+        return f"time:{self.task_id}:{self.user_id}:{self.duration_seconds}s"
+
+
 class TaskAttachment(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="attachments")
     file = models.FileField(upload_to="task_attachments/")

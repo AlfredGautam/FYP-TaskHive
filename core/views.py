@@ -40,6 +40,7 @@ from .models import (
     Subtask,
     TaskAttachment,
     TaskComment,
+    TimeEntry,
 )
 from .email_utils import (
     send_welcome_email,
@@ -2232,3 +2233,379 @@ def api_task_subtask_delete(request, task_id, subtask_id):
     if sub:
         sub.delete()
     return JsonResponse({"ok": True})
+
+
+# =========================
+# TIME TRACKING APIs
+# =========================
+
+@csrf_exempt
+@require_POST
+@login_required
+def api_time_start(request, task_id):
+    """Start a timer on a task for the current user."""
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    # Stop any running timer for this user on this task
+    running = TimeEntry.objects.filter(task=task, user=request.user, stopped_at__isnull=True).first()
+    if running:
+        running.stopped_at = timezone.now()
+        running.duration_seconds = int((running.stopped_at - running.started_at).total_seconds())
+        running.save(update_fields=["stopped_at", "duration_seconds"])
+
+    entry = TimeEntry.objects.create(
+        task=task,
+        user=request.user,
+        started_at=timezone.now(),
+    )
+    return JsonResponse({"ok": True, "entryId": entry.id, "startedAt": entry.started_at.isoformat()})
+
+
+@csrf_exempt
+@require_POST
+@login_required
+def api_time_stop(request, task_id):
+    """Stop the running timer on a task for the current user."""
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    entry = TimeEntry.objects.filter(task=task, user=request.user, stopped_at__isnull=True).first()
+    if not entry:
+        return JsonResponse({"ok": False, "error": "No running timer"}, status=400)
+
+    entry.stopped_at = timezone.now()
+    entry.duration_seconds = int((entry.stopped_at - entry.started_at).total_seconds())
+    entry.save(update_fields=["stopped_at", "duration_seconds"])
+    return JsonResponse({"ok": True, "entryId": entry.id, "duration": entry.duration_seconds})
+
+
+@csrf_exempt
+@require_POST
+@login_required
+def api_time_log(request, task_id):
+    """Manually log time on a task."""
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
+
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    hours = float(data.get("hours", 0))
+    minutes = float(data.get("minutes", 0))
+    note = (data.get("note") or "").strip()[:255]
+    duration = int(hours * 3600 + minutes * 60)
+    if duration <= 0:
+        return JsonResponse({"ok": False, "error": "Duration must be positive"}, status=400)
+
+    now = timezone.now()
+    entry = TimeEntry.objects.create(
+        task=task,
+        user=request.user,
+        started_at=now - timedelta(seconds=duration),
+        stopped_at=now,
+        duration_seconds=duration,
+        note=note,
+    )
+    return JsonResponse({"ok": True, "entryId": entry.id, "duration": duration})
+
+
+@login_required
+def api_time_entries(request, task_id):
+    """List time entries for a task."""
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": True, "entries": [], "total": 0})
+    board = _get_team_board(team)
+    task = Task.objects.filter(id=task_id, board=board).first()
+    if not task:
+        return JsonResponse({"ok": True, "entries": [], "total": 0})
+
+    running = TimeEntry.objects.filter(task=task, user=request.user, stopped_at__isnull=True).first()
+    entries = []
+    total = 0
+    for te in TimeEntry.objects.filter(task=task).select_related("user")[:50]:
+        dur = te.duration_seconds
+        if not te.stopped_at:
+            dur = int((timezone.now() - te.started_at).total_seconds())
+        total += dur
+        entries.append({
+            "id": te.id,
+            "user": te.user.get_full_name() or te.user.first_name or te.user.username,
+            "startedAt": te.started_at.isoformat(),
+            "stoppedAt": te.stopped_at.isoformat() if te.stopped_at else None,
+            "duration": dur,
+            "note": te.note,
+            "running": te.stopped_at is None,
+        })
+
+    return JsonResponse({
+        "ok": True,
+        "entries": entries,
+        "total": total,
+        "running": {
+            "entryId": running.id,
+            "startedAt": running.started_at.isoformat(),
+        } if running else None,
+    })
+
+
+# =========================
+# ENHANCED ANALYTICS API
+# =========================
+
+@login_required
+def api_analytics_enhanced(request):
+    """Rich analytics data for Chart.js dashboards."""
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": True, "data": {}})
+
+    board = _get_team_board(team)
+    columns = list(board.columns.all().order_by("position"))
+    tasks_qs = Task.objects.filter(board=board).prefetch_related("assignees")
+    all_tasks = list(tasks_qs)
+    today = date.today()
+
+    # Column distribution
+    col_data = []
+    for col in columns:
+        count = sum(1 for t in all_tasks if t.column_id == col.id)
+        col_data.append({"name": col.name, "count": count})
+
+    # Priority breakdown
+    priority_counts = {"high": 0, "medium": 0, "low": 0}
+    for t in all_tasks:
+        priority_counts[t.priority] = priority_counts.get(t.priority, 0) + 1
+
+    # Overdue tasks
+    overdue = sum(1 for t in all_tasks if t.due_date and t.due_date < today)
+
+    # Tasks created per day (last 14 days)
+    creation_trend = {}
+    for i in range(13, -1, -1):
+        d = today - timedelta(days=i)
+        creation_trend[d.isoformat()] = 0
+    for t in all_tasks:
+        d = t.created_at.date().isoformat()
+        if d in creation_trend:
+            creation_trend[d] += 1
+
+    # Completion trend: tasks in last column per day (last 14 days)
+    done_col = columns[-1] if columns else None
+    completion_trend = {}
+    for i in range(13, -1, -1):
+        d = today - timedelta(days=i)
+        completion_trend[d.isoformat()] = 0
+    if done_col:
+        for t in all_tasks:
+            if t.column_id == done_col.id:
+                d = t.updated_at.date().isoformat()
+                if d in completion_trend:
+                    completion_trend[d] += 1
+
+    # Member workload
+    member_workload = {}
+    for t in all_tasks:
+        for a in t.assignees.all():
+            name = a.get_full_name() or a.first_name or a.username
+            member_workload[name] = member_workload.get(name, 0) + 1
+
+    # Time tracked per member (top 10)
+    time_by_member = {}
+    for te in TimeEntry.objects.filter(task__board=board).select_related("user"):
+        name = te.user.get_full_name() or te.user.first_name or te.user.username
+        time_by_member[name] = time_by_member.get(name, 0) + te.duration_seconds
+
+    # Project stats
+    projects = Project.objects.filter(team=team)
+    project_stats = {
+        "total": projects.count(),
+        "active": projects.filter(status="active").count(),
+        "completed": projects.filter(status="completed").count(),
+        "archived": projects.filter(status="archived").count(),
+    }
+
+    return JsonResponse({"ok": True, "data": {
+        "totalTasks": len(all_tasks),
+        "overdue": overdue,
+        "columns": col_data,
+        "priority": priority_counts,
+        "creationTrend": creation_trend,
+        "completionTrend": completion_trend,
+        "memberWorkload": member_workload,
+        "timeByMember": time_by_member,
+        "projectStats": project_stats,
+    }})
+
+
+# =========================
+# CALENDAR API
+# =========================
+
+@login_required
+def api_calendar_tasks(request):
+    """Return all tasks with due dates for calendar view."""
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": True, "events": []})
+
+    board = _get_team_board(team)
+    columns = list(board.columns.all().order_by("position"))
+    col_map = {c.id: c.name for c in columns}
+    done_col_id = columns[-1].id if columns else None
+
+    events = []
+    for t in Task.objects.filter(board=board, due_date__isnull=False).prefetch_related("assignees"):
+        assignees = [a.get_full_name() or a.first_name or a.username for a in t.assignees.all()]
+        is_done = t.column_id == done_col_id
+        is_overdue = t.due_date < date.today() and not is_done
+        events.append({
+            "id": t.id,
+            "title": t.title,
+            "date": t.due_date.isoformat(),
+            "priority": t.priority,
+            "column": col_map.get(t.column_id, ""),
+            "assignees": assignees,
+            "done": is_done,
+            "overdue": is_overdue,
+        })
+
+    return JsonResponse({"ok": True, "events": events})
+
+
+# =========================
+# EXPORT APIs
+# =========================
+
+@login_required
+def api_export_csv(request):
+    """Export team tasks as CSV."""
+    import csv
+    from django.http import HttpResponse as DjangoHttpResponse
+
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    columns = list(board.columns.all().order_by("position"))
+    col_map = {c.id: c.name for c in columns}
+
+    response = DjangoHttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="taskhive_export_{team.name}.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(["Task", "Description", "Column", "Priority", "Due Date", "Assignees", "Created", "Time Logged (hrs)"])
+
+    for t in Task.objects.filter(board=board).prefetch_related("assignees").order_by("column__position", "position"):
+        assignees = ", ".join(a.get_full_name() or a.username for a in t.assignees.all())
+        total_time = sum(te.duration_seconds for te in t.time_entries.all())
+        hours = round(total_time / 3600, 2) if total_time else 0
+        writer.writerow([
+            t.title,
+            t.description,
+            col_map.get(t.column_id, ""),
+            t.priority,
+            t.due_date.isoformat() if t.due_date else "",
+            assignees,
+            t.created_at.strftime("%Y-%m-%d"),
+            hours,
+        ])
+
+    return response
+
+
+@login_required
+def api_export_pdf(request):
+    """Export team tasks as a styled HTML-based PDF report (browser can print-to-PDF)."""
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    columns = list(board.columns.all().order_by("position"))
+    col_map = {c.id: c.name for c in columns}
+    today = date.today()
+
+    tasks = list(Task.objects.filter(board=board).prefetch_related("assignees").order_by("column__position", "position"))
+
+    # Build summary stats
+    total = len(tasks)
+    by_col = {}
+    for c in columns:
+        by_col[c.name] = sum(1 for t in tasks if t.column_id == c.id)
+    overdue = sum(1 for t in tasks if t.due_date and t.due_date < today)
+    high_p = sum(1 for t in tasks if t.priority == "high")
+
+    # Build task rows HTML
+    rows_html = ""
+    for t in tasks:
+        assignees = ", ".join(a.get_full_name() or a.username for a in t.assignees.all())
+        total_time = sum(te.duration_seconds for te in t.time_entries.all())
+        hours = f"{total_time / 3600:.1f}h" if total_time else "-"
+        p_color = {"high": "#f87171", "medium": "#fbbf24", "low": "#4ade80"}.get(t.priority, "#9ca3af")
+        rows_html += f"""<tr>
+            <td>{t.title}</td>
+            <td>{col_map.get(t.column_id, '')}</td>
+            <td style="color:{p_color};font-weight:600">{t.priority}</td>
+            <td>{t.due_date.isoformat() if t.due_date else '-'}</td>
+            <td>{assignees or '-'}</td>
+            <td>{hours}</td>
+        </tr>"""
+
+    col_summary = " | ".join(f"{name}: {count}" for name, count in by_col.items())
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>TaskHive Report - {team.name}</title>
+<style>
+  body {{ font-family: 'Segoe UI', sans-serif; margin: 40px; color: #1a1a2e; }}
+  h1 {{ color: #0f3460; border-bottom: 2px solid #0f3460; padding-bottom: 8px; }}
+  .stats {{ display: flex; gap: 20px; margin: 20px 0; }}
+  .stat-card {{ background: #f0f4ff; border-radius: 8px; padding: 16px 24px; text-align: center; }}
+  .stat-card .num {{ font-size: 28px; font-weight: 700; color: #0f3460; }}
+  .stat-card .label {{ font-size: 12px; color: #666; margin-top: 4px; }}
+  table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
+  th {{ background: #0f3460; color: #fff; padding: 10px 8px; text-align: left; }}
+  td {{ padding: 8px; border-bottom: 1px solid #e0e0e0; }}
+  tr:nth-child(even) {{ background: #f8f9ff; }}
+  .footer {{ margin-top: 30px; font-size: 11px; color: #999; text-align: center; }}
+  @media print {{ body {{ margin: 20px; }} }}
+</style></head>
+<body>
+  <h1>TaskHive Report: {team.name}</h1>
+  <p style="color:#666;font-size:13px;">Generated on {today.isoformat()} | {col_summary}</p>
+  <div class="stats">
+    <div class="stat-card"><div class="num">{total}</div><div class="label">Total Tasks</div></div>
+    <div class="stat-card"><div class="num" style="color:#4ade80">{by_col.get(columns[-1].name, 0) if columns else 0}</div><div class="label">Completed</div></div>
+    <div class="stat-card"><div class="num" style="color:#f87171">{overdue}</div><div class="label">Overdue</div></div>
+    <div class="stat-card"><div class="num" style="color:#fbbf24">{high_p}</div><div class="label">High Priority</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Task</th><th>Column</th><th>Priority</th><th>Due Date</th><th>Assignees</th><th>Time</th></tr></thead>
+    <tbody>{rows_html}</tbody>
+  </table>
+  <div class="footer">TaskHive &mdash; Project Management Report</div>
+</body></html>"""
+
+    from django.http import HttpResponse as DjangoHttpResponse
+    response = DjangoHttpResponse(html, content_type="text/html")
+    response["Content-Disposition"] = f'attachment; filename="taskhive_report_{team.name}.html"'
+    return response

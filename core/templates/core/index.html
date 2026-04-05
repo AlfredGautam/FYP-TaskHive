@@ -721,6 +721,58 @@
         </div>
       </div>
 
+      <!-- Calendar Tab -->
+      <div v-if="currentTab === 'calendar'" class="space-y-4">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-100"><i class="fas fa-calendar-alt mr-2 text-cyan-400"></i>Calendar</h2>
+          <div class="flex items-center gap-2">
+            <button @click="calendarPrev" class="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="text-sm font-medium text-gray-200 min-w-[160px] text-center">{{ calendarMonthLabel }}</span>
+            <button @click="calendarNext" class="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex items-center gap-4 text-[10px] mb-2">
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-700/60"></span> Overdue</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-900/50"></span> High</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-yellow-900/50"></span> Medium</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-900/50"></span> Low</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-700/60"></span> Done</span>
+        </div>
+
+        <div class="grid grid-cols-7 gap-px bg-gray-700/50 rounded-xl overflow-hidden border border-gray-700">
+          <!-- Day headers -->
+          <div v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="d"
+               class="bg-gray-800 text-center text-[11px] text-gray-400 py-2 font-semibold">{{ d }}</div>
+          <!-- Calendar cells -->
+          <div v-for="(cell, idx) in calendarDays" :key="idx"
+               class="bg-gray-900/80 min-h-[80px] p-1.5"
+               :class="{ 'bg-gray-800/40': !cell }">
+            <template v-if="cell">
+              <div class="text-[11px] font-semibold mb-1"
+                   :class="isToday(cell.iso) ? 'text-cyan-300' : 'text-gray-400'">
+                <span v-if="isToday(cell.iso)" class="px-1.5 py-0.5 rounded-full bg-cyan-600/40">{{ cell.day }}</span>
+                <span v-else>{{ cell.day }}</span>
+              </div>
+              <div class="space-y-0.5">
+                <div v-for="ev in cell.events.slice(0, 3)" :key="ev.id"
+                     class="text-[9px] px-1 py-0.5 rounded truncate cursor-default"
+                     :class="calendarEventColor(ev)"
+                     :title="ev.title + ' (' + ev.column + ')'">
+                  {{ ev.title }}
+                </div>
+                <div v-if="cell.events.length > 3" class="text-[9px] text-gray-500 px-1">+{{ cell.events.length - 3 }} more</div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 
@@ -808,6 +860,61 @@
               <i class="fas fa-upload mr-1"></i> Upload File
             </button>
           </div>
+        </div>
+
+        <!-- Time Tracking -->
+        <div class="mb-5">
+          <div class="flex items-center justify-between mb-2">
+            <h4 class="text-sm font-semibold text-gray-200"><i class="fas fa-clock mr-2 text-cyan-400"></i>Time Tracking</h4>
+            <span class="text-[11px] text-gray-400">Total: {{ formatDuration(timeTracking.total) }}</span>
+          </div>
+
+          <!-- Timer controls -->
+          <div class="flex items-center gap-2 mb-3">
+            <button v-if="!timeTracking.running" @click="startTimer"
+                    class="px-3 py-1.5 rounded text-xs bg-green-700/80 text-green-100 hover:bg-green-600 transition-colors">
+              <i class="fas fa-play mr-1"></i> Start Timer
+            </button>
+            <template v-else>
+              <div class="flex items-center gap-2 px-3 py-1.5 rounded bg-gray-800 border border-green-500/40">
+                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                <span class="text-sm text-green-300 font-mono">{{ liveTimerDisplay }}</span>
+              </div>
+              <button @click="stopTimer"
+                      class="px-3 py-1.5 rounded text-xs bg-red-700/80 text-red-100 hover:bg-red-600 transition-colors">
+                <i class="fas fa-stop mr-1"></i> Stop
+              </button>
+            </template>
+          </div>
+
+          <!-- Manual log -->
+          <div class="flex items-center gap-2 mb-3">
+            <input v-model.number="timeTracking.logHours" type="number" min="0" max="99" placeholder="Hrs"
+                   class="w-16 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500">
+            <input v-model.number="timeTracking.logMinutes" type="number" min="0" max="59" placeholder="Min"
+                   class="w-16 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500">
+            <input v-model="timeTracking.logNote" placeholder="Note (optional)"
+                   class="flex-1 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500">
+            <button @click="logManualTime" class="px-3 py-1.5 rounded text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
+              <i class="fas fa-plus mr-1"></i> Log
+            </button>
+          </div>
+
+          <!-- Time entries list -->
+          <div v-if="timeTracking.entries.length" class="space-y-1 max-h-32 overflow-y-auto">
+            <div v-for="te in timeTracking.entries" :key="te.id"
+                 class="flex items-center justify-between px-2 py-1.5 rounded bg-gray-800/60 border border-gray-700/50 text-xs">
+              <div class="flex items-center gap-2">
+                <span class="text-gray-300">{{ te.user }}</span>
+                <span v-if="te.note" class="text-gray-500">- {{ te.note }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span v-if="te.running" class="text-green-400"><i class="fas fa-circle text-[6px] animate-pulse mr-1"></i>Running</span>
+                <span class="text-gray-400 font-mono">{{ formatDuration(te.duration) }}</span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="text-xs text-gray-400">No time logged yet.</div>
         </div>
 
         <!-- Comments -->
@@ -1277,7 +1384,8 @@
           { id: 'tasks',    name: 'Tasks',    icon: 'fas fa-tasks' },
           { id: 'files',    name: 'Files',    icon: 'fas fa-file-alt' },
           { id: 'activity', name: 'Activity Log', icon: 'fas fa-history' },
-          { id: 'notifications', name: 'Notifications', icon: 'fas fa-bell' }
+          { id: 'notifications', name: 'Notifications', icon: 'fas fa-bell' },
+          { id: 'calendar', name: 'Calendar', icon: 'fas fa-calendar-alt' }
         ],
 
         boards: [
@@ -1314,7 +1422,24 @@
         notificationPollTimer: null,
         dataPollTimer: null,
         cachedUserObj: null,
-        isSaving: false
+        isSaving: false,
+
+        // Time Tracking
+        timeTracking: {
+          entries: [],
+          total: 0,
+          running: null,
+          logHours: 0,
+          logMinutes: 0,
+          logNote: "",
+        },
+        timerInterval: null,
+        timerElapsed: 0,
+
+        // Calendar
+        calendarMonth: new Date().getMonth(),
+        calendarYear: new Date().getFullYear(),
+        calendarEvents: []
       };
     },
 
@@ -1348,6 +1473,33 @@
       filteredNotifications() {
         if (this.notifFilter === 'unread') return this.notifications.filter(n => !n.isRead);
         return this.notifications;
+      },
+
+      liveTimerDisplay() {
+        const s = this.timerElapsed;
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        return (h > 0 ? h + ':' : '') + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+      },
+
+      calendarDays() {
+        const first = new Date(this.calendarYear, this.calendarMonth, 1);
+        const last = new Date(this.calendarYear, this.calendarMonth + 1, 0);
+        const startDay = first.getDay();
+        const days = [];
+        // pad leading blanks
+        for (let i = 0; i < startDay; i++) days.push(null);
+        for (let d = 1; d <= last.getDate(); d++) {
+          const iso = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const events = this.calendarEvents.filter(e => e.date === iso);
+          days.push({ day: d, iso, events });
+        }
+        return days;
+      },
+
+      calendarMonthLabel() {
+        return new Date(this.calendarYear, this.calendarMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
       },
 
       currentUserObj() {
@@ -1436,7 +1588,7 @@
       applyRouteContext() {
         const params = new URLSearchParams(window.location.search || "");
         const tab = params.get("tab");
-        if (tab && ['tasks', 'projects', 'files', 'activity', 'notifications'].includes(tab)) { this.currentTab = tab; if (tab === 'activity') this.loadActivityLog(); }
+        if (tab && ['tasks', 'projects', 'files', 'activity', 'notifications', 'calendar'].includes(tab)) { this.currentTab = tab; if (tab === 'activity') this.loadActivityLog(); if (tab === 'calendar') this.loadCalendarEvents(); }
 
         const taskId = parseInt(params.get("taskId") || "", 10);
         if (taskId) {
@@ -1646,6 +1798,7 @@
       switchTab(tabId) {
         this.currentTab = tabId;
         if (tabId === 'activity') this.loadActivityLog();
+        if (tabId === 'calendar') this.loadCalendarEvents();
       },
 
       handleGlobalClick() {
@@ -2224,18 +2377,22 @@
         this.taskSubtasks = [];
         this.newCommentBody = "";
         this.newSubtaskTitle = "";
+        this.timeTracking = { entries: [], total: 0, running: null, logHours: 0, logMinutes: 0, logNote: "" };
+        this.timerElapsed = 0;
         this.showTaskDetailModal = true;
 
         await Promise.all([
           this.loadTaskComments(task.id),
           this.loadTaskAttachments(task.id),
           this.loadTaskSubtasks(task.id),
+          this.loadTimeEntries(task.id),
         ]);
       },
 
       closeTaskDetail() {
         this.showTaskDetailModal = false;
         this.detailTask = null;
+        if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
       },
 
       editTaskFromDetail() {
@@ -2341,6 +2498,111 @@
         if (!this.detailTask) return;
         const data = await this._postJson(`/api/task/${this.detailTask.id}/subtasks/${subtaskId}/delete/`, {});
         if (data.ok) this.taskSubtasks = this.taskSubtasks.filter(s => s.id !== subtaskId);
+      },
+
+      // =====================
+      // Time Tracking
+      // =====================
+      formatDuration(seconds) {
+        if (!seconds || seconds < 0) return '0m';
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        if (h > 0) return h + 'h ' + m + 'm';
+        if (m > 0) return m + 'm';
+        return seconds + 's';
+      },
+
+      async loadTimeEntries(taskId) {
+        try {
+          const res = await fetch(`/api/task/${taskId}/time/`, { credentials: 'same-origin' });
+          const data = await res.json();
+          if (data.ok) {
+            this.timeTracking.entries = data.entries || [];
+            this.timeTracking.total = data.total || 0;
+            this.timeTracking.running = data.running || null;
+            if (data.running) {
+              const startMs = new Date(data.running.startedAt).getTime();
+              this.timerElapsed = Math.floor((Date.now() - startMs) / 1000);
+              this._startTimerTick();
+            }
+          }
+        } catch (e) {}
+      },
+
+      _startTimerTick() {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        this.timerInterval = setInterval(() => { this.timerElapsed++; }, 1000);
+      },
+
+      async startTimer() {
+        if (!this.detailTask) return;
+        const data = await this._postJson(`/api/task/${this.detailTask.id}/time/start/`, {});
+        if (data.ok) {
+          this.timeTracking.running = { entryId: data.entryId, startedAt: data.startedAt };
+          this.timerElapsed = 0;
+          this._startTimerTick();
+          await this.loadTimeEntries(this.detailTask.id);
+        }
+      },
+
+      async stopTimer() {
+        if (!this.detailTask) return;
+        const data = await this._postJson(`/api/task/${this.detailTask.id}/time/stop/`, {});
+        if (data.ok) {
+          this.timeTracking.running = null;
+          if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
+          this.timerElapsed = 0;
+          await this.loadTimeEntries(this.detailTask.id);
+        }
+      },
+
+      async logManualTime() {
+        if (!this.detailTask) return;
+        const h = this.timeTracking.logHours || 0;
+        const m = this.timeTracking.logMinutes || 0;
+        if (h <= 0 && m <= 0) return;
+        const data = await this._postJson(`/api/task/${this.detailTask.id}/time/log/`, {
+          hours: h, minutes: m, note: this.timeTracking.logNote
+        });
+        if (data.ok) {
+          this.timeTracking.logHours = 0;
+          this.timeTracking.logMinutes = 0;
+          this.timeTracking.logNote = "";
+          await this.loadTimeEntries(this.detailTask.id);
+        }
+      },
+
+      // =====================
+      // Calendar
+      // =====================
+      async loadCalendarEvents() {
+        try {
+          const res = await fetch('/api/calendar/tasks/', { credentials: 'same-origin' });
+          const data = await res.json();
+          if (data.ok) this.calendarEvents = data.events || [];
+        } catch (e) {}
+      },
+
+      calendarPrev() {
+        if (this.calendarMonth === 0) { this.calendarMonth = 11; this.calendarYear--; }
+        else this.calendarMonth--;
+      },
+
+      calendarNext() {
+        if (this.calendarMonth === 11) { this.calendarMonth = 0; this.calendarYear++; }
+        else this.calendarMonth++;
+      },
+
+      isToday(iso) {
+        return iso === new Date().toISOString().slice(0, 10);
+      },
+
+      calendarEventColor(ev) {
+        if (ev.done) return 'bg-green-700/60 text-green-200';
+        if (ev.overdue) return 'bg-red-700/60 text-red-200';
+        if (ev.priority === 'high') return 'bg-red-900/50 text-red-300';
+        if (ev.priority === 'low') return 'bg-green-900/50 text-green-300';
+        return 'bg-yellow-900/50 text-yellow-300';
       }
     }
   });
