@@ -50,6 +50,11 @@ from . import views
 
 urlpatterns = [
     # --------------------
+    # Health check
+    # --------------------
+    path("api/health/", views.api_health, name="api_health"),
+
+    # --------------------
     # Public landing
     # --------------------
     path("", views.dashboard_page, name="dashboard"),
@@ -70,9 +75,6 @@ urlpatterns = [
     # Auth APIs
     # --------------------
     path("api/login/", views.api_login, name="api_login"),
-    path("api/login/google/", views.api_login_google, name="api_login_google"),
-    path("auth/google/", views.google_auth_redirect, name="google_auth_redirect"),
-    path("auth/google/callback/", views.google_auth_callback, name="google_auth_callback"),
     path("api/register/", views.api_register, name="api_register"),
     path("api/register/verify/", views.api_register_verify, name="api_register_verify"),
     path("api/logout/", views.api_logout, name="api_logout"),
@@ -89,6 +91,12 @@ urlpatterns = [
     path("api/my-teams/", views.api_my_teams, name="api_my_teams"),
     path("api/team/leave/", views.api_team_leave, name="api_team_leave"),
     path("api/team/<int:team_id>/members/", views.api_team_members, name="api_team_members"),
+    path("api/invitations/", views.api_my_invitations, name="api_my_invitations"),
+    path("api/invitations/respond/", views.api_invitation_respond, name="api_invitation_respond"),
+    path("api/invitations/resend/", views.api_invitation_resend, name="api_invitation_resend"),
+    path("api/team/<int:team_id>/invitations/", views.api_team_pending_invitations, name="api_team_pending_invitations"),
+    path("invite/<str:token>/accept/", views.invitation_accept_token, name="invitation_accept_token"),
+    path("invite/<str:token>/decline/", views.invitation_decline_token, name="invitation_decline_token"),
 
     # --------------------
     # CodeSpace APIs
@@ -161,4 +169,16 @@ urlpatterns = [
     path("api/task/<int:task_id>/subtasks/", views.api_task_subtasks, name="api_task_subtasks"),
     path("api/task/<int:task_id>/subtasks/save/", views.api_task_subtask_save, name="api_task_subtask_save"),
     path("api/task/<int:task_id>/subtasks/<int:subtask_id>/delete/", views.api_task_subtask_delete, name="api_task_subtask_delete"),
+
+    # --------------------
+    # Enhanced Analytics & Calendar
+    # --------------------
+    path("api/analytics/enhanced/", views.api_analytics_enhanced, name="api_analytics_enhanced"),
+    path("api/calendar/tasks/", views.api_calendar_tasks, name="api_calendar_tasks"),
+
+    # --------------------
+    # Export
+    # --------------------
+    path("api/export/csv/", views.api_export_csv, name="api_export_csv"),
+    path("api/export/pdf/", views.api_export_pdf, name="api_export_pdf"),
 ]

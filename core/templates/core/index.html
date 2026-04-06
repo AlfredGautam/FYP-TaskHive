@@ -11,46 +11,43 @@
 
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap"
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet">
 
   <style>
-    body { font-family: 'Roboto Mono', monospace; transition: background-color 0.3s ease, color 0.3s ease; }
-    h1, h2, h3, h4 { font-family: 'Orbitron', sans-serif; }
+    body { font-family: 'Inter', sans-serif; transition: background-color 0.3s ease, color 0.3s ease; }
     .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease-in-out; }
     .fade-enter, .fade-leave-to { opacity: 0; }
 
-    .drag-over { background-color: rgba(0, 255, 255, 0.1); border: 2px dashed #00ffff; box-shadow: 0 0 15px rgba(0, 255, 255, 0.3); }
-    .task-card { transition: all 0.3s ease; border-radius: 12px; }
-    .task-card:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 0 20px rgba(0, 255, 255, 0.2), 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-    .file-progress { transition: width 0.3s ease; background: linear-gradient(to right, #00ffff, #ff00ff); }
+    .drag-over { background-color: rgba(99, 102, 241, 0.08); border: 2px dashed #6366f1; }
+    .task-card { transition: all 0.2s ease; border-radius: 10px; }
+    .task-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+    .file-progress { transition: width 0.3s ease; background: #6366f1; }
     .modal { transition: all 0.3s ease; backdrop-filter: blur(5px); }
 
     .context-menu {
-      box-shadow: 0 10px 15px -3px rgba(0, 255, 255, 0.1),
-                  0 4px 6px -2px rgba(0, 0, 0, 0.05),
-                  0 0 20px rgba(0, 255, 255, 0.2);
-      background: rgba(17, 24, 39, 0.95);
-      border: 1px solid rgba(0, 255, 255, 0.2);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      background: #1e293b;
+      border: 1px solid #334155;
     }
 
     .project-card {
-      transition: all 0.3s ease;
-      border-radius: 12px;
-      background: linear-gradient(135deg, rgba(31, 41, 55, 0.9), rgba(55, 65, 81, 0.9));
-      border: 1px solid rgba(0, 255, 255, 0.1);
+      transition: all 0.2s ease;
+      border-radius: 10px;
+      background: #1e293b;
+      border: 1px solid #334155;
     }
     .project-card:hover {
-      transform: translateY(-4px) scale(1.02);
-      box-shadow: 0 0 25px rgba(0, 255, 255, 0.3), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      border-color: #475569;
     }
 
-    .confirmation-modal { background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); }
+    .confirmation-modal { background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); }
     .empty-state {
-      background-color: rgba(31, 41, 55, 0.7);
-      border: 2px dashed rgba(0, 255, 255, 0.3);
+      background-color: #1e293b;
+      border: 2px dashed #334155;
       border-radius: 12px;
-      box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
     }
 
     .line-clamp-2 {
@@ -61,35 +58,33 @@
       overflow: hidden;
     }
 
-    .glow { box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
-    .neon-text { text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3); }
+    .glow { }
+    .neon-text { }
 
     .neon-button {
-      background: linear-gradient(to right, #00ffff, #ff00ff);
-      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
-      transition: all 0.3s ease;
+      background: #4f46e5;
+      transition: all 0.2s ease;
     }
     .neon-button:hover {
-      box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
-      transform: translateY(-1px);
+      background: #4338ca;
     }
 
-    .search-input:focus { box-shadow: 0 0 15px rgba(0, 255, 255, 0.4); border-color: #00ffff; }
+    .search-input:focus { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25); border-color: #6366f1; }
     .search-results {
-      background: rgba(17, 24, 39, 0.97);
-      border: 1px solid rgba(0, 255, 255, 0.2);
-      box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+      background: #1e293b;
+      border: 1px solid #334155;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
     }
 
-    body.light-mode { background-color: #f9fafb; color: #111827; }
-    body.light-mode .bg-gray-900 { background-color:#f3f4f6 !important; color:#111827; }
-    body.light-mode .bg-gray-800 { background-color:#e5e7eb !important; color:#111827; }
-    body.light-mode .bg-gray-700 { background-color:#d1d5db !important; color:#111827; }
-    body.light-mode .text-gray-100 { color:#111827 !important; }
-    body.light-mode .text-gray-300 { color:#4b5563 !important; }
+    body.light-mode { background-color: #f8fafc; color: #0f172a; }
+    body.light-mode .bg-gray-900 { background-color:#f1f5f9 !important; color:#0f172a; }
+    body.light-mode .bg-gray-800 { background-color:#e2e8f0 !important; color:#0f172a; }
+    body.light-mode .bg-gray-700 { background-color:#cbd5e1 !important; color:#0f172a; }
+    body.light-mode .text-gray-100 { color:#0f172a !important; }
+    body.light-mode .text-gray-300 { color:#475569 !important; }
 
-    .comment-bubble { background: rgba(17, 24, 39, 0.7); border: 1px solid rgba(0,255,255,0.08); border-radius: 10px; }
-    .subtask-row:hover { background: rgba(0,255,255,0.04); }
+    .comment-bubble { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; }
+    .subtask-row:hover { background: rgba(99, 102, 241, 0.04); }
     .subtask-done { text-decoration: line-through; opacity: 0.55; }
     .activity-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
   </style>
@@ -113,20 +108,20 @@
   </script>
 </head>
 
-<body class="bg-gray-900 text-gray-100 min-h-screen">
+<body class="bg-slate-950 text-slate-100 min-h-screen">
 <div id="app" class="flex flex-col min-h-screen" @click="closeContextMenu">
 
   <!-- Header -->
-  <header class="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 shadow-md py-4 px-6 flex justify-between items-center">
+  <header class="bg-slate-900 border-b border-slate-800 py-4 px-6 flex justify-between items-center">
     <div class="flex items-center">
-      <div class="text-cyan-400 text-2xl mr-3 neon-text animate-pulse">
-        <i class="fas fa-bug"></i>
+      <div class="text-indigo-400 text-2xl mr-3">
+        <i class="fas fa-cubes"></i>
       </div>
       <div>
-        <h1 class="text-xl font-bold text-cyan-300 neon-text">TaskHive</h1>
-        <p class="text-xs text-gray-400">
+        <h1 class="text-xl font-bold text-slate-100">TaskHive</h1>
+        <p class="text-xs text-slate-400">
           Logged in as:
-          <span class="text-cyan-300">{{ currentUserName }}</span>
+          <span class="text-slate-200">{{ currentUserName }}</span>
           <span class="ml-2 text-[10px] px-2 py-0.5 rounded-full"
                 :class="currentUserRole === 'head' ? 'bg-purple-900/50 text-purple-300' : 'bg-gray-700/60 text-gray-300'">
             {{ currentUserRole === 'head' ? 'Team Head' : 'Member' }}
@@ -144,8 +139,8 @@
         @keydown.down.prevent="moveSelection(1)"
         @keydown.up.prevent="moveSelection(-1)"
         placeholder="Search tasks, projects, files (Ctrl+K)..."
-        class="search-input w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg
-               focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+        class="search-input w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg
+               focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
       />
       <div class="absolute left-3 top-2.5 text-gray-400">
         <i class="fas fa-search"></i>
@@ -155,18 +150,18 @@
       <div v-if="searchQuery" class="search-results absolute z-50 mt-1 w-full rounded-lg shadow-lg max-h-96 overflow-y-auto">
         <!-- Tasks -->
         <div v-if="globalResults.tasks.length" class="p-2">
-          <h3 class="px-3 py-1 text-xs font-semibold text-cyan-300 uppercase tracking-wider">Tasks</h3>
+          <h3 class="px-3 py-1 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Tasks</h3>
           <div
             v-for="(task, index) in globalResults.tasks"
             :key="task.id"
             @click="selectSearchResult(task, 'task')"
             class="px-3 py-2 rounded-md cursor-pointer flex items-center"
             :class="{
-              'bg-cyan-900/50': isHighlighted(index),
-              'hover:bg-gray-700': !isHighlighted(index)
+              'bg-indigo-900/40': isHighlighted(index),
+              'hover:bg-slate-700': !isHighlighted(index)
             }"
           >
-            <div class="bg-cyan-900 text-cyan-300 p-2 rounded-md mr-3">
+            <div class="bg-indigo-900/50 text-indigo-300 p-2 rounded-md mr-3">
               <i class="fas fa-tasks"></i>
             </div>
             <div class="flex-1">
@@ -183,15 +178,15 @@
 
         <!-- Projects -->
         <div v-if="globalResults.projects.length" class="p-2">
-          <h3 class="px-3 py-1 text-xs font-semibold text-cyan-300 uppercase tracking-wider">Projects</h3>
+          <h3 class="px-3 py-1 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Projects</h3>
           <div
             v-for="(project, index) in globalResults.projects"
             :key="project.id"
             @click="selectSearchResult(project, 'project')"
             class="px-3 py-2 rounded-md cursor-pointer flex items-center"
             :class="{
-              'bg-cyan-900/50': isHighlighted(index + globalResults.tasks.length),
-              'hover:bg-gray-700': !isHighlighted(index + globalResults.tasks.length)
+              'bg-indigo-900/40': isHighlighted(index + globalResults.tasks.length),
+              'hover:bg-slate-700': !isHighlighted(index + globalResults.tasks.length)
             }"
           >
             <div class="bg-purple-900 text-purple-300 p-2 rounded-md mr-3">
@@ -206,15 +201,15 @@
 
         <!-- Files -->
         <div v-if="globalResults.files.length" class="p-2">
-          <h3 class="px-3 py-1 text-xs font-semibold text-cyan-300 uppercase tracking-wider">Files</h3>
+          <h3 class="px-3 py-1 text-xs font-semibold text-indigo-400 uppercase tracking-wider">Files</h3>
           <div
             v-for="(file, index) in globalResults.files"
             :key="file.id"
             @click="selectSearchResult(file, 'file')"
             class="px-3 py-2 rounded-md cursor-pointer flex items-center"
             :class="{
-              'bg-cyan-900/50': isHighlighted(index + globalResults.tasks.length + globalResults.projects.length),
-              'hover:bg-gray-700': !isHighlighted(index + globalResults.tasks.length + globalResults.projects.length)
+              'bg-indigo-900/40': isHighlighted(index + globalResults.tasks.length + globalResults.projects.length),
+              'hover:bg-slate-700': !isHighlighted(index + globalResults.tasks.length + globalResults.projects.length)
             }"
           >
             <div class="bg-pink-900 text-pink-300 p-2 rounded-md mr-3">
@@ -235,13 +230,13 @@
 
     <!-- Right nav -->
     <div class="flex items-center space-x-3">
-      <a href="/" class="hidden sm:inline text-cyan-300 text-sm hover:text-cyan-200">
+      <a href="/" class="hidden sm:inline text-slate-300 text-sm hover:text-indigo-400 transition-colors">
         <i class="fas fa-grid-2 mr-1"></i> Board
       </a>
-      <a href="/analytics/" class="hidden sm:inline text-gray-300 text-sm hover:text-cyan-300">
+      <a href="/analytics/" class="hidden sm:inline text-slate-400 text-sm hover:text-indigo-400 transition-colors">
         <i class="fas fa-chart-line mr-1"></i> Analytics
       </a>
-      <a href="/codespace/" class="hidden sm:inline text-gray-300 text-sm hover:text-cyan-300">
+      <a href="/codespace/" class="hidden sm:inline text-slate-400 text-sm hover:text-indigo-400 transition-colors">
         <i class="fas fa-code mr-1"></i> Code Space
       </a>
 
@@ -257,9 +252,9 @@
 
       <div class="relative" @click.stop>
         <button @click="toggleNotifications"
-                class="relative w-8 h-8 rounded-full flex items-center justify-center bg-gray-800 hover:bg-gray-700 transition-all"
+                class="relative w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 hover:bg-slate-700 transition-all"
                 title="Notifications">
-          <i class="fas fa-bell text-cyan-300 text-xs"></i>
+          <i class="fas fa-bell text-slate-300 text-xs"></i>
           <span v-if="unreadNotificationCount"
                 class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-700 text-white text-[10px] flex items-center justify-center">
             {{ unreadNotificationCount > 9 ? '9+' : unreadNotificationCount }}
@@ -267,28 +262,29 @@
         </button>
 
         <div v-if="showNotifications"
-             class="absolute right-0 mt-2 w-96 max-h-[70vh] overflow-y-auto rounded-lg border border-cyan-500/20 bg-gray-900 shadow-xl z-50">
-          <div class="flex items-center justify-between px-3 py-2 border-b border-gray-700">
-            <p class="text-xs font-semibold text-cyan-300 uppercase tracking-wide">Notifications</p>
+             class="absolute right-0 mt-2 w-96 max-h-[70vh] overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-50">
+          <div class="flex items-center justify-between px-3 py-2 border-b border-slate-700">
+            <p class="text-xs font-semibold text-slate-300 uppercase tracking-wide">Notifications</p>
             <button @click="markAllNotificationsRead" class="text-[11px] text-gray-300 hover:text-gray-100">Mark all read</button>
           </div>
 
           <div v-if="!notifications.length" class="px-3 py-4 text-sm text-gray-400">No notifications yet.</div>
 
-          <button v-for="n in notifications" :key="n.id"
+          <button v-for="n in notifications.slice(0, 8)" :key="n.id"
                   @click="openNotification(n)"
                   class="w-full text-left px-3 py-2 border-b border-gray-800 hover:bg-gray-800/70">
             <div class="flex items-start justify-between gap-3">
               <p class="text-sm" :class="n.isRead ? 'text-gray-300' : 'text-gray-100 font-semibold'">{{ n.message }}</p>
-              <span v-if="!n.isRead" class="mt-1 w-2 h-2 rounded-full bg-cyan-400"></span>
+              <span v-if="!n.isRead" class="mt-1 w-2 h-2 rounded-full bg-indigo-400"></span>
             </div>
             <p class="text-[11px] text-gray-400 mt-1">{{ formatNotificationTime(n.createdAt) }}</p>
           </button>
+
         </div>
       </div>
 
       <button @click="toggleTheme"
-              class="w-8 h-8 rounded-full flex items-center justify-center bg-gray-800 hover:bg-gray-700 transition-all"
+              class="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 hover:bg-slate-700 transition-all"
               :title="isDark ? 'Light mode' : 'Dark mode'">
         <i v-if="isDark" class="fas fa-sun text-yellow-300 text-xs"></i>
         <i v-else class="fas fa-moon text-indigo-400 text-xs"></i>
@@ -299,7 +295,7 @@
         <i class="fas fa-right-from-bracket mr-1"></i> Logout
       </button>
 
-      <div class="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center text-gray-900 font-semibold glow">
+      <div class="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white font-semibold">
         {{ currentUserInitials }}
       </div>
     </div>
@@ -308,7 +304,7 @@
   <!-- Main -->
   <main class="flex flex-1 overflow-hidden">
     <!-- Sidebar -->
-    <aside class="w-72 bg-gray-800 shadow-md py-6 px-4 flex flex-col">
+    <aside class="w-72 bg-slate-900 border-r border-slate-800 py-6 px-4 flex flex-col">
       <nav class="space-y-1 flex-1">
         <button
           v-for="tab in tabs"
@@ -316,8 +312,8 @@
           @click="switchTab(tab.id)"
           class="w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors"
           :class="{
-            'bg-cyan-900/50 text-cyan-300': currentTab === tab.id,
-            'text-gray-300 hover:bg-gray-700': currentTab !== tab.id
+            'bg-indigo-600/15 text-indigo-400': currentTab === tab.id,
+            'text-slate-400 hover:bg-slate-800': currentTab !== tab.id
           }"
         >
           <i :class="tab.icon" class="mr-3 w-5"></i>
@@ -326,13 +322,13 @@
       </nav>
 
       <!-- Teams -->
-      <div class="pt-6 border-t border-gray-700">
-        <h3 class="px-4 text-xs font-semibold text-cyan-300 uppercase tracking-wider mb-3">Teams</h3>
+      <div class="pt-6 border-t border-slate-800">
+        <h3 class="px-4 text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3">Teams</h3>
         <div class="space-y-1 max-h-52 overflow-y-auto pr-1">
           <div
             v-for="team in teams"
             :key="team.id"
-            class="flex items-center justify-between px-4 py-2 rounded-lg hover:bg-gray-700 text-gray-300"
+            class="flex items-center justify-between px-4 py-2 rounded-lg hover:bg-slate-800 text-slate-300"
           >
             <div class="flex items-center">
               <span class="w-2 h-2 rounded-full mr-3 glow" :style="{ backgroundColor: team.color }"></span>
@@ -353,14 +349,14 @@
         </div>
 
         <!-- Add / Edit team form -->
-        <div class="mt-3 bg-gray-900/70 rounded-lg p-3">
+        <div class="mt-3 bg-slate-950/70 rounded-lg p-3">
           <p class="text-[11px] text-gray-400 mb-2">
             {{ editingTeamId ? 'Edit team' : 'Add new team' }}
           </p>
           <input
             v-model="newTeamName"
             placeholder="Team name"
-            class="w-full mb-2 px-2 py-1 bg-gray-800 border border-gray-700 rounded text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            class="w-full mb-2 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center space-x-2">
@@ -383,12 +379,38 @@
     </aside>
 
     <!-- Content -->
-    <div class="flex-1 overflow-auto p-6 bg-gray-900">
+    <div class="flex-1 overflow-auto p-6 bg-slate-950">
+
+      <!-- Pending Invitations Banner -->
+      <div v-if="pendingInvitations.length" class="mb-4 space-y-2">
+        <div v-for="inv in pendingInvitations" :key="inv.id"
+             class="flex items-center justify-between px-4 py-3 rounded-lg bg-indigo-900/20 border border-indigo-500/30">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-indigo-900/40 flex items-center justify-center text-indigo-300">
+              <i class="fas fa-envelope-open-text text-sm"></i>
+            </div>
+            <div>
+              <p class="text-sm text-slate-100 font-semibold">Team Invitation</p>
+              <p class="text-xs text-slate-400"><span class="text-indigo-300">{{ inv.invitedBy }}</span> invited you to join <span class="text-indigo-300">{{ inv.teamName }}</span></p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button @click="respondInvitation(inv.id, 'accept')"
+                    class="px-3 py-1.5 rounded text-xs bg-green-700/80 text-green-100 hover:bg-green-600 transition-colors font-semibold">
+              <i class="fas fa-check mr-1"></i> Accept
+            </button>
+            <button @click="respondInvitation(inv.id, 'decline')"
+                    class="px-3 py-1.5 rounded text-xs bg-red-700/80 text-red-100 hover:bg-red-600 transition-colors font-semibold">
+              <i class="fas fa-times mr-1"></i> Decline
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Projects -->
       <div v-if="currentTab === 'projects'" class="space-y-6">
         <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-cyan-300 neon-text">Projects</h2>
+          <h2 class="text-2xl font-bold text-slate-100">Projects</h2>
           <button @click="openNewProject" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
             <i class="fas fa-plus mr-2"></i> New Project
           </button>
@@ -406,7 +428,7 @@
               <i class="fas fa-trash"></i>
             </button>
             <div class="flex justify-between items-start mb-4">
-              <div class="w-10 h-10 rounded-lg bg-cyan-900/50 flex items-center justify-center text-cyan-400 glow">
+              <div class="w-10 h-10 rounded-lg bg-indigo-900/30 flex items-center justify-center text-indigo-400">
                 <i class="fas fa-project-diagram"></i>
               </div>
               <div class="text-xs px-2 py-1 rounded-full" :class="{
@@ -429,7 +451,7 @@
                 <div
                   v-for="member in project.members.slice(0, 3)"
                   :key="member"
-                  class="w-6 h-6 rounded-full bg-cyan-500 text-gray-900 text-xs flex items-center justify-center border border-gray-700 glow"
+                  class="w-6 h-6 rounded-full bg-indigo-500 text-white text-xs flex items-center justify-center border border-slate-700"
                   :title="member"
                 >
                   {{ getInitials(member) }}
@@ -445,7 +467,7 @@
         </div>
 
         <div v-else class="empty-state p-8 text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 glow">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
             <i class="fas fa-project-diagram text-2xl"></i>
           </div>
           <h3 class="text-lg font-medium text-gray-100 mb-2">No projects yet</h3>
@@ -460,7 +482,7 @@
       <!-- Tasks -->
       <div v-if="currentTab === 'tasks'" class="space-y-6">
         <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-cyan-300 neon-text">Tasks</h2>
+          <h2 class="text-2xl font-bold text-slate-100">Tasks</h2>
           <button @click="openNewTask" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
             <i class="fas fa-plus mr-2"></i> New Task
           </button>
@@ -470,7 +492,7 @@
           <div
             v-for="board in boards"
             :key="board.id"
-            class="bg-gray-800 rounded-lg p-4 min-h-[500px] bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900"
+            class="bg-slate-900 rounded-lg p-4 min-h-[500px] border border-slate-800"
             @drop.prevent="moveTask($event, board.id)"
             @dragover.prevent
             @dragenter="setDragOver(board.id, true)"
@@ -478,9 +500,9 @@
             :class="{'drag-over': dragOverBoard === board.id}"
           >
             <div class="flex justify-between items-center mb-4">
-              <h3 class="font-semibold text-gray-100 neon-text cursor-pointer hover:text-cyan-300"
+              <h3 class="font-semibold text-slate-100 cursor-pointer hover:text-indigo-400"
                   @click.stop="openBoardRedirect(board)">{{ board.name }}</h3>
-              <span class="bg-gray-700 text-gray-300 text-xs font-medium px-2 py-1 rounded-full">
+              <span class="bg-slate-800 text-slate-300 text-xs font-medium px-2 py-1 rounded-full">
                 {{ visibleTasksForBoard(board.id).length }}
               </span>
             </div>
@@ -489,7 +511,7 @@
               <div
                 v-for="task in visibleTasksForBoard(board.id)"
                 :key="task.id"
-                class="task-card bg-gray-800 shadow p-4 cursor-move border-l-4"
+                class="task-card bg-slate-800 shadow-sm p-4 cursor-move border-l-4"
                 :class="{
                   'border-red-500': task.priority === 'high',
                   'border-yellow-500': task.priority === 'medium',
@@ -535,7 +557,7 @@
                     <div
                       v-for="assignee in task.assignees"
                       :key="assignee"
-                      class="w-6 h-6 rounded-full bg-cyan-500 text-gray-900 text-xs flex items-center justify-center border border-gray-700 -ml-1 glow"
+                      class="w-6 h-6 rounded-full bg-indigo-500 text-white text-xs flex items-center justify-center border border-slate-700 -ml-1"
                       :title="assignee"
                     >
                       {{ getInitials(assignee) }}
@@ -552,7 +574,7 @@
       <!-- Files -->
       <div v-if="currentTab === 'files'" class="space-y-6">
         <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-cyan-300 neon-text">Files</h2>
+          <h2 class="text-2xl font-bold text-slate-100">Files</h2>
           <div>
             <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden">
             <button @click="$refs.fileInput.click()"
@@ -563,12 +585,12 @@
         </div>
 
         <div v-if="uploadProgress > 0 && uploadProgress < 100"
-             class="bg-gray-800 rounded-lg p-4 shadow glow">
+             class="bg-slate-900 rounded-lg p-4 shadow-sm border border-slate-800">
           <div class="flex justify-between items-center mb-2">
             <span class="font-medium text-gray-100">Uploading file...</span>
             <span class="text-sm text-gray-400">{{ uploadProgress }}%</span>
           </div>
-          <div class="w-full bg-gray-700 rounded-full h-2">
+          <div class="w-full bg-slate-700 rounded-full h-2">
             <div class="h-2 rounded-full file-progress"
                  :style="{ width: uploadProgress + '%' }"></div>
           </div>
@@ -625,14 +647,14 @@
       <!-- Activity Log -->
       <div v-if="currentTab === 'activity'" class="space-y-6">
         <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-cyan-300 neon-text">Activity Log</h2>
-          <button @click="loadActivityLog" class="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
+          <h2 class="text-2xl font-bold text-slate-100">Activity Log</h2>
+          <button @click="loadActivityLog" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
             <i class="fas fa-sync-alt mr-1"></i> Refresh
           </button>
         </div>
 
         <div v-if="!activityLogs.length" class="empty-state p-8 text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 glow">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
             <i class="fas fa-history text-2xl"></i>
           </div>
           <h3 class="text-lg font-medium text-gray-100 mb-2">No activity yet</h3>
@@ -641,14 +663,14 @@
 
         <div v-else class="space-y-2">
           <div v-for="log in activityLogs" :key="log.id"
-               class="flex items-start gap-3 p-3 rounded-lg bg-gray-800/60 border border-gray-700/50 hover:border-cyan-500/20 transition-colors">
+               class="flex items-start gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-indigo-500/20 transition-colors">
             <div class="activity-icon"
                  :class="{
                    'bg-green-900/60 text-green-300': log.action === 'created',
                    'bg-blue-900/60 text-blue-300': log.action === 'updated',
                    'bg-red-900/60 text-red-300': log.action === 'deleted',
                    'bg-yellow-900/60 text-yellow-300': log.action === 'moved',
-                   'bg-cyan-900/60 text-cyan-300': log.action === 'commented',
+                   'bg-indigo-900/60 text-indigo-300': log.action === 'commented',
                    'bg-purple-900/60 text-purple-300': log.action === 'attached_file',
                    'bg-gray-700 text-gray-300': !['created','updated','deleted','moved','commented','attached_file'].includes(log.action)
                  }">
@@ -672,23 +694,75 @@
         </div>
       </div>
 
+      <!-- Calendar Tab -->
+      <div v-if="currentTab === 'calendar'" class="space-y-4">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-slate-100"><i class="fas fa-calendar-alt mr-2 text-indigo-400"></i>Calendar</h2>
+          <div class="flex items-center gap-2">
+            <button @click="calendarPrev" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="text-sm font-medium text-gray-200 min-w-[160px] text-center">{{ calendarMonthLabel }}</span>
+            <button @click="calendarNext" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="flex items-center gap-4 text-[10px] mb-2">
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-700/60"></span> Overdue</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-900/50"></span> High</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-yellow-900/50"></span> Medium</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-900/50"></span> Low</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-700/60"></span> Done</span>
+        </div>
+
+        <div class="grid grid-cols-7 gap-px bg-slate-800/50 rounded-xl overflow-hidden border border-slate-800">
+          <!-- Day headers -->
+          <div v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="d"
+               class="bg-slate-900 text-center text-[11px] text-slate-400 py-2 font-semibold">{{ d }}</div>
+          <!-- Calendar cells -->
+          <div v-for="(cell, idx) in calendarDays" :key="idx"
+               class="bg-slate-950/80 min-h-[80px] p-1.5"
+               :class="{ 'bg-slate-900/40': !cell }">
+            <template v-if="cell">
+              <div class="text-[11px] font-semibold mb-1"
+                   :class="isToday(cell.iso) ? 'text-indigo-300' : 'text-slate-400'">
+                <span v-if="isToday(cell.iso)" class="px-1.5 py-0.5 rounded-full bg-indigo-600/40">{{ cell.day }}</span>
+                <span v-else>{{ cell.day }}</span>
+              </div>
+              <div class="space-y-0.5">
+                <div v-for="ev in cell.events.slice(0, 3)" :key="ev.id"
+                     class="text-[9px] px-1 py-0.5 rounded truncate cursor-default"
+                     :class="calendarEventColor(ev)"
+                     :title="ev.title + ' (' + ev.column + ')'">
+                  {{ ev.title }}
+                </div>
+                <div v-if="cell.events.length > 3" class="text-[9px] text-gray-500 px-1">+{{ cell.events.length - 3 }} more</div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
     </div>
   </main>
 
   <!-- Task Detail Modal (Comments, Attachments, Subtasks) -->
   <transition name="fade">
     <div v-if="showTaskDetailModal && detailTask" class="fixed inset-0 z-40 flex items-center justify-center confirmation-modal" @click.self="closeTaskDetail">
-      <div class="bg-gray-900 rounded-xl shadow-xl w-full max-w-2xl p-6 border border-cyan-500/40 modal max-h-[90vh] overflow-y-auto">
+      <div class="bg-slate-900 rounded-xl shadow-xl w-full max-w-2xl p-6 border border-slate-700 modal max-h-[90vh] overflow-y-auto">
         <div class="flex items-start justify-between mb-4">
           <div>
-            <h3 class="text-lg font-semibold text-cyan-300">{{ detailTask.name }}</h3>
+            <h3 class="text-lg font-semibold text-slate-100">{{ detailTask.name }}</h3>
             <p class="text-xs text-gray-400 mt-1">{{ detailTask.description || 'No description' }}</p>
           </div>
           <div class="flex items-center gap-2">
-            <button @click="editTaskFromDetail" class="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
+            <button @click="editTaskFromDetail" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
               <i class="fas fa-edit mr-1"></i> Edit
             </button>
-            <button @click="closeTaskDetail" class="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
+            <button @click="closeTaskDetail" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
               <i class="fas fa-times"></i>
             </button>
           </div>
@@ -707,21 +781,21 @@
         <!-- Subtasks / Checklist -->
         <div class="mb-5">
           <div class="flex items-center justify-between mb-2">
-            <h4 class="text-sm font-semibold text-gray-200"><i class="fas fa-check-square mr-2 text-cyan-400"></i>Checklist</h4>
+            <h4 class="text-sm font-semibold text-slate-200"><i class="fas fa-check-square mr-2 text-indigo-400"></i>Checklist</h4>
             <span v-if="taskSubtasks.length" class="text-[11px] text-gray-400">
               {{ taskSubtasks.filter(s => s.isDone).length }}/{{ taskSubtasks.length }}
             </span>
           </div>
           <div v-if="taskSubtasks.length" class="mb-2">
-            <div class="w-full bg-gray-700 rounded-full h-1.5 mb-3">
-              <div class="h-1.5 rounded-full bg-gradient-to-r from-cyan-400 to-purple-400 transition-all"
+            <div class="w-full bg-slate-700 rounded-full h-1.5 mb-3">
+              <div class="h-1.5 rounded-full bg-indigo-500 transition-all"
                    :style="{ width: (taskSubtasks.length ? (taskSubtasks.filter(s=>s.isDone).length / taskSubtasks.length * 100) : 0) + '%' }"></div>
             </div>
           </div>
           <div class="space-y-1">
             <div v-for="sub in taskSubtasks" :key="sub.id"
                  class="subtask-row flex items-center gap-2 px-2 py-1.5 rounded group">
-              <input type="checkbox" :checked="sub.isDone" @change="toggleSubtask(sub)" class="accent-cyan-400">
+              <input type="checkbox" :checked="sub.isDone" @change="toggleSubtask(sub)" class="accent-indigo-500">
               <span class="flex-1 text-sm" :class="sub.isDone ? 'subtask-done text-gray-400' : 'text-gray-100'">{{ sub.title }}</span>
               <button @click="deleteSubtask(sub.id)" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 text-xs transition-opacity">
                 <i class="fas fa-times"></i>
@@ -731,20 +805,20 @@
           <div class="flex items-center gap-2 mt-2">
             <input v-model="newSubtaskTitle" @keydown.enter.prevent="addSubtask"
                    placeholder="Add checklist item..."
-                   class="flex-1 px-3 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                   class="flex-1 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500">
             <button @click="addSubtask" class="px-3 py-1.5 rounded text-xs neon-button text-white">Add</button>
           </div>
         </div>
 
         <!-- Attachments -->
         <div class="mb-5">
-          <h4 class="text-sm font-semibold text-gray-200 mb-2"><i class="fas fa-paperclip mr-2 text-cyan-400"></i>Attachments</h4>
+          <h4 class="text-sm font-semibold text-slate-200 mb-2"><i class="fas fa-paperclip mr-2 text-indigo-400"></i>Attachments</h4>
           <div v-if="taskAttachments.length" class="space-y-2 mb-2">
             <div v-for="att in taskAttachments" :key="att.id"
-                 class="flex items-center justify-between px-3 py-2 bg-gray-800/60 rounded-lg border border-gray-700/50 group">
+                 class="flex items-center justify-between px-3 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 group">
               <div class="flex items-center gap-2 min-w-0">
-                <i class="fas fa-file text-cyan-400 text-xs"></i>
-                <a :href="att.url" target="_blank" class="text-sm text-gray-100 hover:text-cyan-300 truncate">{{ att.name }}</a>
+                <i class="fas fa-file text-indigo-400 text-xs"></i>
+                <a :href="att.url" target="_blank" class="text-sm text-slate-100 hover:text-indigo-300 truncate">{{ att.name }}</a>
                 <span class="text-[10px] text-gray-400">{{ att.size }}</span>
               </div>
               <button @click="deleteAttachment(att.id)" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 text-xs transition-opacity">
@@ -755,7 +829,7 @@
           <div v-else class="text-xs text-gray-400 mb-2">No attachments yet.</div>
           <div>
             <input type="file" ref="taskAttachInput" @change="uploadTaskAttachment" class="hidden">
-            <button @click="$refs.taskAttachInput.click()" class="px-3 py-1.5 rounded text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
+            <button @click="$refs.taskAttachInput.click()" class="px-3 py-1.5 rounded text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
               <i class="fas fa-upload mr-1"></i> Upload File
             </button>
           </div>
@@ -763,11 +837,11 @@
 
         <!-- Comments -->
         <div>
-          <h4 class="text-sm font-semibold text-gray-200 mb-2"><i class="fas fa-comments mr-2 text-cyan-400"></i>Comments</h4>
+          <h4 class="text-sm font-semibold text-slate-200 mb-2"><i class="fas fa-comments mr-2 text-indigo-400"></i>Comments</h4>
           <div v-if="taskComments.length" class="space-y-2 mb-3 max-h-60 overflow-y-auto">
             <div v-for="c in taskComments" :key="c.id" class="comment-bubble px-3 py-2 group">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-cyan-300">{{ c.author }}</span>
+                <span class="text-xs font-semibold text-indigo-300">{{ c.author }}</span>
                 <div class="flex items-center gap-2">
                   <span class="text-[10px] text-gray-400">{{ formatNotificationTime(c.createdAt) }}</span>
                   <button @click="deleteComment(c.id)" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 text-[10px] transition-opacity">
@@ -781,7 +855,7 @@
           <div v-else class="text-xs text-gray-400 mb-3">No comments yet. Be the first to comment.</div>
           <div class="flex items-start gap-2">
             <textarea v-model="newCommentBody" @keydown.ctrl.enter="addComment" rows="2" placeholder="Write a comment... (Ctrl+Enter to send)"
-                      class="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 resize-none"></textarea>
+                      class="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"></textarea>
             <button @click="addComment" class="px-3 py-2 rounded text-xs neon-button text-white self-end">
               <i class="fas fa-paper-plane"></i>
             </button>
@@ -795,29 +869,29 @@
   <transition name="fade">
     <div v-if="showTaskModal" class="fixed inset-0 z-40 flex items-center justify-center confirmation-modal">
       <!-- ✅ IMPORTANT: max-h + overflow -->
-      <div class="bg-gray-900 rounded-xl shadow-xl w-full max-w-lg p-6 border border-cyan-500/40 modal max-h-[85vh] overflow-y-auto">
-        <h3 class="text-lg font-semibold text-cyan-300 mb-4">
+      <div class="bg-slate-900 rounded-xl shadow-xl w-full max-w-lg p-6 border border-slate-700 modal max-h-[85vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold text-slate-100 mb-4">
           {{ editingTask ? 'Edit Task' : 'New Task' }}
         </h3>
 
         <div class="space-y-3 text-sm">
           <div>
-            <label class="block text-gray-300 mb-1">Task Name</label>
+            <label class="block text-slate-300 mb-1">Task Name</label>
             <input v-model="currentTask.name"
-                   class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                   class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
           </div>
 
           <div>
-            <label class="block text-gray-300 mb-1">Description</label>
+            <label class="block text-slate-300 mb-1">Description</label>
             <textarea v-model="currentTask.description" rows="3"
-                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"></textarea>
+                      class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
           </div>
 
           <!-- Task Type -->
           <div>
-            <label class="block text-gray-300 mb-1">Task Type</label>
+            <label class="block text-slate-300 mb-1">Task Type</label>
             <select v-model="currentTask.taskType"
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <option value="normal">Normal</option>
               <option value="super">Super Task (CodeSpace)</option>
             </select>
@@ -829,9 +903,9 @@
 
           <!-- Project -->
           <div>
-            <label class="block text-gray-300 mb-1">Project (optional)</label>
+            <label class="block text-slate-300 mb-1">Project (optional)</label>
             <select v-model.number="currentTask.projectId"
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <option :value="null">No project</option>
               <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
             </select>
@@ -839,23 +913,23 @@
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-gray-300 mb-1">Priority</label>
+              <label class="block text-slate-300 mb-1">Priority</label>
               <select v-model="currentTask.priority"
-                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                      class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
                 <option value="low">Low</option>
               </select>
             </div>
             <div>
-              <label class="block text-gray-300 mb-1">Due Date</label>
+              <label class="block text-slate-300 mb-1">Due Date</label>
               <input type="date" v-model="currentTask.dueDate"
-                     class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                     class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
           </div>
 
           <!-- Assignees (Team Head only) -->
-          <div v-if="currentUserRole === 'head'" class="bg-gray-800/60 p-3 rounded-lg border border-cyan-500/10">
+          <div v-if="currentUserRole === 'head'" class="bg-slate-800/60 p-3 rounded-lg border border-slate-700">
             <div class="flex items-center justify-between">
               <label class="block text-gray-300 text-sm">Assign to members</label>
               <button type="button" @click="currentTask.assignees = []"
@@ -872,7 +946,7 @@
               <label v-for="m in teamMembers" :key="m.email"
                      class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-700 cursor-pointer">
                 <input type="checkbox"
-                       class="accent-cyan-400"
+                       class="accent-indigo-500"
                        :value="m.email"
                        v-model="currentTask.assignees" />
                 <span class="text-xs text-gray-100 truncate" :title="m.name + ' (' + m.email + ')'">
@@ -887,7 +961,7 @@
           </div>
 
           <!-- ✅ Super Task CodeSpace Meta -->
-          <div v-if="currentTask.taskType === 'super'" class="bg-gray-800/60 p-3 rounded-lg border border-purple-500/20">
+          <div v-if="currentTask.taskType === 'super'" class="bg-slate-800/60 p-3 rounded-lg border border-purple-500/20">
             <p class="text-xs text-purple-300 mb-2">
               <i class="fas fa-code mr-1"></i> CodeSpace Details
             </p>
@@ -955,7 +1029,7 @@
 
         <div class="mt-5 flex justify-end space-x-3">
           <button @click="closeTaskModal"
-                  class="px-4 py-2 rounded-lg text-sm bg-gray-700 text-gray-200 hover:bg-gray-600">
+                  class="px-4 py-2 rounded-lg text-sm bg-slate-700 text-slate-200 hover:bg-slate-600">
             Cancel
           </button>
           <button @click="saveTask" :disabled="isSaving"
@@ -971,7 +1045,7 @@
   <!-- Approvals Modal (Head only) -->
   <transition name="fade">
     <div v-if="showApprovalsModal" class="fixed inset-0 z-50 flex items-center justify-center confirmation-modal">
-      <div class="bg-gray-900 rounded-xl shadow-xl w-full max-w-2xl p-6 border border-purple-500/40 modal max-h-[85vh] overflow-y-auto">
+      <div class="bg-slate-900 rounded-xl shadow-xl w-full max-w-2xl p-6 border border-slate-700 modal max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-semibold text-purple-300">
             Approval Requests
@@ -993,7 +1067,7 @@
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1">
                 <p class="text-sm text-gray-100">
-                  <span class="font-semibold text-cyan-300">{{ req.requestedBy }}</span>
+                  <span class="font-semibold text-indigo-300">{{ req.requestedBy }}</span>
                   <span class="text-gray-300"> requested </span>
                   <span class="font-semibold text-purple-200">{{ req.action }}</span>
                   <span class="text-gray-300"> on </span>
@@ -1021,25 +1095,25 @@
   <!-- Project Modal -->
   <transition name="fade">
     <div v-if="showProjectModal" class="fixed inset-0 z-40 flex items-center justify-center confirmation-modal">
-      <div class="bg-gray-900 rounded-xl shadow-xl w-full max-w-lg p-6 border border-cyan-500/40 modal max-h-[85vh] overflow-y-auto">
-        <h3 class="text-lg font-semibold text-cyan-300 mb-4">
+      <div class="bg-slate-900 rounded-xl shadow-xl w-full max-w-lg p-6 border border-slate-700 modal max-h-[85vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold text-slate-100 mb-4">
           {{ editingProject ? 'Edit Project' : 'New Project' }}
         </h3>
         <div class="space-y-3 text-sm">
           <div>
-            <label class="block text-gray-300 mb-1">Project Name</label>
+            <label class="block text-slate-300 mb-1">Project Name</label>
             <input v-model="currentProject.name"
-                   class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                   class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
           </div>
           <div>
-            <label class="block text-gray-300 mb-1">Description</label>
+            <label class="block text-slate-300 mb-1">Description</label>
             <textarea v-model="currentProject.description" rows="3"
-                      class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"></textarea>
+                      class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
           </div>
           <div>
-            <label class="block text-gray-300 mb-1">Status</label>
+            <label class="block text-slate-300 mb-1">Status</label>
             <select v-model="currentProject.status"
-                    class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                    class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <option value="active">Active</option>
               <option value="completed">Completed</option>
               <option value="archived">Archived</option>
@@ -1061,9 +1135,9 @@
 
             <div v-else class="flex flex-wrap gap-2 mb-2">
               <span v-for="memberEmail in currentProject.members" :key="memberEmail"
-                    class="inline-flex items-center gap-1 px-2 py-1 rounded bg-cyan-900/40 text-cyan-200 text-xs">
+                    class="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-900/30 text-indigo-200 text-xs">
                 {{ memberEmail }}
-                <button v-if="currentUserRole === 'head'" type="button" @click="removeProjectMember(memberEmail)" class="text-cyan-100 hover:text-white">
+                <button v-if="currentUserRole === 'head'" type="button" @click="removeProjectMember(memberEmail)" class="text-indigo-200 hover:text-white">
                   <i class="fas fa-times"></i>
                 </button>
               </span>
@@ -1071,7 +1145,7 @@
 
             <div v-if="teamMembers.length" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label v-for="m in teamMembers" :key="m.email" class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-700 cursor-pointer">
-                <input type="checkbox" class="accent-cyan-400" :checked="isProjectMember(m.email)"
+                <input type="checkbox" class="accent-indigo-500" :checked="isProjectMember(m.email)"
                        :disabled="currentUserRole !== 'head'" @change="toggleProjectMember(m.email)" />
                 <span class="text-xs text-gray-100 truncate">{{ m.name }} ({{ m.email }})</span>
               </label>
@@ -1097,7 +1171,7 @@
   <!-- Confirmation Modal -->
   <transition name="fade">
     <div v-if="showConfirmationModal" class="fixed inset-0 z-50 flex items-center justify-center confirmation-modal">
-      <div class="bg-gray-900 rounded-xl shadow-xl w-full max-w-sm p-6 border border-red-500/40">
+      <div class="bg-slate-900 rounded-xl shadow-xl w-full max-w-sm p-6 border border-slate-700">
         <h3 class="text-lg font-semibold text-red-400 mb-2">Are you sure?</h3>
         <p class="text-sm text-gray-300 mb-4">
           This will permanently delete the {{ itemToDelete.type }}:
@@ -1123,7 +1197,7 @@
     <div v-if="contextMenu.type === 'task'" class="min-w-[180px]">
       <button @click.stop="editTask(contextMenu.item)"
               class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
-        <i class="fas fa-edit mr-2 text-cyan-400"></i> Edit
+        <i class="fas fa-edit mr-2 text-indigo-400"></i> Edit
       </button>
 
       <button v-if="contextMenu.item && contextMenu.item.taskType === 'super'"
@@ -1145,7 +1219,7 @@
       </button>
       <button @click.stop="downloadFile(contextMenu.item)"
               class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
-        <i class="fas fa-download mr-2 text-cyan-400"></i> Download
+        <i class="fas fa-download mr-2 text-indigo-400"></i> Download
       </button>
       <button @click.stop="confirmDeleteFile(contextMenu.item)"
               class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
@@ -1158,7 +1232,7 @@
   <transition name="fade">
     <div v-if="showToast"
          class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg flex items-center glow"
-         :class="toastIsError ? 'bg-red-900/80 text-red-200 border border-red-500/40' : 'bg-gray-800 text-cyan-300'">
+         :class="toastIsError ? 'bg-red-900/80 text-red-200 border border-red-500/40' : 'bg-slate-800 text-indigo-300 border border-slate-700'">
       <i class="fas mr-2" :class="toastIsError ? 'fa-triangle-exclamation' : 'fa-check-circle'"></i>
       <span>{{ toastMessage }}</span>
     </div>
@@ -1227,7 +1301,8 @@
           { id: 'projects', name: 'Projects', icon: 'fas fa-project-diagram' },
           { id: 'tasks',    name: 'Tasks',    icon: 'fas fa-tasks' },
           { id: 'files',    name: 'Files',    icon: 'fas fa-file-alt' },
-          { id: 'activity', name: 'Activity Log', icon: 'fas fa-history' }
+          { id: 'activity', name: 'Activity Log', icon: 'fas fa-history' },
+          { id: 'calendar', name: 'Calendar', icon: 'fas fa-calendar-alt' }
         ],
 
         boards: [
@@ -1245,7 +1320,7 @@
         notifications: [],
         unreadNotificationCount: 0,
         showNotifications: false,
-
+        pendingInvitations: [],
         currentTeam: null,
         teamMembers: [],
 
@@ -1260,8 +1335,14 @@
         taskSubtasks: [],
         newCommentBody: "",
         newSubtaskTitle: "",
-        notificationPollTimer: null,
-        isSaving: false
+        dataPollTimer: null,
+        cachedUserObj: null,
+        isSaving: false,
+
+        // Calendar
+        calendarMonth: new Date().getMonth(),
+        calendarYear: new Date().getFullYear(),
+        calendarEvents: []
       };
     },
 
@@ -1292,7 +1373,27 @@
         ];
       },
 
+      calendarDays() {
+        const first = new Date(this.calendarYear, this.calendarMonth, 1);
+        const last = new Date(this.calendarYear, this.calendarMonth + 1, 0);
+        const startDay = first.getDay();
+        const days = [];
+        // pad leading blanks
+        for (let i = 0; i < startDay; i++) days.push(null);
+        for (let d = 1; d <= last.getDate(); d++) {
+          const iso = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const events = this.calendarEvents.filter(e => e.date === iso);
+          days.push({ day: d, iso, events });
+        }
+        return days;
+      },
+
+      calendarMonthLabel() {
+        return new Date(this.calendarYear, this.calendarMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+      },
+
       currentUserObj() {
+        if (this.cachedUserObj) return this.cachedUserObj;
         const raw = localStorage.getItem("taskhive_current_user");
         if (!raw || raw === "Guest") return { name: "User", role: "member" };
         try { return JSON.parse(raw) || { name: "User", role: "member" }; }
@@ -1307,26 +1408,79 @@
     },
 
     mounted() {
+      this._initCachedUser();
       this.initTheme();
       this.loadData();
       this.fetchTeamContext();
       this.loadNotifications();
+      this.loadInvitations();
       window.addEventListener("keydown", this.handleShortcut);
 
       // click outside context menu
       window.addEventListener("click", this.handleGlobalClick);
 
-      // Real-time notification polling every 15 seconds
-      this.notificationPollTimer = setInterval(() => { this.loadNotifications(); }, 15000);
+      // WebSocket for real-time updates
+      this._connectWebSocket();
+      // Fallback poll every 60s in case WS drops
+      this.dataPollTimer = setInterval(() => { if (!this._ws || this._ws.readyState !== 1) { this.loadNotifications(); this.loadData(); } }, 60000);
     },
 
     beforeDestroy() {
       window.removeEventListener("keydown", this.handleShortcut);
       window.removeEventListener("click", this.handleGlobalClick);
-      if (this.notificationPollTimer) clearInterval(this.notificationPollTimer);
+      if (this.dataPollTimer) clearInterval(this.dataPollTimer);
+      if (this._ws) { this._ws.close(); this._ws = null; }
     },
 
     methods: {
+      _initCachedUser() {
+        try {
+          const raw = localStorage.getItem("taskhive_current_user");
+          if (raw && raw !== "Guest") {
+            this.cachedUserObj = JSON.parse(raw) || { name: "User", role: "member" };
+          } else {
+            this.cachedUserObj = { name: "User", role: "member" };
+          }
+        } catch (e) {
+          this.cachedUserObj = { name: "User", role: "member" };
+        }
+      },
+
+      _connectWebSocket() {
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        const url = `${proto}://${location.host}/ws/notify/`;
+        const vm = this;
+
+        function connect() {
+          const ws = new WebSocket(url);
+          vm._ws = ws;
+
+          ws.onopen = () => { console.log('[WS] connected'); };
+
+          ws.onmessage = (e) => {
+            try {
+              const msg = JSON.parse(e.data);
+              if (msg.type === 'new_notification') {
+                vm.loadNotifications();
+                vm.loadInvitations();
+              }
+              if (msg.type === 'data_changed') {
+                vm.loadData();
+              }
+            } catch (err) {}
+          };
+
+          ws.onclose = () => {
+            console.log('[WS] disconnected, reconnecting in 3s...');
+            setTimeout(connect, 3000);
+          };
+
+          ws.onerror = () => { ws.close(); };
+        }
+
+        connect();
+      },
+
       async fetchTeamContext() {
         try {
           const res = await fetch("/api/team/current/", { credentials: "same-origin" });
@@ -1336,14 +1490,9 @@
           this.currentTeam = data.team || null;
 
           if (data.role) {
-            try {
-              const raw = localStorage.getItem("taskhive_current_user");
-              const u = raw ? JSON.parse(raw) : null;
-              if (u && typeof u === 'object') {
-                u.role = data.role;
-                localStorage.setItem("taskhive_current_user", JSON.stringify(u));
-              }
-            } catch (e) {}
+            const updated = { ...this.cachedUserObj, role: data.role };
+            this.cachedUserObj = updated;
+            localStorage.setItem("taskhive_current_user", JSON.stringify(updated));
           }
 
           if (!this.currentTeam || !this.currentTeam.id) return;
@@ -1362,10 +1511,43 @@
           this.loadNotifications();
         } catch (e) {}
       },
+
+      async loadInvitations() {
+        try {
+          const res = await fetch('/api/invitations/', { credentials: 'same-origin' });
+          const data = await res.json();
+          if (data.ok) this.pendingInvitations = data.invitations || [];
+        } catch (e) {}
+      },
+
+      async respondInvitation(invitationId, action) {
+        try {
+          const res = await fetch('/api/invitations/respond/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._getCsrf() },
+            body: JSON.stringify({ invitation_id: invitationId, action }),
+          });
+          const data = await res.json();
+          if (data.ok) {
+            this.pendingInvitations = this.pendingInvitations.filter(i => i.id !== invitationId);
+            if (action === 'accept') {
+              this.showToastMessage(`Joined team "${data.teamName}" successfully!`);
+              this.loadData();
+              this.fetchTeamContext();
+            } else {
+              this.showToastMessage('Invitation declined.');
+            }
+          }
+        } catch (e) {
+          this.showToastMessage('Failed to respond to invitation.');
+        }
+      },
+
       applyRouteContext() {
         const params = new URLSearchParams(window.location.search || "");
         const tab = params.get("tab");
-        if (tab && ['tasks', 'projects', 'files', 'activity'].includes(tab)) { this.currentTab = tab; if (tab === 'activity') this.loadActivityLog(); }
+        if (tab && ['tasks', 'projects', 'files', 'activity', 'calendar'].includes(tab)) { this.currentTab = tab; if (tab === 'activity') this.loadActivityLog(); if (tab === 'calendar') this.loadCalendarEvents(); }
 
         const taskId = parseInt(params.get("taskId") || "", 10);
         if (taskId) {
@@ -1446,7 +1628,14 @@
       formatNotificationTime(ts) {
         if (!ts) return '';
         try {
-          return new Date(ts).toLocaleString();
+          const now = Date.now();
+          const then = new Date(ts).getTime();
+          const diff = Math.floor((now - then) / 1000);
+          if (diff < 60) return 'Just now';
+          if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+          if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+          if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+          return new Date(ts).toLocaleDateString();
         } catch (e) {
           return '';
         }
@@ -1568,6 +1757,7 @@
       switchTab(tabId) {
         this.currentTab = tabId;
         if (tabId === 'activity') this.loadActivityLog();
+        if (tabId === 'calendar') this.loadCalendarEvents();
       },
 
       handleGlobalClick() {
@@ -2263,6 +2453,39 @@
         if (!this.detailTask) return;
         const data = await this._postJson(`/api/task/${this.detailTask.id}/subtasks/${subtaskId}/delete/`, {});
         if (data.ok) this.taskSubtasks = this.taskSubtasks.filter(s => s.id !== subtaskId);
+      },
+
+      // =====================
+      // Calendar
+      // =====================
+      async loadCalendarEvents() {
+        try {
+          const res = await fetch('/api/calendar/tasks/', { credentials: 'same-origin' });
+          const data = await res.json();
+          if (data.ok) this.calendarEvents = data.events || [];
+        } catch (e) {}
+      },
+
+      calendarPrev() {
+        if (this.calendarMonth === 0) { this.calendarMonth = 11; this.calendarYear--; }
+        else this.calendarMonth--;
+      },
+
+      calendarNext() {
+        if (this.calendarMonth === 11) { this.calendarMonth = 0; this.calendarYear++; }
+        else this.calendarMonth++;
+      },
+
+      isToday(iso) {
+        return iso === new Date().toISOString().slice(0, 10);
+      },
+
+      calendarEventColor(ev) {
+        if (ev.done) return 'bg-green-700/60 text-green-200';
+        if (ev.overdue) return 'bg-red-700/60 text-red-200';
+        if (ev.priority === 'high') return 'bg-red-900/50 text-red-300';
+        if (ev.priority === 'low') return 'bg-green-900/50 text-green-300';
+        return 'bg-yellow-900/50 text-yellow-300';
       }
     }
   });

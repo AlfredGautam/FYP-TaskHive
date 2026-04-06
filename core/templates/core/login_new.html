@@ -4,122 +4,110 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TaskHive - Login</title>
-  <script>window.__GOOGLE_CLIENT_ID = "{{ google_client_id }}";</script>
 {% verbatim %}
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: 'Roboto Mono', monospace; }
-    h1, h2, h3, h4 { font-family: 'Orbitron', sans-serif; }
-    .neon-text { text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3); }
-    .glow { box-shadow: 0 0 10px rgba(0, 255, 255, 0.45); }
+    body { font-family: 'Inter', sans-serif; }
+    .neon-text { }
+    .glow { box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
     .neon-button {
-      background: linear-gradient(to right, #00ffff, #ff00ff);
-      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
-      transition: all 0.3s ease;
+      background: #4f46e5;
+      transition: all 0.2s ease;
     }
     .neon-button:hover {
-      box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 30px rgba(255, 0, 255, 0.3);
-      transform: translateY(-1px);
+      background: #4338ca;
     }
     .field-focus:focus {
-      box-shadow: 0 0 15px rgba(0, 255, 255, 0.35);
-      border-color: #00ffff;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+      border-color: #6366f1;
       outline: none;
     }
-    .modal-backdrop { background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(8px); }
+    .modal-backdrop { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); }
   </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 flex items-center justify-center">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center">
   <div id="app" class="w-full max-w-md px-4">
     <div class="mb-6 flex items-center justify-center gap-3">
-      <div class="text-cyan-400 text-3xl neon-text animate-pulse"><i class="fas fa-bug"></i></div>
+      <div class="text-indigo-400 text-3xl"><i class="fas fa-cubes"></i></div>
       <div>
-        <h1 class="text-2xl font-bold text-cyan-300 neon-text">TaskHive</h1>
-        <p class="text-xs text-gray-400">Team Collaboration Platform</p>
+        <h1 class="text-2xl font-bold text-slate-100">TaskHive</h1>
+        <p class="text-xs text-slate-400">Team Collaboration Platform</p>
       </div>
     </div>
 
-    <div class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl p-6 border border-cyan-500/30 glow">
+    <div class="bg-slate-900 rounded-2xl p-6 border border-slate-700/60 shadow-xl">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-semibold text-cyan-300">{{ isLogin ? 'Login' : 'Create Account' }}</h2>
-        <button class="text-xs text-cyan-300 hover:text-cyan-200 underline" @click="toggleMode">
+        <h2 class="text-xl font-semibold text-slate-100">{{ isLogin ? 'Login' : 'Create Account' }}</h2>
+        <button class="text-xs text-indigo-400 hover:text-indigo-300 underline" @click="toggleMode">
           {{ isLogin ? 'Need an account?' : 'Already have account?' }}
         </button>
       </div>
 
       <div class="space-y-3">
         <div v-if="!isLogin">
-          <label class="block text-sm text-gray-300 mb-1">Full Name</label>
-          <input v-model="form.name" class="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100 field-focus" />
+          <label class="block text-sm text-slate-300 mb-1">Full Name</label>
+          <input v-model="form.name" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-100 field-focus" />
         </div>
 
         <div>
-          <label class="block text-sm text-gray-300 mb-1">Email</label>
-          <input v-model="form.email" type="email" class="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100 field-focus" />
+          <label class="block text-sm text-slate-300 mb-1">Email</label>
+          <input v-model="form.email" type="email" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-100 field-focus" />
         </div>
 
         <div>
-          <label class="block text-sm text-gray-300 mb-1">Password</label>
-          <input v-model="form.password" :type="showPassword ? 'text' : 'password'" class="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100 field-focus" />
-          <button class="text-xs text-cyan-300 hover:text-cyan-200 mt-1" @click="showPassword = !showPassword">Toggle Password</button>
+          <label class="block text-sm text-slate-300 mb-1">Password</label>
+          <input v-model="form.password" :type="showPassword ? 'text' : 'password'" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-100 field-focus" />
+          <button class="text-xs text-indigo-400 hover:text-indigo-300 mt-1" @click="showPassword = !showPassword">Toggle Password</button>
+          <div v-if="!isLogin && form.password" class="mt-2">
+            <div class="flex gap-1 mb-1">
+              <div v-for="i in 4" :key="i" class="h-1 flex-1 rounded-full" :class="i <= passwordStrength.score ? passwordStrength.color : 'bg-gray-700'"></div>
+            </div>
+            <p class="text-xs" :class="passwordStrength.textColor">{{ passwordStrength.label }}</p>
+          </div>
         </div>
 
-        <button @click="handleSubmit" :disabled="loading" class="w-full py-2 rounded text-gray-900 font-semibold neon-button">
+        <button @click="handleSubmit" :disabled="loading" class="w-full py-2.5 rounded-lg text-white font-semibold neon-button">
           {{ loading ? 'Please wait...' : (isLogin ? 'Login' : 'Register') }}
         </button>
 
         <div v-if="message" class="text-sm" :class="isError ? 'text-red-400' : 'text-green-400'">{{ message }}</div>
 
-        <!-- Google Sign-In -->
-        <div class="relative flex items-center my-3">
-          <div class="flex-grow border-t border-gray-700"></div>
-          <span class="mx-3 text-xs text-gray-400">or</span>
-          <div class="flex-grow border-t border-gray-700"></div>
-        </div>
-
-        <a href="/auth/google/"
-           class="w-full py-2 rounded border border-gray-600 bg-gray-800 hover:bg-gray-700 flex items-center justify-center gap-2 transition-all no-underline">
-          <svg width="18" height="18" viewBox="0 0 48 48">
-            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-            <path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.02 24.02 0 0 0 0 21.56l7.98-6.19z"/>
-            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-          </svg>
-          <span class="text-sm text-gray-200">{{ isLogin ? 'Sign in with Google' : 'Sign up with Google' }}</span>
-        </a>
-
-        <button v-if="isLogin" class="text-xs text-cyan-300 hover:text-cyan-200 underline" @click="openForgot">Forgot password?</button>
+        <button v-if="isLogin" class="text-xs text-indigo-400 hover:text-indigo-300 underline" @click="openForgot">Forgot password?</button>
       </div>
     </div>
 
     <div v-if="registerVerify.show" class="fixed inset-0 modal-backdrop flex items-center justify-center px-4">
-      <div class="w-full max-w-md bg-gray-900 border border-cyan-500/30 rounded-xl p-5 glow">
-        <h3 class="text-cyan-300 font-semibold mb-2">Verify your email</h3>
-        <p class="text-sm text-gray-300 mb-3">Enter the code sent to {{ registerVerify.email }}</p>
-        <input v-model="registerVerify.code" maxlength="6" class="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-gray-100 field-focus" placeholder="6-digit code" />
+      <div class="w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl p-5 shadow-xl">
+        <h3 class="text-slate-100 font-semibold mb-2">Verify your email</h3>
+        <p class="text-sm text-slate-300 mb-3">Enter the code sent to {{ registerVerify.email }}</p>
+        <input v-model="registerVerify.code" maxlength="6" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-100 field-focus" placeholder="6-digit code" />
         <div v-if="registerVerify.message" class="mt-2 text-sm" :class="registerVerify.isError ? 'text-red-400' : 'text-green-400'">{{ registerVerify.message }}</div>
         <div class="flex gap-2 mt-4">
-          <button @click="closeRegisterVerify" class="w-1/3 py-2 rounded bg-gray-700 hover:bg-gray-600">Cancel</button>
+          <button @click="closeRegisterVerify" class="w-1/3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200">Cancel</button>
           <button @click="verifyRegistrationCode" :disabled="registerVerify.loading" class="w-2/3 py-2 rounded bg-green-600 hover:bg-green-500">{{ registerVerify.loading ? 'Verifying...' : 'Verify & Create Account' }}</button>
+        </div>
+        <div class="mt-3 text-center">
+          <button @click="resendVerificationCode" :disabled="registerVerify.resendCooldown > 0" class="text-xs text-indigo-400 hover:text-indigo-300 underline disabled:opacity-40 disabled:no-underline">
+            {{ registerVerify.resendCooldown > 0 ? ('Resend in ' + registerVerify.resendCooldown + 's') : 'Resend code' }}
+          </button>
         </div>
       </div>
     </div>
 
     <div v-if="forgot.show" class="fixed inset-0 modal-backdrop flex items-center justify-center px-4">
-      <div class="w-full max-w-md bg-gray-900 border border-cyan-500/30 rounded-xl p-5 glow">
-        <h3 class="text-cyan-300 font-semibold mb-2">Reset password</h3>
+      <div class="w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl p-5 shadow-xl">
+        <h3 class="text-slate-100 font-semibold mb-2">Reset password</h3>
         <div v-if="forgot.step === 1">
-          <input v-model="forgot.email" type="email" class="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-gray-100 field-focus" placeholder="you@gmail.com" />
-          <button @click="requestOtp" class="w-full mt-3 py-2 rounded text-gray-900 font-semibold neon-button">Send OTP</button>
+          <input v-model="forgot.email" type="email" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-100 field-focus" placeholder="you@gmail.com" />
+          <button @click="requestOtp" class="w-full mt-3 py-2.5 rounded-lg text-white font-semibold neon-button">Send OTP</button>
         </div>
         <div v-else>
-          <input v-model="forgot.otp" maxlength="6" class="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-gray-100 field-focus mb-2" placeholder="OTP" />
-          <input v-model="forgot.newPassword" type="password" class="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-gray-100 field-focus mb-2" placeholder="New password" />
-          <input v-model="forgot.confirmPassword" type="password" class="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-gray-100 field-focus mb-2" placeholder="Confirm password" />
+          <input v-model="forgot.otp" maxlength="6" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-100 field-focus mb-2" placeholder="OTP" />
+          <input v-model="forgot.newPassword" type="password" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-100 field-focus mb-2" placeholder="New password" />
+          <input v-model="forgot.confirmPassword" type="password" class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-100 field-focus mb-2" placeholder="Confirm password" />
           <button @click="resetPassword" class="w-full py-2 rounded bg-green-600 hover:bg-green-500">Verify OTP & Reset</button>
         </div>
         <div v-if="forgot.message" class="mt-2 text-sm" :class="forgot.isError ? 'text-red-400' : 'text-green-400'">{{ forgot.message }}</div>
@@ -138,7 +126,6 @@
           form: { name: '', email: '', password: '' },
           message: '',
           isError: false,
-          googleLoading: false,
           nextUrl: '/user/',
           forgot: {
             show: false,
@@ -157,14 +144,32 @@
             message: '',
             isError: false,
             loading: false,
+            resendCooldown: 0,
           },
         };
+      },
+      computed: {
+        passwordStrength() {
+          const p = this.form.password || '';
+          let score = 0;
+          if (p.length >= 6) score++;
+          if (p.length >= 10) score++;
+          if (/[A-Z]/.test(p) && /[a-z]/.test(p)) score++;
+          if (/[0-9]/.test(p) && /[^A-Za-z0-9]/.test(p)) score++;
+          const levels = [
+            { label: 'Too weak', color: 'bg-red-500', textColor: 'text-red-400' },
+            { label: 'Weak', color: 'bg-orange-500', textColor: 'text-orange-400' },
+            { label: 'Fair', color: 'bg-yellow-500', textColor: 'text-yellow-400' },
+            { label: 'Strong', color: 'bg-green-500', textColor: 'text-green-400' },
+            { label: 'Very strong', color: 'bg-cyan-400', textColor: 'text-cyan-300' },
+          ];
+          return { score, ...levels[score] };
+        },
       },
       mounted() {
         const params = new URLSearchParams(window.location.search);
         const next = params.get('next');
         if (next) this.nextUrl = next;
-        this.initGoogleSignIn();
       },
       methods: {
         getCookie(name) {
@@ -267,11 +272,47 @@
             this.registerVerify.code = '';
             this.registerVerify.message = '';
             this.registerVerify.isError = false;
+            this.startResendCooldown();
           } catch (e) {
             this.isError = true;
             this.message = 'Network error. Try again.';
           } finally {
             this.loading = false;
+          }
+        },
+        startResendCooldown() {
+          this.registerVerify.resendCooldown = 30;
+          const timer = setInterval(() => {
+            this.registerVerify.resendCooldown--;
+            if (this.registerVerify.resendCooldown <= 0) clearInterval(timer);
+          }, 1000);
+        },
+        async resendVerificationCode() {
+          if (this.registerVerify.resendCooldown > 0) return;
+          const email = (this.registerVerify.email || '').trim().toLowerCase();
+          if (!email) return;
+          this.registerVerify.message = '';
+          this.registerVerify.isError = false;
+          try {
+            const csrf = this.getCookie('csrftoken');
+            const res = await fetch('/api/register/', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+              body: JSON.stringify({ name: this.form.name.trim(), email, password: this.form.password }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+              this.registerVerify.isError = true;
+              this.registerVerify.message = data.error || 'Failed to resend code.';
+              return;
+            }
+            this.registerVerify.isError = false;
+            this.registerVerify.message = 'New code sent! Check your email.';
+            this.startResendCooldown();
+          } catch (e) {
+            this.registerVerify.isError = true;
+            this.registerVerify.message = 'Network error. Try again.';
           }
         },
         closeRegisterVerify() {
@@ -354,92 +395,6 @@
           } catch (e) {
             this.forgot.isError = true;
             this.forgot.message = 'Network error. Try again.';
-          }
-        },
-        initGoogleSignIn() {
-          const clientId = window.__GOOGLE_CLIENT_ID;
-          if (!clientId) return;
-          const self = this;
-          const tryInit = function() {
-            if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-              setTimeout(tryInit, 200);
-              return;
-            }
-            self._googleTokenClient = google.accounts.oauth2.initTokenClient({
-              client_id: clientId,
-              scope: 'email profile openid',
-              callback: function(tokenResponse) {
-                if (self._googleTimeout) { clearTimeout(self._googleTimeout); self._googleTimeout = null; }
-                if (tokenResponse && tokenResponse.access_token) {
-                  self.handleGoogleAccessToken(tokenResponse.access_token);
-                } else {
-                  self.googleLoading = false;
-                  self.isError = true;
-                  self.message = 'Google sign-in was cancelled.';
-                }
-              },
-              error_callback: function(err) {
-                if (self._googleTimeout) { clearTimeout(self._googleTimeout); self._googleTimeout = null; }
-                self.googleLoading = false;
-                self.isError = true;
-                self.message = 'Google popup was blocked or closed. Please allow popups and try again.';
-                console.error('Google Sign-In error:', err);
-              },
-            });
-          };
-          tryInit();
-        },
-        googleSignIn() {
-          if (!this._googleTokenClient) {
-            this.isError = true;
-            this.message = 'Google Sign-In not ready yet. Please wait a moment and try again.';
-            return;
-          }
-          this.googleLoading = true;
-          this.message = '';
-          this.isError = false;
-          const self = this;
-          this._googleTimeout = setTimeout(function() {
-            if (self.googleLoading) {
-              self.googleLoading = false;
-              self.isError = true;
-              self.message = 'Google sign-in timed out. Please try again.';
-            }
-          }, 120000);
-          this._googleTokenClient.requestAccessToken();
-        },
-        async handleGoogleAccessToken(accessToken) {
-          this.googleLoading = true;
-          try {
-            const csrf = this.getCookie('csrftoken');
-            const res = await fetch('/api/login/google/', {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-              body: JSON.stringify({ access_token: accessToken }),
-            });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.ok) {
-              this.isError = true;
-              this.message = data.error || 'Google login failed.';
-              return;
-            }
-            this.isError = false;
-            this.message = 'Login successful! Redirecting...';
-            const user = data.user || {};
-            localStorage.setItem('taskhive_current_user', JSON.stringify({
-              name: user.name || user.email || 'User',
-              email: user.email || '',
-              username: user.email || '',
-              displayName: user.name || user.email || 'User',
-              lastLogin: new Date().toISOString(),
-            }));
-            setTimeout(() => { window.location.href = this.nextUrl || '/user/'; }, 350);
-          } catch (e) {
-            this.isError = true;
-            this.message = 'Network error during Google login.';
-          } finally {
-            this.googleLoading = false;
           }
         },
         async resetPassword() {

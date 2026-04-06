@@ -16,7 +16,6 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
-from urllib.parse import urlencode
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.csrf import csrf_exempt
@@ -29,6 +28,7 @@ from .models import (
     UserProfile,
     Team,
     TeamMembership,
+    TeamInvitation,
     Workspace,
     Board,
     Column,
@@ -46,133 +46,24 @@ from .email_utils import (
     send_welcome_email,
     send_task_assigned_email,
     send_deadline_reminder_email,
+    send_team_invitation_email,
 )
+from .rate_limit import rate_limit
 
 
-def _verify_google_access_token(access_token: str):
-    """Verify Google access token via the userinfo endpoint."""
-    import requests as http_requests
+def api_health(request):
+    """Health check endpoint for monitoring."""
+    from django.db import connection
     try:
-        resp = http_requests.get(
-            "https://www.googleapis.com/oauth2/v3/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"},
-            timeout=10,
-        )
-        if resp.status_code != 200:
-            return None, "Invalid Google access token"
-        return resp.json(), None
+        connection.ensure_connection()
+        db_ok = True
     except Exception:
-        return None, "Failed to verify Google access token"
-
-
-def _verify_google_id_token(id_token: str):
-    """Verify Google ID token and return the decoded payload."""
-    try:
-        from google.oauth2 import id_token as google_id_token
-        from google.auth.transport import requests as google_requests
-    except Exception:
-        return None, "google-auth not installed"
-
-    client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
-    if not client_id:
-        return None, "GOOGLE_OAUTH_CLIENT_ID not configured"
-
-    try:
-        payload = google_id_token.verify_oauth2_token(
-            id_token,
-            google_requests.Request(),
-            audience=client_id,
-        )
-        return payload, None
-    except ValueError:
-        return None, "Invalid Google token"
-
-
-def google_auth_redirect(request):
-    """Redirect user to Google's OAuth consent screen (no popup needed)."""
-    client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
-    if not client_id:
-        return JsonResponse({"error": "Google OAuth not configured"}, status=500)
-    callback_url = request.build_absolute_uri("/auth/google/callback/")
-    params = urlencode({
-        "client_id": client_id,
-        "redirect_uri": callback_url,
-        "response_type": "code",
-        "scope": "openid email profile",
-        "access_type": "online",
-        "prompt": "select_account",
-    })
-    return redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
-
-
-def google_auth_callback(request):
-    """Handle Google OAuth callback, exchange code for tokens, log user in."""
-    import requests as http_requests
-
-    code = request.GET.get("code", "")
-    error = request.GET.get("error", "")
-    if error or not code:
-        return redirect("/login/?error=google_denied")
-
-    client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
-    client_secret = getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", "")
-    callback_url = request.build_absolute_uri("/auth/google/callback/")
-
-    # Exchange code for tokens
-    token_resp = http_requests.post(
-        "https://oauth2.googleapis.com/token",
-        data={
-            "code": code,
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "redirect_uri": callback_url,
-            "grant_type": "authorization_code",
-        },
-        timeout=15,
-    )
-    if token_resp.status_code != 200:
-        return redirect("/login/?error=google_token_failed")
-
-    tokens = token_resp.json()
-    access_token = tokens.get("access_token", "")
-    if not access_token:
-        return redirect("/login/?error=google_no_token")
-
-    # Get user info
-    userinfo_resp = http_requests.get(
-        "https://www.googleapis.com/oauth2/v3/userinfo",
-        headers={"Authorization": f"Bearer {access_token}"},
-        timeout=10,
-    )
-    if userinfo_resp.status_code != 200:
-        return redirect("/login/?error=google_userinfo_failed")
-
-    payload = userinfo_resp.json()
-    email = (payload.get("email") or "").strip().lower()
-    if not email or not payload.get("email_verified", False):
-        return redirect("/login/?error=google_email_not_verified")
-
-    name = (payload.get("name") or "").strip() or email.split("@")[0]
-
-    user, created = User.objects.get_or_create(
-        username=email,
-        defaults={"email": email, "first_name": name},
-    )
-    if not created:
-        changed = False
-        if not user.email:
-            user.email = email
-            changed = True
-        if not user.first_name and name:
-            user.first_name = name
-            changed = True
-        if changed:
-            user.save(update_fields=["email", "first_name"])
-    else:
-        send_welcome_email(user_name=name, user_email=email)
-
-    login(request, user)
-    return redirect("/user/")
+        db_ok = False
+    status = 200 if db_ok else 503
+    return JsonResponse({
+        "status": "ok" if db_ok else "degraded",
+        "database": "connected" if db_ok else "unavailable",
+    }, status=status)
 
 
 # =========================
@@ -185,9 +76,7 @@ def dashboard_page(request):
 
 @ensure_csrf_cookie
 def login_page(request):
-    return render(request, "core/login_new.html", {
-        "google_client_id": getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", ""),
-    })
+    return render(request, "core/login_new.html")
 
 
 @login_required
@@ -275,6 +164,7 @@ def api_me(request):
 
 @csrf_exempt
 @require_POST
+@rate_limit(max_requests=10, window_seconds=60)
 def api_login(request):
     try:
         data = json.loads(request.body.decode("utf-8"))
@@ -293,7 +183,7 @@ def api_login(request):
         from django.contrib.auth.models import User as _U
         existing = _U.objects.filter(username=email).first() or _U.objects.filter(email__iexact=email).first()
         if existing and not existing.has_usable_password():
-            return JsonResponse({"ok": False, "error": "This account uses Google sign-in. Use the Google button or reset your password."}, status=401)
+            return JsonResponse({"ok": False, "error": "This account has no password set. Please use 'Forgot password?' to create one."}, status=401)
         return JsonResponse({"ok": False, "error": "Invalid email or password."}, status=401)
 
     login(request, user)
@@ -379,30 +269,298 @@ def api_team_invite(request):
     if not invited_user:
         return JsonResponse({"ok": False, "error": "User not found. Ask them to register first."}, status=404)
 
-    invited_membership, created = TeamMembership.objects.get_or_create(team=team, user=invited_user)
-    if created:
-        invited_membership.role = TeamMembership.ROLE_MEMBER
-        invited_membership.save(update_fields=["role"])
-        _notify_team(
-            team,
-            request.user,
-            f"{_actor_name(request.user)} added {invited_user.get_full_name() or invited_user.username} to team {team.name}.",
-            event_type="team_member_added",
-            target_tab="team",
-            target_type="member",
-            target_id=invited_user.id,
-            extra={"teamId": team.id, "memberEmail": invited_user.email or invited_user.username},
-        )
+    # Already a member?
+    if TeamMembership.objects.filter(team=team, user=invited_user).exists():
+        return JsonResponse({"ok": True, "created": False, "message": "User is already in the team."})
+
+    # Already has a pending invite?
+    if TeamInvitation.objects.filter(team=team, invited_user=invited_user, status=TeamInvitation.STATUS_PENDING).exists():
+        return JsonResponse({"ok": True, "created": False, "message": "Invitation already pending."})
+
+    # Create pending invitation
+    invitation = TeamInvitation.objects.create(
+        team=team,
+        invited_by=request.user,
+        invited_user=invited_user,
+    )
+
+    # Send personal notification to invited user (not the whole team)
+    Notification.objects.create(
+        team=team,
+        recipient=invited_user,
+        actor=request.user,
+        message=f"{_actor_name(request.user)} invited you to join team '{team.name}'.",
+        event_type="team_invitation",
+        target_tab="team",
+        target_type="invitation",
+        target_id=invitation.id,
+        extra={"teamId": team.id, "invitationId": invitation.id},
+    )
+
+    # Real-time push to the invited user's personal WebSocket room
+    from core.ws_utils import broadcast_to_user
+    broadcast_to_user(invited_user.id, {"message": "New invitation", "event_type": "team_invitation"})
+
+    # Send invitation email via Gmail
+    from .email_utils import _site_url
+    site = _site_url()
+    accept_url = f"{site}/invite/{invitation.token}/accept/"
+    decline_url = f"{site}/invite/{invitation.token}/decline/"
+    send_team_invitation_email(
+        invitee_name=invited_user.get_full_name() or invited_user.username,
+        invitee_email=invited_user.email,
+        team_name=team.name,
+        invited_by_name=_actor_name(request.user),
+        accept_url=accept_url,
+        decline_url=decline_url,
+    )
 
     return JsonResponse({
         "ok": True,
-        "created": created,
-        "member": {
-            "email": (invited_user.email or invited_user.username),
-            "name": (invited_user.get_full_name() or invited_user.username),
-            "role": invited_membership.role,
-        }
+        "created": True,
+        "message": "Invitation sent! Waiting for user to accept.",
     })
+
+
+@login_required
+def api_my_invitations(request):
+    """List pending invitations for the current user."""
+    invitations = TeamInvitation.objects.filter(
+        invited_user=request.user,
+        status=TeamInvitation.STATUS_PENDING,
+    ).select_related("team", "invited_by")
+
+    result = []
+    for inv in invitations:
+        result.append({
+            "id": inv.id,
+            "teamName": inv.team.name,
+            "teamId": inv.team.id,
+            "invitedBy": inv.invited_by.get_full_name() or inv.invited_by.username,
+            "createdAt": inv.created_at.isoformat(),
+        })
+
+    return JsonResponse({"ok": True, "invitations": result})
+
+
+@login_required
+def api_team_pending_invitations(request, team_id):
+    """Admin view — list all invitations (pending/accepted/declined) for a team."""
+    membership = TeamMembership.objects.filter(team_id=team_id, user=request.user).first()
+    if not membership or membership.role != TeamMembership.ROLE_HEAD:
+        return JsonResponse({"ok": False, "error": "Only admin can view invitations"}, status=403)
+
+    invitations = TeamInvitation.objects.filter(team_id=team_id).select_related("invited_user", "invited_by").order_by("-created_at")[:50]
+    result = []
+    for inv in invitations:
+        result.append({
+            "id": inv.id,
+            "invitedUser": inv.invited_user.get_full_name() or inv.invited_user.username,
+            "invitedEmail": inv.invited_user.email or inv.invited_user.username,
+            "invitedBy": inv.invited_by.get_full_name() or inv.invited_by.username,
+            "status": inv.status,
+            "createdAt": inv.created_at.isoformat(),
+            "respondedAt": inv.responded_at.isoformat() if inv.responded_at else None,
+        })
+    return JsonResponse({"ok": True, "invitations": result})
+
+
+@require_POST
+@login_required
+def api_invitation_resend(request):
+    """Admin re-sends the invitation email for a pending invitation."""
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    invitation_id = data.get("invitation_id")
+    if not invitation_id:
+        return JsonResponse({"ok": False, "error": "invitation_id required"}, status=400)
+
+    invitation = TeamInvitation.objects.filter(id=invitation_id, status=TeamInvitation.STATUS_PENDING).select_related("team", "invited_user", "invited_by").first()
+    if not invitation:
+        return JsonResponse({"ok": False, "error": "Pending invitation not found"}, status=404)
+
+    # Only admin of the team can re-send
+    membership = TeamMembership.objects.filter(team=invitation.team, user=request.user, role=TeamMembership.ROLE_HEAD).first()
+    if not membership:
+        return JsonResponse({"ok": False, "error": "Only admin can resend invitations"}, status=403)
+
+    from .email_utils import _site_url
+    site = _site_url()
+    accept_url = f"{site}/invite/{invitation.token}/accept/"
+    decline_url = f"{site}/invite/{invitation.token}/decline/"
+    send_team_invitation_email(
+        invitee_name=invitation.invited_user.get_full_name() or invitation.invited_user.username,
+        invitee_email=invitation.invited_user.email,
+        team_name=invitation.team.name,
+        invited_by_name=_actor_name(request.user),
+        accept_url=accept_url,
+        decline_url=decline_url,
+    )
+
+    # Also re-push via WebSocket
+    from core.ws_utils import broadcast_to_user
+    broadcast_to_user(invitation.invited_user.id, {"message": "Invitation re-sent", "event_type": "team_invitation"})
+
+    return JsonResponse({"ok": True, "message": "Invitation email re-sent."})
+
+
+@require_POST
+@login_required
+def api_invitation_respond(request):
+    """Accept or decline a team invitation."""
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    invitation_id = data.get("invitation_id")
+    action = data.get("action")  # "accept" or "decline"
+
+    if not invitation_id or action not in ("accept", "decline"):
+        return JsonResponse({"ok": False, "error": "invitation_id and action (accept/decline) required"}, status=400)
+
+    invitation = TeamInvitation.objects.filter(
+        id=invitation_id,
+        invited_user=request.user,
+        status=TeamInvitation.STATUS_PENDING,
+    ).select_related("team").first()
+
+    if not invitation:
+        return JsonResponse({"ok": False, "error": "Invitation not found or already responded"}, status=404)
+
+    invitation.responded_at = timezone.now()
+
+    if action == "accept":
+        invitation.status = TeamInvitation.STATUS_ACCEPTED
+        invitation.save(update_fields=["status", "responded_at"])
+
+        # Create team membership
+        membership, created = TeamMembership.objects.get_or_create(
+            team=invitation.team, user=request.user
+        )
+        if created:
+            membership.role = TeamMembership.ROLE_MEMBER
+            membership.save(update_fields=["role"])
+
+        _notify_team(
+            invitation.team,
+            request.user,
+            f"{_actor_name(request.user)} accepted the invitation and joined team '{invitation.team.name}'.",
+            event_type="team_member_added",
+            target_tab="team",
+            target_type="member",
+            target_id=request.user.id,
+        )
+
+        return JsonResponse({"ok": True, "status": "accepted", "teamName": invitation.team.name})
+
+    else:
+        invitation.status = TeamInvitation.STATUS_DECLINED
+        invitation.save(update_fields=["status", "responded_at"])
+
+        # Notify the team admin who sent the invite
+        Notification.objects.create(
+            team=invitation.team,
+            recipient=invitation.invited_by,
+            actor=request.user,
+            message=f"{_actor_name(request.user)} declined the invitation to join team '{invitation.team.name}'.",
+            event_type="team_invitation_declined",
+            target_tab="team",
+            target_type="invitation",
+            target_id=invitation.id,
+        )
+        from core.ws_utils import broadcast_notification
+        broadcast_notification(invitation.team.id, {"event_type": "team_invitation_declined"})
+
+        return JsonResponse({"ok": True, "status": "declined"})
+
+
+@login_required
+def invitation_accept_token(request, token):
+    """Handle email Accept link — GET shows confirmation page, POST accepts."""
+    invitation = TeamInvitation.objects.filter(
+        token=token, invited_user=request.user,
+    ).select_related("team", "invited_by").first()
+
+    ctx = {"token": token}
+
+    if not invitation:
+        ctx.update(error_title="Not Found", error="This invitation link is invalid or was not sent to your account.")
+        return render(request, "core/invitation_respond.html", ctx)
+
+    if invitation.status != TeamInvitation.STATUS_PENDING:
+        ctx.update(error_title="Already Responded", error=f"This invitation was already {invitation.status}.")
+        return render(request, "core/invitation_respond.html", ctx)
+
+    if request.method == "GET":
+        ctx.update(team_name=invitation.team.name, invited_by=_actor_name(invitation.invited_by))
+        return render(request, "core/invitation_respond.html", ctx)
+
+    # POST — accept
+    invitation.status = TeamInvitation.STATUS_ACCEPTED
+    invitation.responded_at = timezone.now()
+    invitation.save(update_fields=["status", "responded_at"])
+
+    membership, created = TeamMembership.objects.get_or_create(team=invitation.team, user=request.user)
+    if created:
+        membership.role = TeamMembership.ROLE_MEMBER
+        membership.save(update_fields=["role"])
+
+    # Set current team for the user
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    profile.current_team_id = invitation.team.id
+    profile.save(update_fields=["current_team_id"])
+
+    _notify_team(
+        invitation.team, request.user,
+        f"{_actor_name(request.user)} accepted the invitation and joined team '{invitation.team.name}'.",
+        event_type="team_member_added", target_tab="team", target_type="member", target_id=request.user.id,
+    )
+
+    ctx.update(status="accepted", team_name=invitation.team.name)
+    return render(request, "core/invitation_respond.html", ctx)
+
+
+@login_required
+def invitation_decline_token(request, token):
+    """Handle email Decline link — GET shows confirmation page, POST declines."""
+    invitation = TeamInvitation.objects.filter(
+        token=token, invited_user=request.user,
+    ).select_related("team", "invited_by").first()
+
+    ctx = {"token": token}
+
+    if not invitation:
+        ctx.update(error_title="Not Found", error="This invitation link is invalid or was not sent to your account.")
+        return render(request, "core/invitation_respond.html", ctx)
+
+    if invitation.status != TeamInvitation.STATUS_PENDING:
+        ctx.update(error_title="Already Responded", error=f"This invitation was already {invitation.status}.")
+        return render(request, "core/invitation_respond.html", ctx)
+
+    if request.method == "GET":
+        ctx.update(team_name=invitation.team.name, invited_by=_actor_name(invitation.invited_by))
+        return render(request, "core/invitation_respond.html", ctx)
+
+    # POST — decline
+    invitation.status = TeamInvitation.STATUS_DECLINED
+    invitation.responded_at = timezone.now()
+    invitation.save(update_fields=["status", "responded_at"])
+
+    Notification.objects.create(
+        team=invitation.team, recipient=invitation.invited_by, actor=request.user,
+        message=f"{_actor_name(request.user)} declined the invitation to join team '{invitation.team.name}'.",
+        event_type="team_invitation_declined", target_tab="team", target_type="invitation", target_id=invitation.id,
+    )
+    from core.ws_utils import broadcast_notification, broadcast_to_user
+    broadcast_notification(invitation.team.id, {"event_type": "team_invitation_declined"})
+    broadcast_to_user(invitation.invited_by.id, {"event_type": "team_invitation_declined"})
+
+    ctx.update(status="declined", team_name=invitation.team.name)
+    return render(request, "core/invitation_respond.html", ctx)
 
 
 @require_POST
@@ -537,64 +695,7 @@ def api_team_leave(request):
 
 @csrf_exempt
 @require_POST
-def api_login_google(request):
-    try:
-        data = json.loads(request.body.decode("utf-8"))
-    except Exception:
-        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
-
-    token = (data.get("credential") or data.get("id_token") or "").strip()
-    access_token = (data.get("access_token") or "").strip()
-
-    if not token and not access_token:
-        return JsonResponse({"ok": False, "error": "Missing credential"}, status=400)
-
-    if access_token:
-        payload, err = _verify_google_access_token(access_token)
-    else:
-        payload, err = _verify_google_id_token(token)
-
-    if not payload:
-        return JsonResponse({"ok": False, "error": err or "Google token verification failed"}, status=401)
-
-    email = (payload.get("email") or "").strip().lower()
-    if not email:
-        return JsonResponse({"ok": False, "error": "Google account has no email"}, status=400)
-
-    name = (payload.get("name") or "").strip() or email.split("@")[0]
-    if not payload.get("email_verified", False):
-        return JsonResponse({"ok": False, "error": "Google email not verified"}, status=401)
-
-    user, created = User.objects.get_or_create(
-        username=email,
-        defaults={"email": email, "first_name": name},
-    )
-    if not created:
-        changed = False
-        if not user.email:
-            user.email = email
-            changed = True
-        if not user.first_name and name:
-            user.first_name = name
-            changed = True
-        if changed:
-            user.save(update_fields=["email", "first_name"])
-    else:
-        send_welcome_email(user_name=name, user_email=email)
-
-    login(request, user)
-    return JsonResponse({
-        "ok": True,
-        "redirect": "/user/",
-        "user": {
-            "name": user.get_full_name() or user.first_name or user.username,
-            "email": user.email or user.username,
-        },
-    })
-
-
-@csrf_exempt
-@require_POST
+@rate_limit(max_requests=5, window_seconds=60)
 def api_register(request):
     try:
         data = json.loads(request.body.decode("utf-8"))
@@ -854,6 +955,7 @@ def _send_email_verification_code(email: str, name: str, code: str):
 
 @csrf_exempt
 @require_POST
+@rate_limit(max_requests=3, window_seconds=60)
 def api_password_request_otp(request):
     try:
         data = json.loads(request.body.decode("utf-8"))
@@ -898,6 +1000,7 @@ def api_password_request_otp(request):
 
 @csrf_exempt
 @require_POST
+@rate_limit(max_requests=5, window_seconds=60)
 def api_password_reset(request):
     try:
         data = json.loads(request.body.decode("utf-8"))
@@ -1153,10 +1256,13 @@ def _notify_team(
             created_at=now,
         )
         for m in memberships
-        if not actor or m.user_id != actor.id
     ]
     if notifs:
         Notification.objects.bulk_create(notifs)
+
+    # Real-time WebSocket push
+    from core.ws_utils import broadcast_notification
+    broadcast_notification(team.id, {"message": message, "event_type": event_type})
 
 
 def _log_activity(team, actor, action, target_type="", target_id=None, target_name="", detail=""):
@@ -1169,6 +1275,10 @@ def _log_activity(team, actor, action, target_type="", target_id=None, target_na
         target_name=target_name,
         detail=detail,
     )
+
+    # Real-time WebSocket push — tell clients to refresh data
+    from core.ws_utils import broadcast_data_changed
+    broadcast_data_changed(team.id, {"action": action, "target_type": target_type})
 
 
 def _serialize_notification(n):
@@ -1936,11 +2046,21 @@ def api_workspace_approval_resolve(request):
 
 @login_required
 def api_notifications_list(request):
-    team, membership = _get_user_team(request.user)
-    if not team:
-        return JsonResponse({"ok": True, "notifications": [], "unreadCount": 0})
+    from django.db.models import Q
 
-    qs = Notification.objects.filter(team=team, recipient=request.user).select_related("actor")
+    team, membership = _get_user_team(request.user)
+
+    # Team notifications + invitation notifications (which may come from teams the user isn't in yet)
+    if team:
+        qs = Notification.objects.filter(
+            Q(team=team, recipient=request.user) |
+            Q(recipient=request.user, event_type="team_invitation")
+        ).select_related("actor").distinct()
+    else:
+        qs = Notification.objects.filter(
+            recipient=request.user
+        ).select_related("actor")
+
     unread_count = qs.filter(is_read=False).count()
     notifications = [_serialize_notification(n) for n in qs[:50]]
     return JsonResponse({"ok": True, "notifications": notifications, "unreadCount": unread_count})
@@ -1949,24 +2069,20 @@ def api_notifications_list(request):
 @require_POST
 @login_required
 def api_notifications_read(request):
-    team, membership = _get_user_team(request.user)
-    if not team:
-        return JsonResponse({"ok": False, "error": "No team"}, status=400)
-
     try:
         data = json.loads(request.body.decode("utf-8"))
     except Exception:
         return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
 
     if data.get("all"):
-        Notification.objects.filter(team=team, recipient=request.user, is_read=False).update(is_read=True)
+        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
         return JsonResponse({"ok": True})
 
     notif_id = data.get("id")
     if not notif_id:
         return JsonResponse({"ok": False, "error": "id required"}, status=400)
 
-    Notification.objects.filter(id=notif_id, team=team, recipient=request.user).update(is_read=True)
+    Notification.objects.filter(id=notif_id, recipient=request.user).update(is_read=True)
     return JsonResponse({"ok": True})
 
 
@@ -2399,3 +2515,234 @@ def api_task_subtask_delete(request, task_id, subtask_id):
     if sub:
         sub.delete()
     return JsonResponse({"ok": True})
+
+
+# =========================
+# ENHANCED ANALYTICS API
+# =========================
+
+@login_required
+def api_analytics_enhanced(request):
+    """Rich analytics data for Chart.js dashboards."""
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": True, "data": {}})
+
+    board = _get_team_board(team)
+    columns = list(board.columns.all().order_by("position"))
+    tasks_qs = Task.objects.filter(board=board).prefetch_related("assignees")
+    all_tasks = list(tasks_qs)
+    today = date.today()
+
+    # Column distribution
+    col_data = []
+    for col in columns:
+        count = sum(1 for t in all_tasks if t.column_id == col.id)
+        col_data.append({"name": col.name, "count": count})
+
+    # Priority breakdown
+    priority_counts = {"high": 0, "medium": 0, "low": 0}
+    for t in all_tasks:
+        priority_counts[t.priority] = priority_counts.get(t.priority, 0) + 1
+
+    # Overdue tasks
+    overdue = sum(1 for t in all_tasks if t.due_date and t.due_date < today)
+
+    # Tasks created per day (last 14 days)
+    creation_trend = {}
+    for i in range(13, -1, -1):
+        d = today - timedelta(days=i)
+        creation_trend[d.isoformat()] = 0
+    for t in all_tasks:
+        d = t.created_at.date().isoformat()
+        if d in creation_trend:
+            creation_trend[d] += 1
+
+    # Completion trend: tasks in last column per day (last 14 days)
+    done_col = columns[-1] if columns else None
+    completion_trend = {}
+    for i in range(13, -1, -1):
+        d = today - timedelta(days=i)
+        completion_trend[d.isoformat()] = 0
+    if done_col:
+        for t in all_tasks:
+            if t.column_id == done_col.id:
+                d = t.updated_at.date().isoformat()
+                if d in completion_trend:
+                    completion_trend[d] += 1
+
+    # Member workload
+    member_workload = {}
+    for t in all_tasks:
+        for a in t.assignees.all():
+            name = a.get_full_name() or a.first_name or a.username
+            member_workload[name] = member_workload.get(name, 0) + 1
+
+    # Project stats
+    projects = Project.objects.filter(team=team)
+    project_stats = {
+        "total": projects.count(),
+        "active": projects.filter(status="active").count(),
+        "completed": projects.filter(status="completed").count(),
+        "archived": projects.filter(status="archived").count(),
+    }
+
+    return JsonResponse({"ok": True, "data": {
+        "totalTasks": len(all_tasks),
+        "overdue": overdue,
+        "columns": col_data,
+        "priority": priority_counts,
+        "creationTrend": creation_trend,
+        "completionTrend": completion_trend,
+        "memberWorkload": member_workload,
+        "projectStats": project_stats,
+    }})
+
+
+# =========================
+# CALENDAR API
+# =========================
+
+@login_required
+def api_calendar_tasks(request):
+    """Return all tasks with due dates for calendar view."""
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": True, "events": []})
+
+    board = _get_team_board(team)
+    columns = list(board.columns.all().order_by("position"))
+    col_map = {c.id: c.name for c in columns}
+    done_col_id = columns[-1].id if columns else None
+
+    events = []
+    for t in Task.objects.filter(board=board, due_date__isnull=False).prefetch_related("assignees"):
+        assignees = [a.get_full_name() or a.first_name or a.username for a in t.assignees.all()]
+        is_done = t.column_id == done_col_id
+        is_overdue = t.due_date < date.today() and not is_done
+        events.append({
+            "id": t.id,
+            "title": t.title,
+            "date": t.due_date.isoformat(),
+            "priority": t.priority,
+            "column": col_map.get(t.column_id, ""),
+            "assignees": assignees,
+            "done": is_done,
+            "overdue": is_overdue,
+        })
+
+    return JsonResponse({"ok": True, "events": events})
+
+
+# =========================
+# EXPORT APIs
+# =========================
+
+@login_required
+def api_export_csv(request):
+    """Export team tasks as CSV."""
+    import csv
+    from django.http import HttpResponse as DjangoHttpResponse
+
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    columns = list(board.columns.all().order_by("position"))
+    col_map = {c.id: c.name for c in columns}
+
+    response = DjangoHttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="taskhive_export_{team.name}.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(["Task", "Description", "Column", "Priority", "Due Date", "Assignees", "Created"])
+
+    for t in Task.objects.filter(board=board).prefetch_related("assignees").order_by("column__position", "position"):
+        assignees = ", ".join(a.get_full_name() or a.username for a in t.assignees.all())
+        writer.writerow([
+            t.title,
+            t.description,
+            col_map.get(t.column_id, ""),
+            t.priority,
+            t.due_date.isoformat() if t.due_date else "",
+            assignees,
+            t.created_at.strftime("%Y-%m-%d"),
+        ])
+
+    return response
+
+
+@login_required
+def api_export_pdf(request):
+    """Export team tasks as a styled HTML-based PDF report (browser can print-to-PDF)."""
+    team, membership = _get_user_team(request.user)
+    if not team:
+        return JsonResponse({"ok": False, "error": "No team"}, status=400)
+
+    board = _get_team_board(team)
+    columns = list(board.columns.all().order_by("position"))
+    col_map = {c.id: c.name for c in columns}
+    today = date.today()
+
+    tasks = list(Task.objects.filter(board=board).prefetch_related("assignees").order_by("column__position", "position"))
+
+    # Build summary stats
+    total = len(tasks)
+    by_col = {}
+    for c in columns:
+        by_col[c.name] = sum(1 for t in tasks if t.column_id == c.id)
+    overdue = sum(1 for t in tasks if t.due_date and t.due_date < today)
+    high_p = sum(1 for t in tasks if t.priority == "high")
+
+    # Build task rows HTML
+    rows_html = ""
+    for t in tasks:
+        assignees = ", ".join(a.get_full_name() or a.username for a in t.assignees.all())
+        p_color = {"high": "#f87171", "medium": "#fbbf24", "low": "#4ade80"}.get(t.priority, "#9ca3af")
+        rows_html += f"""<tr>
+            <td>{t.title}</td>
+            <td>{col_map.get(t.column_id, '')}</td>
+            <td style="color:{p_color};font-weight:600">{t.priority}</td>
+            <td>{t.due_date.isoformat() if t.due_date else '-'}</td>
+            <td>{assignees or '-'}</td>
+        </tr>"""
+
+    col_summary = " | ".join(f"{name}: {count}" for name, count in by_col.items())
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>TaskHive Report - {team.name}</title>
+<style>
+  body {{ font-family: 'Segoe UI', sans-serif; margin: 40px; color: #1a1a2e; }}
+  h1 {{ color: #0f3460; border-bottom: 2px solid #0f3460; padding-bottom: 8px; }}
+  .stats {{ display: flex; gap: 20px; margin: 20px 0; }}
+  .stat-card {{ background: #f0f4ff; border-radius: 8px; padding: 16px 24px; text-align: center; }}
+  .stat-card .num {{ font-size: 28px; font-weight: 700; color: #0f3460; }}
+  .stat-card .label {{ font-size: 12px; color: #666; margin-top: 4px; }}
+  table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }}
+  th {{ background: #0f3460; color: #fff; padding: 10px 8px; text-align: left; }}
+  td {{ padding: 8px; border-bottom: 1px solid #e0e0e0; }}
+  tr:nth-child(even) {{ background: #f8f9ff; }}
+  .footer {{ margin-top: 30px; font-size: 11px; color: #999; text-align: center; }}
+  @media print {{ body {{ margin: 20px; }} }}
+</style></head>
+<body>
+  <h1>TaskHive Report: {team.name}</h1>
+  <p style="color:#666;font-size:13px;">Generated on {today.isoformat()} | {col_summary}</p>
+  <div class="stats">
+    <div class="stat-card"><div class="num">{total}</div><div class="label">Total Tasks</div></div>
+    <div class="stat-card"><div class="num" style="color:#4ade80">{by_col.get(columns[-1].name, 0) if columns else 0}</div><div class="label">Completed</div></div>
+    <div class="stat-card"><div class="num" style="color:#f87171">{overdue}</div><div class="label">Overdue</div></div>
+    <div class="stat-card"><div class="num" style="color:#fbbf24">{high_p}</div><div class="label">High Priority</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Task</th><th>Column</th><th>Priority</th><th>Due Date</th><th>Assignees</th></tr></thead>
+    <tbody>{rows_html}</tbody>
+  </table>
+  <div class="footer">TaskHive &mdash; Project Management Report</div>
+</body></html>"""
+
+    from django.http import HttpResponse as DjangoHttpResponse
+    response = DjangoHttpResponse(html, content_type="text/html")
+    response["Content-Disposition"] = f'attachment; filename="taskhive_report_{team.name}.html"'
+    return response

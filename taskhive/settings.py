@@ -15,13 +15,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-#p0qg$r=%k9vhqp4l)b+)576iv7fqj+^xk_cc4+skadw939j-w'
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "django-insecure-#p0qg$r=%k9vhqp4l)b+)576iv7fqj+^xk_cc4+skadw939j-w",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
 # Dev safe hosts
-ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
 # Dev CSRF trusted origins (IDE/browser preview proxy included)
 CSRF_TRUSTED_ORIGINS = [
@@ -111,6 +114,8 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Site URL (used in emails, links, etc.)
+SITE_URL = os.getenv("SITE_URL", "http://127.0.0.1:8000")
 
 # Login URLs
 LOGIN_REDIRECT_URL = "/user/"
@@ -136,11 +141,15 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 # =========================
-# Google OAuth
+# CACHING
 # =========================
-
-GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
-GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "taskhive-cache",
+        "TIMEOUT": 300,
+    }
+}
 
 # =========================
 # LOGGING

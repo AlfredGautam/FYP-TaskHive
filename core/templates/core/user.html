@@ -26,65 +26,62 @@
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: 'Roboto Mono', monospace; }
-    h1, h2, h3, h4 { font-family: 'Orbitron', sans-serif; }
-    .neon-text { text-shadow: 0 0 5px rgba(0, 255, 255, 0.5), 0 0 10px rgba(0, 255, 255, 0.3); }
-    .glow { box-shadow: 0 0 12px rgba(0, 255, 255, 0.25); }
-    .glow-strong { box-shadow: 0 0 18px rgba(0, 255, 255, 0.35), 0 0 40px rgba(0, 255, 255, 0.08); }
+    body { font-family: 'Inter', sans-serif; }
+    .neon-text { }
+    .glow { box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .glow-strong { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .panel {
-      background: linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(31, 41, 55, 0.92));
-      border: 1px solid rgba(0, 255, 255, 0.18);
-      border-radius: 16px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
     }
     .panel-active {
-      border-color: rgba(0, 255, 255, 0.4);
+      border-color: #6366f1;
     }
     .field-focus:focus {
-      box-shadow: 0 0 15px rgba(0, 255, 255, 0.35);
-      border-color: #00ffff;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+      border-color: #6366f1;
       outline: none;
     }
     .neon-button {
-      background: linear-gradient(to right, #00ffff, #ff00ff);
-      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
-      transition: all 0.3s ease;
+      background: #4f46e5;
+      transition: all 0.2s ease;
     }
     .neon-button:hover {
-      box-shadow: 0 0 20px rgba(0, 255, 255, 0.45), 0 0 30px rgba(255, 0, 255, 0.25);
-      transform: translateY(-1px);
+      background: #4338ca;
     }
     .slide-enter-active, .slide-leave-active { transition: all 0.3s ease; }
     .slide-enter, .slide-leave-to { opacity: 0; max-height: 0; overflow: hidden; }
     .slide-enter-to, .slide-leave { opacity: 1; max-height: 800px; }
-    .member-row { transition: background 0.2s ease; }
-    .member-row:hover { background: rgba(0, 255, 255, 0.04); }
+    .member-row { transition: background 0.15s ease; }
+    .member-row:hover { background: rgba(99, 102, 241, 0.05); }
     .badge { font-size: 10px; padding: 2px 8px; border-radius: 9999px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
-    .badge-head { background: rgba(0, 255, 255, 0.15); color: #22d3ee; border: 1px solid rgba(0, 255, 255, 0.3); }
-    .badge-member { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); }
+    .badge-head { background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); }
+    .badge-member { background: rgba(100, 116, 139, 0.2); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3); }
     .badge-you { background: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
   </style>
 </head>
 
-<body class="bg-gray-900 text-gray-100 min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800">
+<body class="bg-slate-950 text-slate-100 min-h-screen">
 <div id="app">
 
   <!-- ========== HEADER ========== -->
-  <header class="bg-gray-900/95 border-b border-gray-700/60 sticky top-0 z-50 backdrop-blur-sm">
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
     <div class="w-full px-6 lg:px-10 py-4 flex items-center justify-between">
       <a href="/user/" class="flex items-center gap-3 no-underline" @click.prevent="goHome">
-        <div class="text-cyan-400 text-2xl neon-text"><i class="fas fa-bug"></i></div>
+        <div class="text-indigo-400 text-2xl"><i class="fas fa-cubes"></i></div>
         <div>
-          <div class="text-lg font-bold text-cyan-300 neon-text leading-tight">TaskHive</div>
-          <div class="text-[10px] text-gray-500 tracking-wider uppercase">Dashboard</div>
+          <div class="text-lg font-bold text-slate-100 leading-tight">TaskHive</div>
+          <div class="text-[10px] text-slate-500 tracking-wider uppercase">Dashboard</div>
         </div>
       </a>
       <div class="flex items-center gap-5">
-        <nav class="hidden sm:flex items-center gap-5 text-sm text-gray-400">
-          <a class="hover:text-cyan-300 transition-colors" href="/profile/"><i class="fas fa-user mr-1.5"></i>Profile</a>
+        <nav class="hidden sm:flex items-center gap-5 text-sm text-slate-400">
+          <a class="hover:text-indigo-400 transition-colors" href="/profile/"><i class="fas fa-user mr-1.5"></i>Profile</a>
         </nav>
-        <button @click="doLogout" class="px-4 py-1.5 rounded-lg bg-red-600/90 hover:bg-red-500 text-white text-sm font-medium transition-all shadow-sm shadow-red-900/30"><i class="fas fa-sign-out-alt mr-1.5"></i>Logout</button>
+        <button @click="doLogout" class="px-4 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-all"><i class="fas fa-sign-out-alt mr-1.5"></i>Logout</button>
       </div>
     </div>
   </header>
@@ -94,32 +91,32 @@
 
     <!-- Welcome -->
     <div class="space-y-1">
-      <h1 class="text-2xl sm:text-3xl font-bold text-cyan-300 neon-text">Welcome, {{ displayName }}</h1>
-      <p class="text-sm text-gray-500">Manage your teams or create a new one.</p>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-100">Welcome, {{ displayName }}</h1>
+      <p class="text-sm text-slate-400">Manage your teams or create a new one.</p>
     </div>
 
     <!-- ===================== YOUR TEAMS DROPDOWN ===================== -->
     <section>
       <div class="flex items-center gap-4 flex-wrap">
-        <label class="text-sm font-semibold text-gray-300 whitespace-nowrap"><i class="fas fa-layer-group mr-2 text-cyan-400"></i>Your Teams</label>
+        <label class="text-sm font-semibold text-slate-300 whitespace-nowrap"><i class="fas fa-layer-group mr-2 text-indigo-400"></i>Your Teams</label>
 
         <!-- Loading spinner -->
         <div v-if="loading" class="flex items-center gap-2 text-sm text-gray-400">
-          <i class="fas fa-circle-notch animate-spin text-cyan-400"></i> Loading...
+          <i class="fas fa-circle-notch animate-spin text-indigo-400"></i> Loading...
         </div>
 
         <!-- Dropdown (has teams) -->
         <div v-else-if="teams.length" class="relative flex-1 max-w-xs">
-          <button @click="dropdownOpen = !dropdownOpen" class="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg bg-gray-800 border border-gray-600 hover:border-cyan-500/40 text-sm text-gray-100 transition-all">
+          <button @click="dropdownOpen = !dropdownOpen" class="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg bg-slate-800 border border-slate-600 hover:border-indigo-500/40 text-sm text-slate-100 transition-all">
             <span v-if="selectedTeam" class="truncate">{{ selectedTeam.name }}</span>
             <span v-else class="text-gray-500">Select a team...</span>
             <i class="fas fa-chevron-down text-gray-500 text-xs transition-transform" :class="{ 'rotate-180': dropdownOpen }"></i>
           </button>
-          <div v-if="dropdownOpen" class="absolute z-40 mt-1 w-full rounded-lg bg-gray-800 border border-gray-600 shadow-xl shadow-black/40 overflow-hidden">
+          <div v-if="dropdownOpen" class="absolute z-40 mt-1 w-full rounded-lg bg-slate-800 border border-slate-600 shadow-xl shadow-black/40 overflow-hidden">
             <div v-for="t in teams" :key="t.id"
                  @click="selectTeam(t)"
-                 class="px-4 py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-cyan-500/10 transition-colors"
-                 :class="selectedTeam && selectedTeam.id === t.id ? 'bg-cyan-500/10 border-l-2 border-cyan-400' : 'border-l-2 border-transparent'">
+                 class="px-4 py-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-indigo-500/10 transition-colors"
+                 :class="selectedTeam && selectedTeam.id === t.id ? 'bg-indigo-500/10 border-l-2 border-indigo-400' : 'border-l-2 border-transparent'">
               <div class="min-w-0">
                 <div class="text-sm text-gray-100 truncate">{{ t.name }}</div>
                 <div class="flex items-center gap-2 mt-0.5">
@@ -127,7 +124,7 @@
                   <span class="badge" :class="t.role === 'head' ? 'badge-head' : 'badge-member'">{{ t.role === 'head' ? 'Admin' : 'Member' }}</span>
                 </div>
               </div>
-              <i v-if="selectedTeam && selectedTeam.id === t.id" class="fas fa-check text-cyan-400 text-xs"></i>
+              <i v-if="selectedTeam && selectedTeam.id === t.id" class="fas fa-check text-indigo-400 text-xs"></i>
             </div>
           </div>
         </div>
@@ -141,30 +138,30 @@
     <template v-if="selectedTeam">
 
       <!-- Team Info Bar -->
-      <div class="panel panel-active glow-strong p-5">
+      <div class="panel glow-strong p-5">
         <div class="flex items-center justify-between gap-4 flex-wrap">
           <div class="flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-lg">
+            <div class="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-lg">
               <i class="fas fa-users"></i>
             </div>
             <div>
-              <h2 class="text-lg font-bold text-cyan-300">{{ selectedTeam.name }}</h2>
+              <h2 class="text-lg font-bold text-slate-100">{{ selectedTeam.name }}</h2>
               <div class="flex items-center gap-3 mt-0.5">
                 <span class="text-xs text-gray-500">Code: <strong class="text-gray-300">{{ selectedTeam.code }}</strong></span>
-                <button @click="copyCode(selectedTeam.code)" class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"><i class="fas fa-copy"></i> Copy</button>
+                <button @click="copyCode(selectedTeam.code)" class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"><i class="fas fa-copy"></i> Copy</button>
                 <span class="badge" :class="selectedTeam.role === 'head' ? 'badge-head' : 'badge-member'">{{ selectedTeam.role === 'head' ? 'Admin' : 'Member' }}</span>
                 <span v-if="copyMsg" class="text-xs text-green-400 animate-pulse">{{ copyMsg }}</span>
               </div>
             </div>
           </div>
           <div class="flex items-center gap-2 flex-wrap">
-            <a :href="'/workspace/' + selectedTeam.id + '/'" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg neon-button text-gray-900 font-semibold text-sm">
+            <a :href="'/workspace/' + selectedTeam.id + '/'" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg neon-button text-white font-semibold text-sm">
               <i class="fas fa-rocket"></i> Go to Workspace
             </a>
-            <a href="/profile/" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-600 text-sm text-gray-200 transition-all">
+            <a href="/profile/" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm text-slate-200 transition-all">
               <i class="fas fa-user-edit"></i> Edit Profile
             </a>
-            <button @click="leaveTeam" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-red-900/60 border border-gray-600 hover:border-red-500/50 text-gray-300 hover:text-red-300 text-sm transition-all">
+            <button @click="leaveTeam" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-red-900/40 border border-slate-600 hover:border-red-500/40 text-slate-300 hover:text-red-300 text-sm transition-all">
               <i class="fas fa-sign-out-alt"></i> Leave Team
             </button>
           </div>
@@ -173,46 +170,80 @@
 
       <!-- Invite (admin only) -->
       <div v-if="selectedTeam.role === 'head'" class="panel glow p-5 space-y-3">
-        <h3 class="text-sm font-semibold text-gray-300"><i class="fas fa-paper-plane mr-2 text-cyan-400"></i>Invite Member</h3>
+        <h3 class="text-sm font-semibold text-slate-300"><i class="fas fa-paper-plane mr-2 text-indigo-400"></i>Invite Member</h3>
         <div class="flex items-center gap-2 flex-wrap">
           <div class="flex-1 min-w-[220px]">
-            <input v-model="inviteEmail" @keyup.enter="inviteMember" placeholder="Enter email address..." class="w-full px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-gray-100 text-sm field-focus" />
+            <input v-model="inviteEmail" @keyup.enter="inviteMember" placeholder="Enter email address..." class="w-full px-3 py-2 rounded-lg bg-slate-900 border border-slate-600 text-slate-100 text-sm field-focus" />
           </div>
-          <button @click="inviteMember" :disabled="inviteLoading" class="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-gray-900 font-semibold text-sm transition-all">
+          <button @click="inviteMember" :disabled="inviteLoading" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-all">
             {{ inviteLoading ? 'Sending...' : 'Invite' }}
           </button>
         </div>
         <div v-if="inviteMsg" class="text-xs" :class="inviteError ? 'text-red-400' : 'text-green-400'">{{ inviteMsg }}</div>
       </div>
 
+      <!-- Sent Invitations (admin only) -->
+      <div v-if="selectedTeam.role === 'head' && teamInvitations.length" class="panel glow p-0 overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-slate-300"><i class="fas fa-envelope mr-2 text-indigo-400"></i>Sent Invitations</h3>
+          <span class="text-xs text-gray-500">{{ teamInvitations.length }} invitation{{ teamInvitations.length !== 1 ? 's' : '' }}</span>
+        </div>
+        <div class="divide-y divide-gray-700/40">
+          <div v-for="inv in teamInvitations" :key="inv.id" class="px-5 py-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+              <div class="w-8 h-8 rounded-full bg-purple-900/30 border border-gray-600 flex items-center justify-center text-xs font-bold text-purple-300 shrink-0">
+                {{ (inv.invitedUser || '?').charAt(0).toUpperCase() }}
+              </div>
+              <div class="min-w-0">
+                <div class="text-sm text-gray-100 truncate">{{ inv.invitedUser }}</div>
+                <div class="text-xs text-gray-500 truncate">{{ inv.invitedEmail }}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                    :class="{
+                      'bg-yellow-900/40 text-yellow-300 border border-yellow-700/50': inv.status === 'pending',
+                      'bg-green-900/40 text-green-300 border border-green-700/50': inv.status === 'accepted',
+                      'bg-red-900/40 text-red-300 border border-red-700/50': inv.status === 'declined',
+                    }">{{ inv.status.charAt(0).toUpperCase() + inv.status.slice(1) }}</span>
+              <button v-if="inv.status === 'pending'" @click="resendInvitation(inv.id)"
+                      class="text-xs text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded hover:bg-gray-700 transition-colors"
+                      title="Re-send invitation email">
+                <i class="fas fa-redo mr-1"></i>Re-send
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Members -->
       <section class="panel glow p-0 overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-700/50 flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-gray-300"><i class="fas fa-users mr-2 text-cyan-400"></i>Team Members</h3>
+        <div class="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-slate-300"><i class="fas fa-users mr-2 text-indigo-400"></i>Team Members</h3>
           <span class="text-xs text-gray-500">{{ members.length }} member{{ members.length !== 1 ? 's' : '' }}</span>
         </div>
 
         <div v-if="detailLoading" class="px-5 py-6 flex items-center gap-3">
-          <div class="text-cyan-400 animate-spin"><i class="fas fa-circle-notch"></i></div>
-          <span class="text-sm text-gray-400">Loading members...</span>
+          <div class="text-indigo-400 animate-spin"><i class="fas fa-circle-notch"></i></div>
+          <span class="text-sm text-slate-400">Loading members...</span>
         </div>
 
         <div v-else class="divide-y divide-gray-700/40">
           <div v-for="m in members" :key="m.email" class="member-row px-5 py-3 flex items-center justify-between gap-3">
             <a :href="'/profile/' + encodeURIComponent(m.username || '') + '/'" class="flex items-center gap-3 flex-1 min-w-0 no-underline group">
-              <div class="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-gray-600 flex items-center justify-center text-sm font-bold text-cyan-300 shrink-0">
+              <div class="w-9 h-9 rounded-full bg-indigo-500/10 border border-slate-600 flex items-center justify-center text-sm font-bold text-indigo-300 shrink-0">
                 {{ (m.name || m.email || '?').charAt(0).toUpperCase() }}
               </div>
               <div class="min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
-                  <span class="text-sm text-gray-100 group-hover:text-cyan-300 transition-colors truncate">{{ m.name || m.email || 'Unknown' }}</span>
+                  <span class="text-sm text-slate-100 group-hover:text-indigo-300 transition-colors truncate">{{ m.name || m.email || 'Unknown' }}</span>
                   <span v-if="isMe(m.email)" class="badge badge-you">You</span>
                   <span class="badge" :class="(m.role || '').toLowerCase() === 'head' ? 'badge-head' : 'badge-member'">{{ (m.role || '').toLowerCase() === 'head' ? 'Admin' : 'Member' }}</span>
                 </div>
                 <div class="text-xs text-gray-500 truncate">{{ m.email }}</div>
               </div>
             </a>
-            <button v-if="canRemove(m)" @click.stop="removeMember(m.email)" class="px-3 py-1 text-xs rounded-lg bg-gray-700 hover:bg-red-900/60 border border-gray-600 hover:border-red-500/50 text-gray-400 hover:text-red-300 transition-all shrink-0">
+            <button v-if="canRemove(m)" @click.stop="removeMember(m.email)" class="px-3 py-1 text-xs rounded-lg bg-slate-700 hover:bg-red-900/40 border border-slate-600 hover:border-red-500/40 text-slate-400 hover:text-red-300 transition-all shrink-0">
               <i class="fas fa-user-minus mr-1"></i> Remove
             </button>
           </div>
@@ -230,16 +261,16 @@
     <section class="grid grid-cols-1 md:grid-cols-2 gap-5">
       <div class="panel glow p-6 space-y-4">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-green-500/20 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+          <div class="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
             <i class="fas fa-plus-circle text-lg"></i>
           </div>
           <div>
-            <h3 class="text-base font-semibold text-cyan-300">Create New Team</h3>
+            <h3 class="text-base font-semibold text-slate-100">Create New Team</h3>
             <p class="text-xs text-gray-500">You will become the team admin.</p>
           </div>
         </div>
-        <input v-model="createName" @keyup.enter="createTeam" class="w-full px-3 py-2.5 rounded-lg bg-gray-900 border border-gray-700 text-gray-100 text-sm field-focus" placeholder="Enter team name (e.g. Frontend Squad)" />
-        <button @click="createTeam" :disabled="createLoading" class="w-full px-3 py-2.5 rounded-lg neon-button text-gray-900 font-semibold text-sm">
+        <input v-model="createName" @keyup.enter="createTeam" class="w-full px-3 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-slate-100 text-sm field-focus" placeholder="Enter team name (e.g. Frontend Squad)" />
+        <button @click="createTeam" :disabled="createLoading" class="w-full px-3 py-2.5 rounded-lg neon-button text-white font-semibold text-sm">
           {{ createLoading ? 'Creating...' : 'Create Team' }}
         </button>
         <div v-if="createMsg" class="text-sm" :class="createError ? 'text-red-400' : 'text-green-400'">{{ createMsg }}</div>
@@ -247,16 +278,16 @@
 
       <div class="panel glow p-6 space-y-4">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20 flex items-center justify-center text-purple-400">
+          <div class="w-10 h-10 rounded-lg bg-slate-700/50 border border-slate-600 flex items-center justify-center text-slate-300">
             <i class="fas fa-link text-lg"></i>
           </div>
           <div>
-            <h3 class="text-base font-semibold text-cyan-300">Join Existing Team</h3>
+            <h3 class="text-base font-semibold text-slate-100">Join Existing Team</h3>
             <p class="text-xs text-gray-500">Ask your admin for the team code.</p>
           </div>
         </div>
-        <input v-model="joinCode" @keyup.enter="joinTeam" class="w-full px-3 py-2.5 rounded-lg bg-gray-900 border border-gray-700 text-gray-100 text-sm field-focus" placeholder="Enter team code (e.g. TEAM-ABCDEF)" />
-        <button @click="joinTeam" :disabled="joinLoading" class="w-full px-3 py-2.5 rounded-lg neon-button text-gray-900 font-semibold text-sm">
+        <input v-model="joinCode" @keyup.enter="joinTeam" class="w-full px-3 py-2.5 rounded-lg bg-slate-900 border border-slate-600 text-slate-100 text-sm field-focus" placeholder="Enter team code (e.g. TEAM-ABCDEF)" />
+        <button @click="joinTeam" :disabled="joinLoading" class="w-full px-3 py-2.5 rounded-lg neon-button text-white font-semibold text-sm">
           {{ joinLoading ? 'Joining...' : 'Join Team' }}
         </button>
         <div v-if="joinMsg" class="text-sm" :class="joinError ? 'text-red-400' : 'text-green-400'">{{ joinMsg }}</div>
@@ -294,6 +325,8 @@ new Vue({
       inviteLoading: false,
       inviteMsg: '',
       inviteError: false,
+
+      teamInvitations: [],
     };
   },
   mounted() {
@@ -364,6 +397,7 @@ new Vue({
       this.dropdownOpen = false;
       this.selectedTeam = t;
       this.members = [];
+      this.teamInvitations = [];
       this.inviteEmail = '';
       this.inviteMsg = '';
       this.inviteError = false;
@@ -375,6 +409,7 @@ new Vue({
         this.members = [];
       }
       this.detailLoading = false;
+      if (t.role === 'head') this.loadTeamInvitations(t.id);
     },
 
     // ---- Load all teams ----
@@ -498,7 +533,7 @@ new Vue({
           this.inviteMsg = data.error || `Invite failed (HTTP ${res.status}).`;
           return;
         }
-        this.inviteMsg = data.created ? 'Member invited successfully!' : 'User is already in the team.';
+        this.inviteMsg = data.message || (data.created ? 'Invitation sent! Waiting for user to accept.' : 'User is already in the team.');
         this.inviteEmail = '';
         await this.selectTeam(this.selectedTeam);
       } catch (e) {
@@ -530,6 +565,37 @@ new Vue({
       } catch (e) {
         this.inviteError = true;
         this.inviteMsg = 'Network error. Try again.';
+      }
+    },
+
+    // ---- Load sent invitations (admin) ----
+    async loadTeamInvitations(teamId) {
+      try {
+        const { data } = await this.fetchJson(`/api/team/${teamId}/invitations/`);
+        if (data && data.ok) this.teamInvitations = data.invitations || [];
+      } catch (e) {
+        this.teamInvitations = [];
+      }
+    },
+
+    // ---- Re-send invitation email ----
+    async resendInvitation(invId) {
+      try {
+        const { res, data } = await this.fetchJson('/api/invitations/resend/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invitation_id: invId }),
+        });
+        if (res.ok && data.ok) {
+          this.inviteMsg = data.message || 'Invitation re-sent!';
+          this.inviteError = false;
+        } else {
+          this.inviteMsg = data.error || 'Re-send failed.';
+          this.inviteError = true;
+        }
+      } catch (e) {
+        this.inviteMsg = 'Network error.';
+        this.inviteError = true;
       }
     },
 
