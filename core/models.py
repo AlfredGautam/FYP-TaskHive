@@ -44,6 +44,48 @@ class TeamMembership(models.Model):
         return f"{self.team_id}:{self.user_id} ({self.role})"
 
 
+class TeamInvitation(models.Model):
+    STATUS_PENDING = "pending"
+    STATUS_ACCEPTED = "accepted"
+    STATUS_DECLINED = "declined"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_ACCEPTED, "Accepted"),
+        (STATUS_DECLINED, "Declined"),
+    ]
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="invitations")
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_invitations")
+    invited_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_invitations")
+    token = models.CharField(max_length=64, unique=True, editable=False, default="")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            import uuid
+            self.token = uuid.uuid4().hex
+        super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["team", "invited_user"],
+                condition=models.Q(status="pending"),
+                name="unique_pending_invite",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["invited_user", "status"]),
+            models.Index(fields=["team", "status"]),
+        ]
+
+    def __str__(self):
+        return f"invite:{self.team.name}->{self.invited_user_id} ({self.status})"
+
+
 class Workspace(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="workspaces")
     name = models.CharField(max_length=160)
@@ -441,26 +483,6 @@ class Subtask(models.Model):
 
     def __str__(self):
         return f"subtask:{self.task_id}:{self.title}"
-
-
-class TimeEntry(models.Model):
-    """Tracks time spent on a task by a user."""
-    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="time_entries")
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="time_entries")
-    started_at = models.DateTimeField()
-    stopped_at = models.DateTimeField(null=True, blank=True)
-    duration_seconds = models.PositiveIntegerField(default=0)
-    note = models.CharField(max_length=255, blank=True, default="")
-
-    class Meta:
-        ordering = ["-started_at"]
-        indexes = [
-            models.Index(fields=["task", "-started_at"]),
-            models.Index(fields=["user", "-started_at"]),
-        ]
-
-    def __str__(self):
-        return f"time:{self.task_id}:{self.user_id}:{self.duration_seconds}s"
 
 
 class TaskAttachment(models.Model):

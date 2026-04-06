@@ -185,6 +185,40 @@
         <div v-if="inviteMsg" class="text-xs" :class="inviteError ? 'text-red-400' : 'text-green-400'">{{ inviteMsg }}</div>
       </div>
 
+      <!-- Sent Invitations (admin only) -->
+      <div v-if="selectedTeam.role === 'head' && teamInvitations.length" class="panel glow p-0 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-700/50 flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-gray-300"><i class="fas fa-envelope mr-2 text-purple-400"></i>Sent Invitations</h3>
+          <span class="text-xs text-gray-500">{{ teamInvitations.length }} invitation{{ teamInvitations.length !== 1 ? 's' : '' }}</span>
+        </div>
+        <div class="divide-y divide-gray-700/40">
+          <div v-for="inv in teamInvitations" :key="inv.id" class="px-5 py-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+              <div class="w-8 h-8 rounded-full bg-purple-900/30 border border-gray-600 flex items-center justify-center text-xs font-bold text-purple-300 shrink-0">
+                {{ (inv.invitedUser || '?').charAt(0).toUpperCase() }}
+              </div>
+              <div class="min-w-0">
+                <div class="text-sm text-gray-100 truncate">{{ inv.invitedUser }}</div>
+                <div class="text-xs text-gray-500 truncate">{{ inv.invitedEmail }}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                    :class="{
+                      'bg-yellow-900/40 text-yellow-300 border border-yellow-700/50': inv.status === 'pending',
+                      'bg-green-900/40 text-green-300 border border-green-700/50': inv.status === 'accepted',
+                      'bg-red-900/40 text-red-300 border border-red-700/50': inv.status === 'declined',
+                    }">{{ inv.status.charAt(0).toUpperCase() + inv.status.slice(1) }}</span>
+              <button v-if="inv.status === 'pending'" @click="resendInvitation(inv.id)"
+                      class="text-xs text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded hover:bg-gray-700 transition-colors"
+                      title="Re-send invitation email">
+                <i class="fas fa-redo mr-1"></i>Re-send
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Members -->
       <section class="panel glow p-0 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-700/50 flex items-center justify-between">
@@ -294,6 +328,8 @@ new Vue({
       inviteLoading: false,
       inviteMsg: '',
       inviteError: false,
+
+      teamInvitations: [],
     };
   },
   mounted() {
@@ -364,6 +400,7 @@ new Vue({
       this.dropdownOpen = false;
       this.selectedTeam = t;
       this.members = [];
+      this.teamInvitations = [];
       this.inviteEmail = '';
       this.inviteMsg = '';
       this.inviteError = false;
@@ -375,6 +412,7 @@ new Vue({
         this.members = [];
       }
       this.detailLoading = false;
+      if (t.role === 'head') this.loadTeamInvitations(t.id);
     },
 
     // ---- Load all teams ----
@@ -498,7 +536,7 @@ new Vue({
           this.inviteMsg = data.error || `Invite failed (HTTP ${res.status}).`;
           return;
         }
-        this.inviteMsg = data.created ? 'Member invited successfully!' : 'User is already in the team.';
+        this.inviteMsg = data.message || (data.created ? 'Invitation sent! Waiting for user to accept.' : 'User is already in the team.');
         this.inviteEmail = '';
         await this.selectTeam(this.selectedTeam);
       } catch (e) {
@@ -530,6 +568,37 @@ new Vue({
       } catch (e) {
         this.inviteError = true;
         this.inviteMsg = 'Network error. Try again.';
+      }
+    },
+
+    // ---- Load sent invitations (admin) ----
+    async loadTeamInvitations(teamId) {
+      try {
+        const { data } = await this.fetchJson(`/api/team/${teamId}/invitations/`);
+        if (data && data.ok) this.teamInvitations = data.invitations || [];
+      } catch (e) {
+        this.teamInvitations = [];
+      }
+    },
+
+    // ---- Re-send invitation email ----
+    async resendInvitation(invId) {
+      try {
+        const { res, data } = await this.fetchJson('/api/invitations/resend/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invitation_id: invId }),
+        });
+        if (res.ok && data.ok) {
+          this.inviteMsg = data.message || 'Invitation re-sent!';
+          this.inviteError = false;
+        } else {
+          this.inviteMsg = data.error || 'Re-send failed.';
+          this.inviteError = true;
+        }
+      } catch (e) {
+        this.inviteMsg = 'Network error.';
+        this.inviteError = true;
       }
     },
 

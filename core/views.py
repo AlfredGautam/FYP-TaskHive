@@ -28,6 +28,7 @@ from .models import (
     UserProfile,
     Team,
     TeamMembership,
+    TeamInvitation,
     Workspace,
     Board,
     Column,
@@ -40,12 +41,12 @@ from .models import (
     Subtask,
     TaskAttachment,
     TaskComment,
-    TimeEntry,
 )
 from .email_utils import (
     send_welcome_email,
     send_task_assigned_email,
     send_deadline_reminder_email,
+    send_team_invitation_email,
 )
 from .rate_limit import rate_limit
 
@@ -268,30 +269,298 @@ def api_team_invite(request):
     if not invited_user:
         return JsonResponse({"ok": False, "error": "User not found. Ask them to register first."}, status=404)
 
-    invited_membership, created = TeamMembership.objects.get_or_create(team=team, user=invited_user)
-    if created:
-        invited_membership.role = TeamMembership.ROLE_MEMBER
-        invited_membership.save(update_fields=["role"])
-        _notify_team(
-            team,
-            request.user,
-            f"{_actor_name(request.user)} added {invited_user.get_full_name() or invited_user.username} to team {team.name}.",
-            event_type="team_member_added",
-            target_tab="team",
-            target_type="member",
-            target_id=invited_user.id,
-            extra={"teamId": team.id, "memberEmail": invited_user.email or invited_user.username},
-        )
+    # Already a member?
+    if TeamMembership.objects.filter(team=team, user=invited_user).exists():
+        return JsonResponse({"ok": True, "created": False, "message": "User is already in the team."})
+
+    # Already has a pending invite?
+    if TeamInvitation.objects.filter(team=team, invited_user=invited_user, status=TeamInvitation.STATUS_PENDING).exists():
+        return JsonResponse({"ok": True, "created": False, "message": "Invitation already pending."})
+
+    # Create pending invitation
+    invitation = TeamInvitation.objects.create(
+        team=team,
+        invited_by=request.user,
+        invited_user=invited_user,
+    )
+
+    # Send personal notification to invited user (not the whole team)
+    Notification.objects.create(
+        team=team,
+        recipient=invited_user,
+        actor=request.user,
+        message=f"{_actor_name(request.user)} invited you to join team '{team.name}'.",
+        event_type="team_invitation",
+        target_tab="team",
+        target_type="invitation",
+        target_id=invitation.id,
+        extra={"teamId": team.id, "invitationId": invitation.id},
+    )
+
+    # Real-time push to the invited user's personal WebSocket room
+    from core.ws_utils import broadcast_to_user
+    broadcast_to_user(invited_user.id, {"message": "New invitation", "event_type": "team_invitation"})
+
+    # Send invitation email via Gmail
+    from .email_utils import _site_url
+    site = _site_url()
+    accept_url = f"{site}/invite/{invitation.token}/accept/"
+    decline_url = f"{site}/invite/{invitation.token}/decline/"
+    send_team_invitation_email(
+        invitee_name=invited_user.get_full_name() or invited_user.username,
+        invitee_email=invited_user.email,
+        team_name=team.name,
+        invited_by_name=_actor_name(request.user),
+        accept_url=accept_url,
+        decline_url=decline_url,
+    )
 
     return JsonResponse({
         "ok": True,
-        "created": created,
-        "member": {
-            "email": (invited_user.email or invited_user.username),
-            "name": (invited_user.get_full_name() or invited_user.username),
-            "role": invited_membership.role,
-        }
+        "created": True,
+        "message": "Invitation sent! Waiting for user to accept.",
     })
+
+
+@login_required
+def api_my_invitations(request):
+    """List pending invitations for the current user."""
+    invitations = TeamInvitation.objects.filter(
+        invited_user=request.user,
+        status=TeamInvitation.STATUS_PENDING,
+    ).select_related("team", "invited_by")
+
+    result = []
+    for inv in invitations:
+        result.append({
+            "id": inv.id,
+            "teamName": inv.team.name,
+            "teamId": inv.team.id,
+            "invitedBy": inv.invited_by.get_full_name() or inv.invited_by.username,
+            "createdAt": inv.created_at.isoformat(),
+        })
+
+    return JsonResponse({"ok": True, "invitations": result})
+
+
+@login_required
+def api_team_pending_invitations(request, team_id):
+    """Admin view — list all invitations (pending/accepted/declined) for a team."""
+    membership = TeamMembership.objects.filter(team_id=team_id, user=request.user).first()
+    if not membership or membership.role != TeamMembership.ROLE_HEAD:
+        return JsonResponse({"ok": False, "error": "Only admin can view invitations"}, status=403)
+
+    invitations = TeamInvitation.objects.filter(team_id=team_id).select_related("invited_user", "invited_by").order_by("-created_at")[:50]
+    result = []
+    for inv in invitations:
+        result.append({
+            "id": inv.id,
+            "invitedUser": inv.invited_user.get_full_name() or inv.invited_user.username,
+            "invitedEmail": inv.invited_user.email or inv.invited_user.username,
+            "invitedBy": inv.invited_by.get_full_name() or inv.invited_by.username,
+            "status": inv.status,
+            "createdAt": inv.created_at.isoformat(),
+            "respondedAt": inv.responded_at.isoformat() if inv.responded_at else None,
+        })
+    return JsonResponse({"ok": True, "invitations": result})
+
+
+@require_POST
+@login_required
+def api_invitation_resend(request):
+    """Admin re-sends the invitation email for a pending invitation."""
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    invitation_id = data.get("invitation_id")
+    if not invitation_id:
+        return JsonResponse({"ok": False, "error": "invitation_id required"}, status=400)
+
+    invitation = TeamInvitation.objects.filter(id=invitation_id, status=TeamInvitation.STATUS_PENDING).select_related("team", "invited_user", "invited_by").first()
+    if not invitation:
+        return JsonResponse({"ok": False, "error": "Pending invitation not found"}, status=404)
+
+    # Only admin of the team can re-send
+    membership = TeamMembership.objects.filter(team=invitation.team, user=request.user, role=TeamMembership.ROLE_HEAD).first()
+    if not membership:
+        return JsonResponse({"ok": False, "error": "Only admin can resend invitations"}, status=403)
+
+    from .email_utils import _site_url
+    site = _site_url()
+    accept_url = f"{site}/invite/{invitation.token}/accept/"
+    decline_url = f"{site}/invite/{invitation.token}/decline/"
+    send_team_invitation_email(
+        invitee_name=invitation.invited_user.get_full_name() or invitation.invited_user.username,
+        invitee_email=invitation.invited_user.email,
+        team_name=invitation.team.name,
+        invited_by_name=_actor_name(request.user),
+        accept_url=accept_url,
+        decline_url=decline_url,
+    )
+
+    # Also re-push via WebSocket
+    from core.ws_utils import broadcast_to_user
+    broadcast_to_user(invitation.invited_user.id, {"message": "Invitation re-sent", "event_type": "team_invitation"})
+
+    return JsonResponse({"ok": True, "message": "Invitation email re-sent."})
+
+
+@require_POST
+@login_required
+def api_invitation_respond(request):
+    """Accept or decline a team invitation."""
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    invitation_id = data.get("invitation_id")
+    action = data.get("action")  # "accept" or "decline"
+
+    if not invitation_id or action not in ("accept", "decline"):
+        return JsonResponse({"ok": False, "error": "invitation_id and action (accept/decline) required"}, status=400)
+
+    invitation = TeamInvitation.objects.filter(
+        id=invitation_id,
+        invited_user=request.user,
+        status=TeamInvitation.STATUS_PENDING,
+    ).select_related("team").first()
+
+    if not invitation:
+        return JsonResponse({"ok": False, "error": "Invitation not found or already responded"}, status=404)
+
+    invitation.responded_at = timezone.now()
+
+    if action == "accept":
+        invitation.status = TeamInvitation.STATUS_ACCEPTED
+        invitation.save(update_fields=["status", "responded_at"])
+
+        # Create team membership
+        membership, created = TeamMembership.objects.get_or_create(
+            team=invitation.team, user=request.user
+        )
+        if created:
+            membership.role = TeamMembership.ROLE_MEMBER
+            membership.save(update_fields=["role"])
+
+        _notify_team(
+            invitation.team,
+            request.user,
+            f"{_actor_name(request.user)} accepted the invitation and joined team '{invitation.team.name}'.",
+            event_type="team_member_added",
+            target_tab="team",
+            target_type="member",
+            target_id=request.user.id,
+        )
+
+        return JsonResponse({"ok": True, "status": "accepted", "teamName": invitation.team.name})
+
+    else:
+        invitation.status = TeamInvitation.STATUS_DECLINED
+        invitation.save(update_fields=["status", "responded_at"])
+
+        # Notify the team admin who sent the invite
+        Notification.objects.create(
+            team=invitation.team,
+            recipient=invitation.invited_by,
+            actor=request.user,
+            message=f"{_actor_name(request.user)} declined the invitation to join team '{invitation.team.name}'.",
+            event_type="team_invitation_declined",
+            target_tab="team",
+            target_type="invitation",
+            target_id=invitation.id,
+        )
+        from core.ws_utils import broadcast_notification
+        broadcast_notification(invitation.team.id, {"event_type": "team_invitation_declined"})
+
+        return JsonResponse({"ok": True, "status": "declined"})
+
+
+@login_required
+def invitation_accept_token(request, token):
+    """Handle email Accept link — GET shows confirmation page, POST accepts."""
+    invitation = TeamInvitation.objects.filter(
+        token=token, invited_user=request.user,
+    ).select_related("team", "invited_by").first()
+
+    ctx = {"token": token}
+
+    if not invitation:
+        ctx.update(error_title="Not Found", error="This invitation link is invalid or was not sent to your account.")
+        return render(request, "core/invitation_respond.html", ctx)
+
+    if invitation.status != TeamInvitation.STATUS_PENDING:
+        ctx.update(error_title="Already Responded", error=f"This invitation was already {invitation.status}.")
+        return render(request, "core/invitation_respond.html", ctx)
+
+    if request.method == "GET":
+        ctx.update(team_name=invitation.team.name, invited_by=_actor_name(invitation.invited_by))
+        return render(request, "core/invitation_respond.html", ctx)
+
+    # POST — accept
+    invitation.status = TeamInvitation.STATUS_ACCEPTED
+    invitation.responded_at = timezone.now()
+    invitation.save(update_fields=["status", "responded_at"])
+
+    membership, created = TeamMembership.objects.get_or_create(team=invitation.team, user=request.user)
+    if created:
+        membership.role = TeamMembership.ROLE_MEMBER
+        membership.save(update_fields=["role"])
+
+    # Set current team for the user
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    profile.current_team_id = invitation.team.id
+    profile.save(update_fields=["current_team_id"])
+
+    _notify_team(
+        invitation.team, request.user,
+        f"{_actor_name(request.user)} accepted the invitation and joined team '{invitation.team.name}'.",
+        event_type="team_member_added", target_tab="team", target_type="member", target_id=request.user.id,
+    )
+
+    ctx.update(status="accepted", team_name=invitation.team.name)
+    return render(request, "core/invitation_respond.html", ctx)
+
+
+@login_required
+def invitation_decline_token(request, token):
+    """Handle email Decline link — GET shows confirmation page, POST declines."""
+    invitation = TeamInvitation.objects.filter(
+        token=token, invited_user=request.user,
+    ).select_related("team", "invited_by").first()
+
+    ctx = {"token": token}
+
+    if not invitation:
+        ctx.update(error_title="Not Found", error="This invitation link is invalid or was not sent to your account.")
+        return render(request, "core/invitation_respond.html", ctx)
+
+    if invitation.status != TeamInvitation.STATUS_PENDING:
+        ctx.update(error_title="Already Responded", error=f"This invitation was already {invitation.status}.")
+        return render(request, "core/invitation_respond.html", ctx)
+
+    if request.method == "GET":
+        ctx.update(team_name=invitation.team.name, invited_by=_actor_name(invitation.invited_by))
+        return render(request, "core/invitation_respond.html", ctx)
+
+    # POST — decline
+    invitation.status = TeamInvitation.STATUS_DECLINED
+    invitation.responded_at = timezone.now()
+    invitation.save(update_fields=["status", "responded_at"])
+
+    Notification.objects.create(
+        team=invitation.team, recipient=invitation.invited_by, actor=request.user,
+        message=f"{_actor_name(request.user)} declined the invitation to join team '{invitation.team.name}'.",
+        event_type="team_invitation_declined", target_tab="team", target_type="invitation", target_id=invitation.id,
+    )
+    from core.ws_utils import broadcast_notification, broadcast_to_user
+    broadcast_notification(invitation.team.id, {"event_type": "team_invitation_declined"})
+    broadcast_to_user(invitation.invited_by.id, {"event_type": "team_invitation_declined"})
+
+    ctx.update(status="declined", team_name=invitation.team.name)
+    return render(request, "core/invitation_respond.html", ctx)
 
 
 @require_POST
@@ -987,10 +1256,13 @@ def _notify_team(
             created_at=now,
         )
         for m in memberships
-        if not actor or m.user_id != actor.id
     ]
     if notifs:
         Notification.objects.bulk_create(notifs)
+
+    # Real-time WebSocket push
+    from core.ws_utils import broadcast_notification
+    broadcast_notification(team.id, {"message": message, "event_type": event_type})
 
 
 def _log_activity(team, actor, action, target_type="", target_id=None, target_name="", detail=""):
@@ -1003,6 +1275,10 @@ def _log_activity(team, actor, action, target_type="", target_id=None, target_na
         target_name=target_name,
         detail=detail,
     )
+
+    # Real-time WebSocket push — tell clients to refresh data
+    from core.ws_utils import broadcast_data_changed
+    broadcast_data_changed(team.id, {"action": action, "target_type": target_type})
 
 
 def _serialize_notification(n):
@@ -1770,11 +2046,21 @@ def api_workspace_approval_resolve(request):
 
 @login_required
 def api_notifications_list(request):
-    team, membership = _get_user_team(request.user)
-    if not team:
-        return JsonResponse({"ok": True, "notifications": [], "unreadCount": 0})
+    from django.db.models import Q
 
-    qs = Notification.objects.filter(team=team, recipient=request.user).select_related("actor")
+    team, membership = _get_user_team(request.user)
+
+    # Team notifications + invitation notifications (which may come from teams the user isn't in yet)
+    if team:
+        qs = Notification.objects.filter(
+            Q(team=team, recipient=request.user) |
+            Q(recipient=request.user, event_type="team_invitation")
+        ).select_related("actor").distinct()
+    else:
+        qs = Notification.objects.filter(
+            recipient=request.user
+        ).select_related("actor")
+
     unread_count = qs.filter(is_read=False).count()
     notifications = [_serialize_notification(n) for n in qs[:50]]
     return JsonResponse({"ok": True, "notifications": notifications, "unreadCount": unread_count})
@@ -1783,24 +2069,20 @@ def api_notifications_list(request):
 @require_POST
 @login_required
 def api_notifications_read(request):
-    team, membership = _get_user_team(request.user)
-    if not team:
-        return JsonResponse({"ok": False, "error": "No team"}, status=400)
-
     try:
         data = json.loads(request.body.decode("utf-8"))
     except Exception:
         return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
 
     if data.get("all"):
-        Notification.objects.filter(team=team, recipient=request.user, is_read=False).update(is_read=True)
+        Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
         return JsonResponse({"ok": True})
 
     notif_id = data.get("id")
     if not notif_id:
         return JsonResponse({"ok": False, "error": "id required"}, status=400)
 
-    Notification.objects.filter(id=notif_id, team=team, recipient=request.user).update(is_read=True)
+    Notification.objects.filter(id=notif_id, recipient=request.user).update(is_read=True)
     return JsonResponse({"ok": True})
 
 
@@ -2236,138 +2518,6 @@ def api_task_subtask_delete(request, task_id, subtask_id):
 
 
 # =========================
-# TIME TRACKING APIs
-# =========================
-
-@csrf_exempt
-@require_POST
-@login_required
-def api_time_start(request, task_id):
-    """Start a timer on a task for the current user."""
-    team, membership = _get_user_team(request.user)
-    if not team:
-        return JsonResponse({"ok": False, "error": "No team"}, status=400)
-    board = _get_team_board(team)
-    task = Task.objects.filter(id=task_id, board=board).first()
-    if not task:
-        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
-
-    # Stop any running timer for this user on this task
-    running = TimeEntry.objects.filter(task=task, user=request.user, stopped_at__isnull=True).first()
-    if running:
-        running.stopped_at = timezone.now()
-        running.duration_seconds = int((running.stopped_at - running.started_at).total_seconds())
-        running.save(update_fields=["stopped_at", "duration_seconds"])
-
-    entry = TimeEntry.objects.create(
-        task=task,
-        user=request.user,
-        started_at=timezone.now(),
-    )
-    return JsonResponse({"ok": True, "entryId": entry.id, "startedAt": entry.started_at.isoformat()})
-
-
-@csrf_exempt
-@require_POST
-@login_required
-def api_time_stop(request, task_id):
-    """Stop the running timer on a task for the current user."""
-    team, membership = _get_user_team(request.user)
-    if not team:
-        return JsonResponse({"ok": False, "error": "No team"}, status=400)
-    board = _get_team_board(team)
-    task = Task.objects.filter(id=task_id, board=board).first()
-    if not task:
-        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
-
-    entry = TimeEntry.objects.filter(task=task, user=request.user, stopped_at__isnull=True).first()
-    if not entry:
-        return JsonResponse({"ok": False, "error": "No running timer"}, status=400)
-
-    entry.stopped_at = timezone.now()
-    entry.duration_seconds = int((entry.stopped_at - entry.started_at).total_seconds())
-    entry.save(update_fields=["stopped_at", "duration_seconds"])
-    return JsonResponse({"ok": True, "entryId": entry.id, "duration": entry.duration_seconds})
-
-
-@csrf_exempt
-@require_POST
-@login_required
-def api_time_log(request, task_id):
-    """Manually log time on a task."""
-    team, membership = _get_user_team(request.user)
-    if not team:
-        return JsonResponse({"ok": False, "error": "No team"}, status=400)
-    board = _get_team_board(team)
-    task = Task.objects.filter(id=task_id, board=board).first()
-    if not task:
-        return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
-
-    try:
-        data = json.loads(request.body.decode("utf-8"))
-    except Exception:
-        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
-
-    hours = float(data.get("hours", 0))
-    minutes = float(data.get("minutes", 0))
-    note = (data.get("note") or "").strip()[:255]
-    duration = int(hours * 3600 + minutes * 60)
-    if duration <= 0:
-        return JsonResponse({"ok": False, "error": "Duration must be positive"}, status=400)
-
-    now = timezone.now()
-    entry = TimeEntry.objects.create(
-        task=task,
-        user=request.user,
-        started_at=now - timedelta(seconds=duration),
-        stopped_at=now,
-        duration_seconds=duration,
-        note=note,
-    )
-    return JsonResponse({"ok": True, "entryId": entry.id, "duration": duration})
-
-
-@login_required
-def api_time_entries(request, task_id):
-    """List time entries for a task."""
-    team, membership = _get_user_team(request.user)
-    if not team:
-        return JsonResponse({"ok": True, "entries": [], "total": 0})
-    board = _get_team_board(team)
-    task = Task.objects.filter(id=task_id, board=board).first()
-    if not task:
-        return JsonResponse({"ok": True, "entries": [], "total": 0})
-
-    running = TimeEntry.objects.filter(task=task, user=request.user, stopped_at__isnull=True).first()
-    entries = []
-    total = 0
-    for te in TimeEntry.objects.filter(task=task).select_related("user")[:50]:
-        dur = te.duration_seconds
-        if not te.stopped_at:
-            dur = int((timezone.now() - te.started_at).total_seconds())
-        total += dur
-        entries.append({
-            "id": te.id,
-            "user": te.user.get_full_name() or te.user.first_name or te.user.username,
-            "startedAt": te.started_at.isoformat(),
-            "stoppedAt": te.stopped_at.isoformat() if te.stopped_at else None,
-            "duration": dur,
-            "note": te.note,
-            "running": te.stopped_at is None,
-        })
-
-    return JsonResponse({
-        "ok": True,
-        "entries": entries,
-        "total": total,
-        "running": {
-            "entryId": running.id,
-            "startedAt": running.started_at.isoformat(),
-        } if running else None,
-    })
-
-
-# =========================
 # ENHANCED ANALYTICS API
 # =========================
 
@@ -2428,12 +2578,6 @@ def api_analytics_enhanced(request):
             name = a.get_full_name() or a.first_name or a.username
             member_workload[name] = member_workload.get(name, 0) + 1
 
-    # Time tracked per member (top 10)
-    time_by_member = {}
-    for te in TimeEntry.objects.filter(task__board=board).select_related("user"):
-        name = te.user.get_full_name() or te.user.first_name or te.user.username
-        time_by_member[name] = time_by_member.get(name, 0) + te.duration_seconds
-
     # Project stats
     projects = Project.objects.filter(team=team)
     project_stats = {
@@ -2451,7 +2595,6 @@ def api_analytics_enhanced(request):
         "creationTrend": creation_trend,
         "completionTrend": completion_trend,
         "memberWorkload": member_workload,
-        "timeByMember": time_by_member,
         "projectStats": project_stats,
     }})
 
@@ -2513,12 +2656,10 @@ def api_export_csv(request):
     response["Content-Disposition"] = f'attachment; filename="taskhive_export_{team.name}.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(["Task", "Description", "Column", "Priority", "Due Date", "Assignees", "Created", "Time Logged (hrs)"])
+    writer.writerow(["Task", "Description", "Column", "Priority", "Due Date", "Assignees", "Created"])
 
     for t in Task.objects.filter(board=board).prefetch_related("assignees").order_by("column__position", "position"):
         assignees = ", ".join(a.get_full_name() or a.username for a in t.assignees.all())
-        total_time = sum(te.duration_seconds for te in t.time_entries.all())
-        hours = round(total_time / 3600, 2) if total_time else 0
         writer.writerow([
             t.title,
             t.description,
@@ -2527,7 +2668,6 @@ def api_export_csv(request):
             t.due_date.isoformat() if t.due_date else "",
             assignees,
             t.created_at.strftime("%Y-%m-%d"),
-            hours,
         ])
 
     return response
@@ -2559,8 +2699,6 @@ def api_export_pdf(request):
     rows_html = ""
     for t in tasks:
         assignees = ", ".join(a.get_full_name() or a.username for a in t.assignees.all())
-        total_time = sum(te.duration_seconds for te in t.time_entries.all())
-        hours = f"{total_time / 3600:.1f}h" if total_time else "-"
         p_color = {"high": "#f87171", "medium": "#fbbf24", "low": "#4ade80"}.get(t.priority, "#9ca3af")
         rows_html += f"""<tr>
             <td>{t.title}</td>
@@ -2568,7 +2706,6 @@ def api_export_pdf(request):
             <td style="color:{p_color};font-weight:600">{t.priority}</td>
             <td>{t.due_date.isoformat() if t.due_date else '-'}</td>
             <td>{assignees or '-'}</td>
-            <td>{hours}</td>
         </tr>"""
 
     col_summary = " | ".join(f"{name}: {count}" for name, count in by_col.items())
@@ -2599,7 +2736,7 @@ def api_export_pdf(request):
     <div class="stat-card"><div class="num" style="color:#fbbf24">{high_p}</div><div class="label">High Priority</div></div>
   </div>
   <table>
-    <thead><tr><th>Task</th><th>Column</th><th>Priority</th><th>Due Date</th><th>Assignees</th><th>Time</th></tr></thead>
+    <thead><tr><th>Task</th><th>Column</th><th>Priority</th><th>Due Date</th><th>Assignees</th></tr></thead>
     <tbody>{rows_html}</tbody>
   </table>
   <div class="footer">TaskHive &mdash; Project Management Report</div>

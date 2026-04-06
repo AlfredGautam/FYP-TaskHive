@@ -285,9 +285,6 @@
             <p class="text-[11px] text-gray-400 mt-1">{{ formatNotificationTime(n.createdAt) }}</p>
           </button>
 
-          <div v-if="notifications.length > 0" class="px-3 py-2 border-t border-gray-700 text-center">
-            <button @click="showNotifications = false; switchTab('notifications')" class="text-xs text-cyan-300 hover:text-cyan-200 underline">View all notifications</button>
-          </div>
         </div>
       </div>
 
@@ -388,6 +385,32 @@
 
     <!-- Content -->
     <div class="flex-1 overflow-auto p-6 bg-gray-900">
+
+      <!-- Pending Invitations Banner -->
+      <div v-if="pendingInvitations.length" class="mb-4 space-y-2">
+        <div v-for="inv in pendingInvitations" :key="inv.id"
+             class="flex items-center justify-between px-4 py-3 rounded-lg bg-cyan-900/30 border border-cyan-500/40">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-cyan-800/60 flex items-center justify-center text-cyan-300">
+              <i class="fas fa-envelope-open-text text-sm"></i>
+            </div>
+            <div>
+              <p class="text-sm text-gray-100 font-semibold">Team Invitation</p>
+              <p class="text-xs text-gray-400"><span class="text-cyan-300">{{ inv.invitedBy }}</span> invited you to join <span class="text-cyan-300">{{ inv.teamName }}</span></p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button @click="respondInvitation(inv.id, 'accept')"
+                    class="px-3 py-1.5 rounded text-xs bg-green-700/80 text-green-100 hover:bg-green-600 transition-colors font-semibold">
+              <i class="fas fa-check mr-1"></i> Accept
+            </button>
+            <button @click="respondInvitation(inv.id, 'decline')"
+                    class="px-3 py-1.5 rounded text-xs bg-red-700/80 text-red-100 hover:bg-red-600 transition-colors font-semibold">
+              <i class="fas fa-times mr-1"></i> Decline
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Projects -->
       <div v-if="currentTab === 'projects'" class="space-y-6">
@@ -626,51 +649,6 @@
         </div>
       </div>
 
-      <!-- Notifications History -->
-      <div v-if="currentTab === 'notifications'" class="space-y-6">
-        <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-cyan-300 neon-text">Notifications</h2>
-          <div class="flex gap-2">
-            <button @click="markAllNotificationsRead" class="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
-              <i class="fas fa-check-double mr-1"></i> Mark all read
-            </button>
-            <button @click="loadNotifications" class="px-3 py-1.5 rounded-lg text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
-              <i class="fas fa-sync-alt mr-1"></i> Refresh
-            </button>
-          </div>
-        </div>
-
-        <div class="flex gap-2 mb-2">
-          <button @click="notifFilter = 'all'" class="text-xs px-3 py-1 rounded-full" :class="notifFilter === 'all' ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'">All ({{ notifications.length }})</button>
-          <button @click="notifFilter = 'unread'" class="text-xs px-3 py-1 rounded-full" :class="notifFilter === 'unread' ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'">Unread ({{ unreadNotificationCount }})</button>
-        </div>
-
-        <div v-if="!filteredNotifications.length" class="empty-state p-8 text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-800 flex items-center justify-center text-gray-400 glow">
-            <i class="fas fa-bell text-2xl"></i>
-          </div>
-          <h3 class="text-lg font-medium text-gray-100 mb-2">{{ notifFilter === 'unread' ? 'No unread notifications' : 'No notifications yet' }}</h3>
-          <p class="text-gray-400">When your team assigns tasks or deadlines approach, notifications will appear here.</p>
-        </div>
-
-        <div v-else class="space-y-2">
-          <button v-for="n in filteredNotifications" :key="n.id"
-                  @click="openNotification(n)"
-                  class="w-full text-left flex items-start gap-3 p-3 rounded-lg border transition-colors"
-                  :class="n.isRead ? 'bg-gray-800/40 border-gray-700/50 hover:border-gray-600' : 'bg-gray-800/80 border-cyan-500/30 hover:border-cyan-500/50'">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                 :class="n.isRead ? 'bg-gray-700 text-gray-400' : 'bg-cyan-900/60 text-cyan-300'">
-              <i class="fas fa-bell text-xs"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm" :class="n.isRead ? 'text-gray-300' : 'text-gray-100 font-semibold'">{{ n.message }}</p>
-              <p class="text-[11px] text-gray-400 mt-1">{{ formatNotificationTime(n.createdAt) }}</p>
-            </div>
-            <span v-if="!n.isRead" class="mt-2 w-2 h-2 rounded-full bg-cyan-400 flex-shrink-0"></span>
-          </button>
-        </div>
-      </div>
-
       <!-- Activity Log -->
       <div v-if="currentTab === 'activity'" class="space-y-6">
         <div class="flex justify-between items-center">
@@ -860,61 +838,6 @@
               <i class="fas fa-upload mr-1"></i> Upload File
             </button>
           </div>
-        </div>
-
-        <!-- Time Tracking -->
-        <div class="mb-5">
-          <div class="flex items-center justify-between mb-2">
-            <h4 class="text-sm font-semibold text-gray-200"><i class="fas fa-clock mr-2 text-cyan-400"></i>Time Tracking</h4>
-            <span class="text-[11px] text-gray-400">Total: {{ formatDuration(timeTracking.total) }}</span>
-          </div>
-
-          <!-- Timer controls -->
-          <div class="flex items-center gap-2 mb-3">
-            <button v-if="!timeTracking.running" @click="startTimer"
-                    class="px-3 py-1.5 rounded text-xs bg-green-700/80 text-green-100 hover:bg-green-600 transition-colors">
-              <i class="fas fa-play mr-1"></i> Start Timer
-            </button>
-            <template v-else>
-              <div class="flex items-center gap-2 px-3 py-1.5 rounded bg-gray-800 border border-green-500/40">
-                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                <span class="text-sm text-green-300 font-mono">{{ liveTimerDisplay }}</span>
-              </div>
-              <button @click="stopTimer"
-                      class="px-3 py-1.5 rounded text-xs bg-red-700/80 text-red-100 hover:bg-red-600 transition-colors">
-                <i class="fas fa-stop mr-1"></i> Stop
-              </button>
-            </template>
-          </div>
-
-          <!-- Manual log -->
-          <div class="flex items-center gap-2 mb-3">
-            <input v-model.number="timeTracking.logHours" type="number" min="0" max="99" placeholder="Hrs"
-                   class="w-16 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500">
-            <input v-model.number="timeTracking.logMinutes" type="number" min="0" max="59" placeholder="Min"
-                   class="w-16 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500">
-            <input v-model="timeTracking.logNote" placeholder="Note (optional)"
-                   class="flex-1 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-xs text-gray-100 focus:outline-none focus:ring-1 focus:ring-cyan-500">
-            <button @click="logManualTime" class="px-3 py-1.5 rounded text-xs bg-gray-700 text-gray-200 hover:bg-gray-600">
-              <i class="fas fa-plus mr-1"></i> Log
-            </button>
-          </div>
-
-          <!-- Time entries list -->
-          <div v-if="timeTracking.entries.length" class="space-y-1 max-h-32 overflow-y-auto">
-            <div v-for="te in timeTracking.entries" :key="te.id"
-                 class="flex items-center justify-between px-2 py-1.5 rounded bg-gray-800/60 border border-gray-700/50 text-xs">
-              <div class="flex items-center gap-2">
-                <span class="text-gray-300">{{ te.user }}</span>
-                <span v-if="te.note" class="text-gray-500">- {{ te.note }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span v-if="te.running" class="text-green-400"><i class="fas fa-circle text-[6px] animate-pulse mr-1"></i>Running</span>
-                <span class="text-gray-400 font-mono">{{ formatDuration(te.duration) }}</span>
-              </div>
-            </div>
-          </div>
-          <div v-else class="text-xs text-gray-400">No time logged yet.</div>
         </div>
 
         <!-- Comments -->
@@ -1384,7 +1307,6 @@
           { id: 'tasks',    name: 'Tasks',    icon: 'fas fa-tasks' },
           { id: 'files',    name: 'Files',    icon: 'fas fa-file-alt' },
           { id: 'activity', name: 'Activity Log', icon: 'fas fa-history' },
-          { id: 'notifications', name: 'Notifications', icon: 'fas fa-bell' },
           { id: 'calendar', name: 'Calendar', icon: 'fas fa-calendar-alt' }
         ],
 
@@ -1403,8 +1325,7 @@
         notifications: [],
         unreadNotificationCount: 0,
         showNotifications: false,
-        notifFilter: 'all',
-
+        pendingInvitations: [],
         currentTeam: null,
         teamMembers: [],
 
@@ -1419,22 +1340,9 @@
         taskSubtasks: [],
         newCommentBody: "",
         newSubtaskTitle: "",
-        notificationPollTimer: null,
         dataPollTimer: null,
         cachedUserObj: null,
         isSaving: false,
-
-        // Time Tracking
-        timeTracking: {
-          entries: [],
-          total: 0,
-          running: null,
-          logHours: 0,
-          logMinutes: 0,
-          logNote: "",
-        },
-        timerInterval: null,
-        timerElapsed: 0,
 
         // Calendar
         calendarMonth: new Date().getMonth(),
@@ -1468,19 +1376,6 @@
           ...this.globalResults.projects.map((r) => ({ ...r, type: "project" })),
           ...this.globalResults.files.map((r) => ({ ...r, type: "file" })),
         ];
-      },
-
-      filteredNotifications() {
-        if (this.notifFilter === 'unread') return this.notifications.filter(n => !n.isRead);
-        return this.notifications;
-      },
-
-      liveTimerDisplay() {
-        const s = this.timerElapsed;
-        const h = Math.floor(s / 3600);
-        const m = Math.floor((s % 3600) / 60);
-        const sec = s % 60;
-        return (h > 0 ? h + ':' : '') + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
       },
 
       calendarDays() {
@@ -1523,22 +1418,23 @@
       this.loadData();
       this.fetchTeamContext();
       this.loadNotifications();
+      this.loadInvitations();
       window.addEventListener("keydown", this.handleShortcut);
 
       // click outside context menu
       window.addEventListener("click", this.handleGlobalClick);
 
-      // Poll notifications every 10 seconds
-      this.notificationPollTimer = setInterval(() => { this.loadNotifications(); }, 10000);
-      // Poll workspace data (tasks, projects, approvals) every 20 seconds
-      this.dataPollTimer = setInterval(() => { this.loadData(); }, 20000);
+      // WebSocket for real-time updates
+      this._connectWebSocket();
+      // Fallback poll every 60s in case WS drops
+      this.dataPollTimer = setInterval(() => { if (!this._ws || this._ws.readyState !== 1) { this.loadNotifications(); this.loadData(); } }, 60000);
     },
 
     beforeDestroy() {
       window.removeEventListener("keydown", this.handleShortcut);
       window.removeEventListener("click", this.handleGlobalClick);
-      if (this.notificationPollTimer) clearInterval(this.notificationPollTimer);
       if (this.dataPollTimer) clearInterval(this.dataPollTimer);
+      if (this._ws) { this._ws.close(); this._ws = null; }
     },
 
     methods: {
@@ -1553,6 +1449,41 @@
         } catch (e) {
           this.cachedUserObj = { name: "User", role: "member" };
         }
+      },
+
+      _connectWebSocket() {
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        const url = `${proto}://${location.host}/ws/notify/`;
+        const vm = this;
+
+        function connect() {
+          const ws = new WebSocket(url);
+          vm._ws = ws;
+
+          ws.onopen = () => { console.log('[WS] connected'); };
+
+          ws.onmessage = (e) => {
+            try {
+              const msg = JSON.parse(e.data);
+              if (msg.type === 'new_notification') {
+                vm.loadNotifications();
+                vm.loadInvitations();
+              }
+              if (msg.type === 'data_changed') {
+                vm.loadData();
+              }
+            } catch (err) {}
+          };
+
+          ws.onclose = () => {
+            console.log('[WS] disconnected, reconnecting in 3s...');
+            setTimeout(connect, 3000);
+          };
+
+          ws.onerror = () => { ws.close(); };
+        }
+
+        connect();
       },
 
       async fetchTeamContext() {
@@ -1585,10 +1516,43 @@
           this.loadNotifications();
         } catch (e) {}
       },
+
+      async loadInvitations() {
+        try {
+          const res = await fetch('/api/invitations/', { credentials: 'same-origin' });
+          const data = await res.json();
+          if (data.ok) this.pendingInvitations = data.invitations || [];
+        } catch (e) {}
+      },
+
+      async respondInvitation(invitationId, action) {
+        try {
+          const res = await fetch('/api/invitations/respond/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this._getCsrf() },
+            body: JSON.stringify({ invitation_id: invitationId, action }),
+          });
+          const data = await res.json();
+          if (data.ok) {
+            this.pendingInvitations = this.pendingInvitations.filter(i => i.id !== invitationId);
+            if (action === 'accept') {
+              this.showToastMessage(`Joined team "${data.teamName}" successfully!`);
+              this.loadData();
+              this.fetchTeamContext();
+            } else {
+              this.showToastMessage('Invitation declined.');
+            }
+          }
+        } catch (e) {
+          this.showToastMessage('Failed to respond to invitation.');
+        }
+      },
+
       applyRouteContext() {
         const params = new URLSearchParams(window.location.search || "");
         const tab = params.get("tab");
-        if (tab && ['tasks', 'projects', 'files', 'activity', 'notifications', 'calendar'].includes(tab)) { this.currentTab = tab; if (tab === 'activity') this.loadActivityLog(); if (tab === 'calendar') this.loadCalendarEvents(); }
+        if (tab && ['tasks', 'projects', 'files', 'activity', 'calendar'].includes(tab)) { this.currentTab = tab; if (tab === 'activity') this.loadActivityLog(); if (tab === 'calendar') this.loadCalendarEvents(); }
 
         const taskId = parseInt(params.get("taskId") || "", 10);
         if (taskId) {
@@ -2377,22 +2341,18 @@
         this.taskSubtasks = [];
         this.newCommentBody = "";
         this.newSubtaskTitle = "";
-        this.timeTracking = { entries: [], total: 0, running: null, logHours: 0, logMinutes: 0, logNote: "" };
-        this.timerElapsed = 0;
         this.showTaskDetailModal = true;
 
         await Promise.all([
           this.loadTaskComments(task.id),
           this.loadTaskAttachments(task.id),
           this.loadTaskSubtasks(task.id),
-          this.loadTimeEntries(task.id),
         ]);
       },
 
       closeTaskDetail() {
         this.showTaskDetailModal = false;
         this.detailTask = null;
-        if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
       },
 
       editTaskFromDetail() {
@@ -2498,78 +2458,6 @@
         if (!this.detailTask) return;
         const data = await this._postJson(`/api/task/${this.detailTask.id}/subtasks/${subtaskId}/delete/`, {});
         if (data.ok) this.taskSubtasks = this.taskSubtasks.filter(s => s.id !== subtaskId);
-      },
-
-      // =====================
-      // Time Tracking
-      // =====================
-      formatDuration(seconds) {
-        if (!seconds || seconds < 0) return '0m';
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        if (h > 0) return h + 'h ' + m + 'm';
-        if (m > 0) return m + 'm';
-        return seconds + 's';
-      },
-
-      async loadTimeEntries(taskId) {
-        try {
-          const res = await fetch(`/api/task/${taskId}/time/`, { credentials: 'same-origin' });
-          const data = await res.json();
-          if (data.ok) {
-            this.timeTracking.entries = data.entries || [];
-            this.timeTracking.total = data.total || 0;
-            this.timeTracking.running = data.running || null;
-            if (data.running) {
-              const startMs = new Date(data.running.startedAt).getTime();
-              this.timerElapsed = Math.floor((Date.now() - startMs) / 1000);
-              this._startTimerTick();
-            }
-          }
-        } catch (e) {}
-      },
-
-      _startTimerTick() {
-        if (this.timerInterval) clearInterval(this.timerInterval);
-        this.timerInterval = setInterval(() => { this.timerElapsed++; }, 1000);
-      },
-
-      async startTimer() {
-        if (!this.detailTask) return;
-        const data = await this._postJson(`/api/task/${this.detailTask.id}/time/start/`, {});
-        if (data.ok) {
-          this.timeTracking.running = { entryId: data.entryId, startedAt: data.startedAt };
-          this.timerElapsed = 0;
-          this._startTimerTick();
-          await this.loadTimeEntries(this.detailTask.id);
-        }
-      },
-
-      async stopTimer() {
-        if (!this.detailTask) return;
-        const data = await this._postJson(`/api/task/${this.detailTask.id}/time/stop/`, {});
-        if (data.ok) {
-          this.timeTracking.running = null;
-          if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; }
-          this.timerElapsed = 0;
-          await this.loadTimeEntries(this.detailTask.id);
-        }
-      },
-
-      async logManualTime() {
-        if (!this.detailTask) return;
-        const h = this.timeTracking.logHours || 0;
-        const m = this.timeTracking.logMinutes || 0;
-        if (h <= 0 && m <= 0) return;
-        const data = await this._postJson(`/api/task/${this.detailTask.id}/time/log/`, {
-          hours: h, minutes: m, note: this.timeTracking.logNote
-        });
-        if (data.ok) {
-          this.timeTracking.logHours = 0;
-          this.timeTracking.logMinutes = 0;
-          this.timeTracking.logNote = "";
-          await this.loadTimeEntries(this.detailTask.id);
-        }
       },
 
       // =====================

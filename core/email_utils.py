@@ -317,3 +317,58 @@ def send_deadline_reminder_email(
 
     html_body = _base_html("Deadline Reminder", content, header_gradient=header_gradient)
     return _send_html_email(subject, text_body, html_body, [assignee_email])
+
+
+# ---------------------------------------------------------------------------
+# 4. Team Invitation Email
+# ---------------------------------------------------------------------------
+
+def send_team_invitation_email(
+    invitee_name: str,
+    invitee_email: str,
+    team_name: str,
+    invited_by_name: str,
+    accept_url: str,
+    decline_url: str,
+):
+    """Send an invitation email with Accept / Decline links."""
+    safe_name = _esc(invitee_name)
+    safe_team = _esc(team_name)
+    safe_by = _esc(invited_by_name)
+    site = _site_url()
+
+    subject = f"[TaskHive] You've been invited to join team '{team_name}'"
+
+    text_body = (
+        f"Hi {invitee_name},\n\n"
+        f"{invited_by_name} has invited you to join the team '{team_name}' on TaskHive.\n\n"
+        "You can accept or decline this invitation using the links below:\n\n"
+        f"  Accept:  {accept_url}\n"
+        f"  Decline: {decline_url}\n\n"
+        "If you did not expect this invitation, you can safely ignore this email.\n\n"
+        "--------------------------------------------\n"
+        f"\u00a9 TaskHive | {_from_email()}\n"
+        "\u2014 The TaskHive Team"
+    )
+
+    content = f"""
+      <h2>Hi {safe_name}, you've been invited! \u2709\ufe0f</h2>
+      <p><strong>{safe_by}</strong> has invited you to join the team <strong>{safe_team}</strong> on TaskHive.</p>
+      <div class="task-card" style="border-left-color: #06b6d4;">
+        <p class="task-title">{safe_team}</p>
+        <div class="meta-row"><strong>Invited by:</strong> {safe_by}</div>
+        <div class="meta-row"><strong>Role:</strong> Team Member</div>
+      </div>
+      <p>Click a button below to respond to this invitation:</p>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="{_esc(accept_url)}" class="btn" style="background:linear-gradient(135deg,#22c55e,#16a34a);margin-right:12px;">
+          \u2705 Accept Invitation
+        </a>
+        <a href="{_esc(decline_url)}" class="btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);">
+          \u274c Decline
+        </a>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;">If you did not expect this invitation, you can safely ignore this email.</p>"""
+
+    html_body = _base_html("Team Invitation", content, header_gradient="linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)")
+    return _send_html_email_async(subject, text_body, html_body, [invitee_email])

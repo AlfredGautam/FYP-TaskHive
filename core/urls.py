@@ -91,6 +91,12 @@ urlpatterns = [
     path("api/my-teams/", views.api_my_teams, name="api_my_teams"),
     path("api/team/leave/", views.api_team_leave, name="api_team_leave"),
     path("api/team/<int:team_id>/members/", views.api_team_members, name="api_team_members"),
+    path("api/invitations/", views.api_my_invitations, name="api_my_invitations"),
+    path("api/invitations/respond/", views.api_invitation_respond, name="api_invitation_respond"),
+    path("api/invitations/resend/", views.api_invitation_resend, name="api_invitation_resend"),
+    path("api/team/<int:team_id>/invitations/", views.api_team_pending_invitations, name="api_team_pending_invitations"),
+    path("invite/<str:token>/accept/", views.invitation_accept_token, name="invitation_accept_token"),
+    path("invite/<str:token>/decline/", views.invitation_decline_token, name="invitation_decline_token"),
 
     # --------------------
     # CodeSpace APIs
@@ -163,14 +169,6 @@ urlpatterns = [
     path("api/task/<int:task_id>/subtasks/", views.api_task_subtasks, name="api_task_subtasks"),
     path("api/task/<int:task_id>/subtasks/save/", views.api_task_subtask_save, name="api_task_subtask_save"),
     path("api/task/<int:task_id>/subtasks/<int:subtask_id>/delete/", views.api_task_subtask_delete, name="api_task_subtask_delete"),
-
-    # --------------------
-    # Time Tracking API
-    # --------------------
-    path("api/task/<int:task_id>/time/start/", views.api_time_start, name="api_time_start"),
-    path("api/task/<int:task_id>/time/stop/", views.api_time_stop, name="api_time_stop"),
-    path("api/task/<int:task_id>/time/log/", views.api_time_log, name="api_time_log"),
-    path("api/task/<int:task_id>/time/", views.api_time_entries, name="api_time_entries"),
 
     # --------------------
     # Enhanced Analytics & Calendar
