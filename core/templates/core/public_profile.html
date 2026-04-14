@@ -8,28 +8,28 @@
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen" style="font-family:'Inter',sans-serif">
+<body class="bg-slate-50 text-slate-900 min-h-screen" style="font-family:'Inter',sans-serif">
   <div id="app" class="max-w-4xl mx-auto px-4 py-8">
-    <a href="/user/" class="inline-flex items-center text-sm text-indigo-400 hover:text-indigo-300 mb-4">
-      ← Back
+    <a href="/user/" class="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-700 mb-6 font-medium">
+      <i class="fas fa-arrow-left mr-2 text-xs"></i> Back
     </a>
 
-    <div class="bg-slate-900 border border-slate-700/60 rounded-2xl overflow-hidden">
-      <div class="h-44 bg-gradient-to-r from-indigo-900/50 to-slate-800/50 relative">
+    <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+      <div class="h-44 bg-gradient-to-r from-indigo-50 to-slate-100 relative">
         <img v-if="profile.cover_url" :src="profile.cover_url" class="absolute inset-0 w-full h-full object-cover" alt="cover" />
       </div>
 
       <div class="px-6 pb-6 -mt-10">
-        <img :src="profile.photo_url || defaultPhoto" class="w-24 h-24 rounded-full border-4 border-indigo-500 bg-slate-900 object-cover" alt="profile" />
-        <h1 class="text-2xl font-bold mt-4">{{ profile.display_name || profile.name || 'User' }}</h1>
-        <p class="text-sm text-gray-400">@{{ profile.username_public || username }}</p>
-        <p class="text-sm text-gray-300 mt-3">{{ profile.tagline || '' }}</p>
-        <p class="text-sm text-gray-400 mt-3 whitespace-pre-line">{{ profile.bio || 'No bio provided.' }}</p>
+        <img :src="profile.photo_url || defaultPhoto" class="w-24 h-24 rounded-full border-4 border-white bg-white object-cover shadow-md" alt="profile" />
+        <h1 class="text-2xl font-bold text-slate-900 mt-4">{{ profile.display_name || profile.name || 'User' }}</h1>
+        <p class="text-sm text-slate-500">@{{ profile.username_public || username }}</p>
+        <p class="text-sm text-slate-700 mt-3 font-medium">{{ profile.tagline || '' }}</p>
+        <p class="text-sm text-slate-500 mt-3 whitespace-pre-line leading-relaxed">{{ profile.bio || 'No bio provided.' }}</p>
 
-        <div class="mt-5 flex flex-wrap gap-3 text-sm">
-          <a v-if="profile.github" :href="profile.github" target="_blank" class="px-3 py-1 rounded bg-slate-950 border border-slate-700 hover:border-indigo-500 transition-colors">GitHub</a>
-          <a v-if="profile.linkedin" :href="profile.linkedin" target="_blank" class="px-3 py-1 rounded bg-slate-950 border border-slate-700 hover:border-indigo-500 transition-colors">LinkedIn</a>
-          <span class="px-3 py-1 rounded bg-slate-950 border border-slate-700 text-slate-400">{{ profile.email }}</span>
+        <div class="mt-5 flex flex-wrap gap-2 text-sm">
+          <a v-if="profile.github" :href="profile.github" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 hover:border-indigo-400 hover:text-indigo-600 transition-colors"><i class="fab fa-github text-xs"></i>GitHub</a>
+          <a v-if="profile.linkedin" :href="profile.linkedin" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 hover:border-indigo-400 hover:text-indigo-600 transition-colors"><i class="fab fa-linkedin text-xs"></i>LinkedIn</a>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-slate-500"><i class="fas fa-envelope text-xs"></i>{{ profile.email }}</span>
         </div>
       </div>
     </div>

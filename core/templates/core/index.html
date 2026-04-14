@@ -26,27 +26,29 @@
     .modal { transition: all 0.3s ease; backdrop-filter: blur(5px); }
 
     .context-menu {
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-      background: #1e293b;
-      border: 1px solid #334155;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
     }
 
     .project-card {
       transition: all 0.2s ease;
-      border-radius: 10px;
-      background: #1e293b;
-      border: 1px solid #334155;
+      border-radius: 12px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
     .project-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-      border-color: #475569;
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.10);
+      border-color: #c7d2fe;
     }
 
-    .confirmation-modal { background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); }
+    .confirmation-modal { background-color: rgba(15, 23, 42, 0.45); backdrop-filter: blur(8px); }
     .empty-state {
-      background-color: #1e293b;
-      border: 2px dashed #334155;
+      background-color: #f8fafc;
+      border: 2px dashed #e2e8f0;
       border-radius: 12px;
     }
 
@@ -58,9 +60,6 @@
       overflow: hidden;
     }
 
-    .glow { }
-    .neon-text { }
-
     .neon-button {
       background: #4f46e5;
       transition: all 0.2s ease;
@@ -69,24 +68,33 @@
       background: #4338ca;
     }
 
-    .search-input:focus { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25); border-color: #6366f1; }
+    .search-input { background: #f8fafc; border-color: #e2e8f0; color: #0f172a; }
+    .search-input::placeholder { color: #94a3b8; }
+    .search-input:focus { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12); border-color: #6366f1; background: #fff; }
     .search-results {
-      background: #1e293b;
-      border: 1px solid #334155;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
     }
 
-    body.light-mode { background-color: #f8fafc; color: #0f172a; }
-    body.light-mode .bg-gray-900 { background-color:#f1f5f9 !important; color:#0f172a; }
-    body.light-mode .bg-gray-800 { background-color:#e2e8f0 !important; color:#0f172a; }
-    body.light-mode .bg-gray-700 { background-color:#cbd5e1 !important; color:#0f172a; }
-    body.light-mode .text-gray-100 { color:#0f172a !important; }
-    body.light-mode .text-gray-300 { color:#475569 !important; }
-
-    .comment-bubble { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; }
-    .subtask-row:hover { background: rgba(99, 102, 241, 0.04); }
-    .subtask-done { text-decoration: line-through; opacity: 0.55; }
+    .comment-bubble { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+    .subtask-row:hover { background: rgba(79, 70, 229, 0.04); }
+    .subtask-done { text-decoration: line-through; opacity: 0.50; }
     .activity-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+    .modal-input {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      color: #0f172a;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+    }
+    .modal-input:focus {
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+      border-color: #6366f1;
+      outline: none;
+      background: #fff;
+    }
   </style>
 
   <!-- ✅ SINGLE SAFE AUTH GUARD -->
@@ -108,22 +116,21 @@
   </script>
 </head>
 
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body class="bg-slate-50 text-slate-900 min-h-screen">
 <div id="app" class="flex flex-col min-h-screen" @click="closeContextMenu">
 
   <!-- Header -->
-  <header class="bg-slate-900 border-b border-slate-800 py-4 px-6 flex justify-between items-center">
+  <header class="bg-white border-b border-gray-200 py-3 px-6 flex justify-between items-center shadow-sm">
     <div class="flex items-center">
-      <div class="text-indigo-400 text-2xl mr-3">
+      <div class="text-indigo-600 text-xl mr-3">
         <i class="fas fa-cubes"></i>
       </div>
       <div>
-        <h1 class="text-xl font-bold text-slate-100">TaskHive</h1>
-        <p class="text-xs text-slate-400">
-          Logged in as:
-          <span class="text-slate-200">{{ currentUserName }}</span>
+        <h1 class="text-base font-bold text-slate-900">TaskHive</h1>
+        <p class="text-xs text-slate-500">
+          <span class="font-medium text-slate-700">{{ currentUserName }}</span>
           <span class="ml-2 text-[10px] px-2 py-0.5 rounded-full"
-                :class="currentUserRole === 'head' ? 'bg-purple-900/50 text-purple-300' : 'bg-gray-700/60 text-gray-300'">
+                :class="currentUserRole === 'head' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-gray-100 text-gray-600 border border-gray-200'">
             {{ currentUserRole === 'head' ? 'Team Head' : 'Member' }}
           </span>
         </p>
@@ -139,10 +146,9 @@
         @keydown.down.prevent="moveSelection(1)"
         @keydown.up.prevent="moveSelection(-1)"
         placeholder="Search tasks, projects, files (Ctrl+K)..."
-        class="search-input w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg
-               focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+        class="search-input w-full pl-10 pr-4 py-2 rounded-lg border text-sm focus:outline-none transition-all"
       />
-      <div class="absolute left-3 top-2.5 text-gray-400">
+      <div class="absolute left-3 top-2.5 text-slate-400">
         <i class="fas fa-search"></i>
       </div>
 
@@ -157,21 +163,21 @@
             @click="selectSearchResult(task, 'task')"
             class="px-3 py-2 rounded-md cursor-pointer flex items-center"
             :class="{
-              'bg-indigo-900/40': isHighlighted(index),
-              'hover:bg-slate-700': !isHighlighted(index)
+              'bg-indigo-50': isHighlighted(index),
+              'hover:bg-gray-50': !isHighlighted(index)
             }"
           >
-            <div class="bg-indigo-900/50 text-indigo-300 p-2 rounded-md mr-3">
+            <div class="bg-indigo-50 text-indigo-600 p-2 rounded-md mr-3">
               <i class="fas fa-tasks"></i>
             </div>
             <div class="flex-1">
-              <p class="font-medium text-gray-100">
+              <p class="font-medium text-slate-900">
                 {{ task.name }}
-                <span v-if="task.taskType === 'super'" class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-purple-900/50 text-purple-300">
+                <span v-if="task.taskType === 'super'" class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
                   <i class="fas fa-bolt mr-1"></i> SUPER
                 </span>
               </p>
-              <p class="text-sm text-gray-400">Task · {{ getBoardName(task.boardId) }}</p>
+              <p class="text-sm text-slate-500">Task · {{ getBoardName(task.boardId) }}</p>
             </div>
           </div>
         </div>
@@ -185,16 +191,16 @@
             @click="selectSearchResult(project, 'project')"
             class="px-3 py-2 rounded-md cursor-pointer flex items-center"
             :class="{
-              'bg-indigo-900/40': isHighlighted(index + globalResults.tasks.length),
-              'hover:bg-slate-700': !isHighlighted(index + globalResults.tasks.length)
+              'bg-indigo-50': isHighlighted(index + globalResults.tasks.length),
+              'hover:bg-gray-50': !isHighlighted(index + globalResults.tasks.length)
             }"
           >
-            <div class="bg-purple-900 text-purple-300 p-2 rounded-md mr-3">
+            <div class="bg-purple-50 text-purple-600 p-2 rounded-md mr-3">
               <i class="fas fa-project-diagram"></i>
             </div>
             <div>
-              <p class="font-medium text-gray-100">{{ project.name }}</p>
-              <p class="text-sm text-gray-400">Project</p>
+              <p class="font-medium text-slate-900">{{ project.name }}</p>
+              <p class="text-sm text-slate-500">Project</p>
             </div>
           </div>
         </div>
@@ -208,94 +214,87 @@
             @click="selectSearchResult(file, 'file')"
             class="px-3 py-2 rounded-md cursor-pointer flex items-center"
             :class="{
-              'bg-indigo-900/40': isHighlighted(index + globalResults.tasks.length + globalResults.projects.length),
-              'hover:bg-slate-700': !isHighlighted(index + globalResults.tasks.length + globalResults.projects.length)
+              'bg-indigo-50': isHighlighted(index + globalResults.tasks.length + globalResults.projects.length),
+              'hover:bg-gray-50': !isHighlighted(index + globalResults.tasks.length + globalResults.projects.length)
             }"
           >
-            <div class="bg-pink-900 text-pink-300 p-2 rounded-md mr-3">
+            <div class="bg-pink-50 text-pink-600 p-2 rounded-md mr-3">
               <i class="fas fa-file"></i>
             </div>
             <div>
-              <p class="font-medium text-gray-100">{{ file.name }}</p>
-              <p class="text-sm text-gray-400">File · {{ file.type }}</p>
+              <p class="font-medium text-slate-900">{{ file.name }}</p>
+              <p class="text-sm text-slate-500">File · {{ file.type }}</p>
             </div>
           </div>
         </div>
 
-        <div v-if="!flatResults.length" class="px-3 py-4 text-center text-gray-400">
+        <div v-if="!flatResults.length" class="px-3 py-4 text-center text-slate-400 text-sm">
           No results found for "{{ searchQuery }}"
         </div>
       </div>
     </div>
 
     <!-- Right nav -->
-    <div class="flex items-center space-x-3">
-      <a href="/" class="hidden sm:inline text-slate-300 text-sm hover:text-indigo-400 transition-colors">
+    <div class="flex items-center space-x-2">
+      <a href="/" class="hidden sm:inline text-slate-600 text-sm hover:text-indigo-600 transition-colors px-2 py-1 rounded hover:bg-gray-100">
         <i class="fas fa-grid-2 mr-1"></i> Board
       </a>
-      <a href="/analytics/" class="hidden sm:inline text-slate-400 text-sm hover:text-indigo-400 transition-colors">
+      <a href="/analytics/" class="hidden sm:inline text-slate-500 text-sm hover:text-indigo-600 transition-colors px-2 py-1 rounded hover:bg-gray-100">
         <i class="fas fa-chart-line mr-1"></i> Analytics
       </a>
-      <a href="/codespace/" class="hidden sm:inline text-slate-400 text-sm hover:text-indigo-400 transition-colors">
+      <a href="/codespace/" class="hidden sm:inline text-slate-500 text-sm hover:text-indigo-600 transition-colors px-2 py-1 rounded hover:bg-gray-100">
         <i class="fas fa-code mr-1"></i> Code Space
       </a>
 
       <button v-if="currentUserRole === 'head'"
               @click="openApprovals"
-              class="relative hidden md:inline px-3 py-1 rounded-lg text-xs bg-purple-900/50 hover:bg-purple-900/70 text-purple-200 border border-purple-500/20">
+              class="relative hidden md:inline px-3 py-1 rounded-lg text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors">
         <i class="fas fa-clipboard-check mr-1"></i> Approvals
         <span v-if="pendingApprovalsCount"
-              class="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-700 text-white text-[10px] flex items-center justify-center">
+              class="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
           {{ pendingApprovalsCount }}
         </span>
       </button>
 
       <div class="relative" @click.stop>
         <button @click="toggleNotifications"
-                class="relative w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 hover:bg-slate-700 transition-all"
+                class="relative w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-all"
                 title="Notifications">
-          <i class="fas fa-bell text-slate-300 text-xs"></i>
+          <i class="fas fa-bell text-slate-500 text-xs"></i>
           <span v-if="unreadNotificationCount"
-                class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-700 text-white text-[10px] flex items-center justify-center">
+                class="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
             {{ unreadNotificationCount > 9 ? '9+' : unreadNotificationCount }}
           </span>
         </button>
 
         <div v-if="showNotifications"
-             class="absolute right-0 mt-2 w-96 max-h-[70vh] overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl z-50">
-          <div class="flex items-center justify-between px-3 py-2 border-b border-slate-700">
-            <p class="text-xs font-semibold text-slate-300 uppercase tracking-wide">Notifications</p>
-            <button @click="markAllNotificationsRead" class="text-[11px] text-gray-300 hover:text-gray-100">Mark all read</button>
+             class="absolute right-0 mt-2 w-96 max-h-[70vh] overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl z-50">
+          <div class="flex items-center justify-between px-3 py-2.5 border-b border-gray-100">
+            <p class="text-xs font-semibold text-slate-700 uppercase tracking-wide">Notifications</p>
+            <button @click="markAllNotificationsRead" class="text-[11px] text-indigo-600 hover:text-indigo-700">Mark all read</button>
           </div>
 
-          <div v-if="!notifications.length" class="px-3 py-4 text-sm text-gray-400">No notifications yet.</div>
+          <div v-if="!notifications.length" class="px-3 py-4 text-sm text-slate-400">No notifications yet.</div>
 
           <button v-for="n in notifications.slice(0, 8)" :key="n.id"
                   @click="openNotification(n)"
-                  class="w-full text-left px-3 py-2 border-b border-gray-800 hover:bg-gray-800/70">
+                  class="w-full text-left px-3 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors">
             <div class="flex items-start justify-between gap-3">
-              <p class="text-sm" :class="n.isRead ? 'text-gray-300' : 'text-gray-100 font-semibold'">{{ n.message }}</p>
-              <span v-if="!n.isRead" class="mt-1 w-2 h-2 rounded-full bg-indigo-400"></span>
+              <p class="text-sm" :class="n.isRead ? 'text-slate-500' : 'text-slate-900 font-semibold'">{{ n.message }}</p>
+              <span v-if="!n.isRead" class="mt-1.5 w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span>
             </div>
-            <p class="text-[11px] text-gray-400 mt-1">{{ formatNotificationTime(n.createdAt) }}</p>
+            <p class="text-[11px] text-slate-400 mt-1">{{ formatNotificationTime(n.createdAt) }}</p>
           </button>
 
         </div>
       </div>
 
-      <button @click="toggleTheme"
-              class="w-8 h-8 rounded-full flex items-center justify-center bg-slate-800 hover:bg-slate-700 transition-all"
-              :title="isDark ? 'Light mode' : 'Dark mode'">
-        <i v-if="isDark" class="fas fa-sun text-yellow-300 text-xs"></i>
-        <i v-else class="fas fa-moon text-indigo-400 text-xs"></i>
-      </button>
-
       <button @click="logout"
-              class="hidden md:inline px-3 py-1 rounded-lg text-xs bg-red-700 hover:bg-red-600 text-white">
+              class="hidden md:inline px-3 py-1 rounded-lg text-xs bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 text-slate-600 hover:text-red-600 transition-all">
         <i class="fas fa-right-from-bracket mr-1"></i> Logout
       </button>
 
-      <div class="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white font-semibold">
+      <div class="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
         {{ currentUserInitials }}
       </div>
     </div>
@@ -304,66 +303,66 @@
   <!-- Main -->
   <main class="flex flex-1 overflow-hidden">
     <!-- Sidebar -->
-    <aside class="w-72 bg-slate-900 border-r border-slate-800 py-6 px-4 flex flex-col">
-      <nav class="space-y-1 flex-1">
+    <aside class="w-64 bg-white border-r border-gray-200 py-5 px-3 flex flex-col shadow-sm">
+      <nav class="space-y-0.5 flex-1">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           @click="switchTab(tab.id)"
-          class="w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors"
+          class="w-full flex items-center px-3 py-2.5 text-left rounded-lg transition-colors text-sm"
           :class="{
-            'bg-indigo-600/15 text-indigo-400': currentTab === tab.id,
-            'text-slate-400 hover:bg-slate-800': currentTab !== tab.id
+            'bg-indigo-50 text-indigo-700 font-semibold': currentTab === tab.id,
+            'text-slate-600 hover:bg-gray-100 font-medium': currentTab !== tab.id
           }"
         >
-          <i :class="tab.icon" class="mr-3 w-5"></i>
-          <span class="font-medium">{{ tab.name }}</span>
+          <i :class="tab.icon" class="mr-3 w-4 text-sm"></i>
+          <span>{{ tab.name }}</span>
         </button>
       </nav>
 
       <!-- Teams -->
-      <div class="pt-6 border-t border-slate-800">
-        <h3 class="px-4 text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3">Teams</h3>
-        <div class="space-y-1 max-h-52 overflow-y-auto pr-1">
+      <div class="pt-4 border-t border-gray-100">
+        <h3 class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Label Groups</h3>
+        <div class="space-y-0.5 max-h-48 overflow-y-auto pr-1">
           <div
             v-for="team in teams"
             :key="team.id"
-            class="flex items-center justify-between px-4 py-2 rounded-lg hover:bg-slate-800 text-slate-300"
+            class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
           >
             <div class="flex items-center">
-              <span class="w-2 h-2 rounded-full mr-3 glow" :style="{ backgroundColor: team.color }"></span>
-              <span>{{ team.name }}</span>
+              <span class="w-2 h-2 rounded-full mr-2.5" :style="{ backgroundColor: team.color }"></span>
+              <span class="text-sm truncate">{{ team.name }}</span>
             </div>
-            <div class="flex items-center space-x-2 text-xs">
-              <button @click.stop="startEditTeam(team)" class="text-yellow-300 hover:text-yellow-200">
+            <div class="flex items-center space-x-1.5 text-xs">
+              <button @click.stop="startEditTeam(team)" class="text-slate-400 hover:text-indigo-600 transition-colors">
                 <i class="fas fa-edit"></i>
               </button>
-              <button @click.stop="confirmDeleteTeam(team)" class="text-red-400 hover:text-red-300">
+              <button @click.stop="confirmDeleteTeam(team)" class="text-slate-400 hover:text-red-500 transition-colors">
                 <i class="fas fa-trash"></i>
               </button>
             </div>
           </div>
-          <div v-if="teams.length === 0" class="px-4 py-2 text-xs text-gray-400">
-            No teams yet. Add your first team below.
+          <div v-if="teams.length === 0" class="px-3 py-2 text-xs text-slate-400">
+            No groups yet.
           </div>
         </div>
 
         <!-- Add / Edit team form -->
-        <div class="mt-3 bg-slate-950/70 rounded-lg p-3">
-          <p class="text-[11px] text-gray-400 mb-2">
-            {{ editingTeamId ? 'Edit team' : 'Add new team' }}
+        <div class="mt-2 bg-gray-50 rounded-lg p-3 border border-gray-100">
+          <p class="text-[11px] text-slate-500 mb-2 font-medium">
+            {{ editingTeamId ? 'Edit group' : 'Add group' }}
           </p>
           <input
             v-model="newTeamName"
-            placeholder="Team name"
-            class="w-full mb-2 px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            placeholder="Group name"
+            class="w-full mb-2 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
           />
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center space-x-2">
-              <label class="text-[11px] text-gray-400">Color:</label>
-              <input type="color" v-model="newTeamColor" class="w-8 h-6 border-0 p-0 bg-transparent" />
+              <label class="text-[11px] text-slate-500">Color:</label>
+              <input type="color" v-model="newTeamColor" class="w-7 h-5 border-0 p-0 bg-transparent rounded cursor-pointer" />
             </div>
-            <button v-if="editingTeamId" @click="resetTeamForm" class="text-[11px] text-gray-300 hover:text-gray-100">
+            <button v-if="editingTeamId" @click="resetTeamForm" class="text-[11px] text-slate-500 hover:text-slate-700">
               Cancel
             </button>
           </div>
@@ -371,36 +370,36 @@
             @click="createOrUpdateTeam"
             class="w-full py-1.5 rounded-lg text-xs text-white neon-button flex items-center justify-center"
           >
-            <i class="fas" :class="editingTeamId ? 'fa-save mr-2' : 'fa-plus mr-2'"></i>
-            {{ editingTeamId ? 'Update Team' : 'Add Team' }}
+            <i class="fas" :class="editingTeamId ? 'fa-save mr-1.5' : 'fa-plus mr-1.5'"></i>
+            {{ editingTeamId ? 'Update' : 'Add Group' }}
           </button>
         </div>
       </div>
     </aside>
 
     <!-- Content -->
-    <div class="flex-1 overflow-auto p-6 bg-slate-950">
+    <div class="flex-1 overflow-auto p-6 bg-slate-50">
 
       <!-- Pending Invitations Banner -->
       <div v-if="pendingInvitations.length" class="mb-4 space-y-2">
         <div v-for="inv in pendingInvitations" :key="inv.id"
-             class="flex items-center justify-between px-4 py-3 rounded-lg bg-indigo-900/20 border border-indigo-500/30">
+             class="flex items-center justify-between px-4 py-3 rounded-xl bg-indigo-50 border border-indigo-100">
           <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-full bg-indigo-900/40 flex items-center justify-center text-indigo-300">
+            <div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
               <i class="fas fa-envelope-open-text text-sm"></i>
             </div>
             <div>
-              <p class="text-sm text-slate-100 font-semibold">Team Invitation</p>
-              <p class="text-xs text-slate-400"><span class="text-indigo-300">{{ inv.invitedBy }}</span> invited you to join <span class="text-indigo-300">{{ inv.teamName }}</span></p>
+              <p class="text-sm text-slate-900 font-semibold">Team Invitation</p>
+              <p class="text-xs text-slate-500"><span class="text-indigo-600 font-medium">{{ inv.invitedBy }}</span> invited you to join <span class="text-indigo-600 font-medium">{{ inv.teamName }}</span></p>
             </div>
           </div>
           <div class="flex items-center gap-2">
             <button @click="respondInvitation(inv.id, 'accept')"
-                    class="px-3 py-1.5 rounded text-xs bg-green-700/80 text-green-100 hover:bg-green-600 transition-colors font-semibold">
+                    class="px-3 py-1.5 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700 transition-colors font-semibold">
               <i class="fas fa-check mr-1"></i> Accept
             </button>
             <button @click="respondInvitation(inv.id, 'decline')"
-                    class="px-3 py-1.5 rounded text-xs bg-red-700/80 text-red-100 hover:bg-red-600 transition-colors font-semibold">
+                    class="px-3 py-1.5 rounded-lg text-xs bg-white text-slate-600 hover:bg-gray-100 border border-gray-200 transition-colors font-semibold">
               <i class="fas fa-times mr-1"></i> Decline
             </button>
           </div>
@@ -410,7 +409,7 @@
       <!-- Projects -->
       <div v-if="currentTab === 'projects'" class="space-y-6">
         <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-slate-100">Projects</h2>
+          <h2 class="text-2xl font-bold text-slate-900">Projects</h2>
           <button @click="openNewProject" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
             <i class="fas fa-plus mr-2"></i> New Project
           </button>
@@ -428,21 +427,21 @@
               <i class="fas fa-trash"></i>
             </button>
             <div class="flex justify-between items-start mb-4">
-              <div class="w-10 h-10 rounded-lg bg-indigo-900/30 flex items-center justify-center text-indigo-400">
+              <div class="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
                 <i class="fas fa-project-diagram"></i>
               </div>
-              <div class="text-xs px-2 py-1 rounded-full" :class="{
-                  'bg-green-900/50 text-green-300': project.status === 'active',
-                  'bg-gray-900/50 text-gray-300': project.status === 'completed',
-                  'bg-yellow-900/50 text-yellow-300': project.status === 'archived'
+              <div class="text-xs px-2 py-1 rounded-full font-medium" :class="{
+                  'bg-green-50 text-green-700 border border-green-200': project.status === 'active',
+                  'bg-gray-100 text-gray-600 border border-gray-200': project.status === 'completed',
+                  'bg-amber-50 text-amber-700 border border-amber-200': project.status === 'archived'
                 }">
                 {{ formatStatus(project.status) }}
               </div>
             </div>
-            <h3 class="font-semibold text-lg mb-2 text-gray-100">{{ project.name }}</h3>
-            <p class="text-gray-400 text-sm mb-4 line-clamp-2">{{ project.description }}</p>
+            <h3 class="font-semibold text-base mb-1.5 text-slate-900">{{ project.name }}</h3>
+            <p class="text-slate-500 text-sm mb-4 line-clamp-2">{{ project.description }}</p>
 
-            <div class="flex justify-between items-center text-sm text-gray-400">
+            <div class="flex justify-between items-center text-sm text-slate-400">
               <div class="flex items-center">
                 <i class="fas fa-tasks mr-1"></i>
                 <span>{{ getProjectTaskCount(project.id) }} tasks</span>
@@ -451,13 +450,13 @@
                 <div
                   v-for="member in project.members.slice(0, 3)"
                   :key="member"
-                  class="w-6 h-6 rounded-full bg-indigo-500 text-white text-xs flex items-center justify-center border border-slate-700"
+                  class="w-6 h-6 rounded-full bg-indigo-500 text-white text-xs flex items-center justify-center border-2 border-white"
                   :title="member"
                 >
                   {{ getInitials(member) }}
                 </div>
                 <div v-if="project.members.length > 3"
-                     class="w-6 h-6 rounded-full bg-gray-700 text-gray-300 text-xs flex items-center justify-center border border-gray-700"
+                     class="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs flex items-center justify-center border-2 border-white"
                      :title="project.members.slice(3).join(', ')">
                   +{{ project.members.length - 3 }}
                 </div>
@@ -467,11 +466,11 @@
         </div>
 
         <div v-else class="empty-state p-8 text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-400">
             <i class="fas fa-project-diagram text-2xl"></i>
           </div>
-          <h3 class="text-lg font-medium text-gray-100 mb-2">No projects yet</h3>
-          <p class="text-gray-400 mb-4">Get started by creating your first project</p>
+          <h3 class="text-lg font-medium text-slate-900 mb-2">No projects yet</h3>
+          <p class="text-slate-500 mb-4">Get started by creating your first project</p>
           <button @click="openNewProject"
                   class="neon-button text-white px-4 py-2 rounded-lg inline-flex items-center">
             <i class="fas fa-plus mr-2"></i> New Project
@@ -482,7 +481,7 @@
       <!-- Tasks -->
       <div v-if="currentTab === 'tasks'" class="space-y-6">
         <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-slate-100">Tasks</h2>
+          <h2 class="text-2xl font-bold text-slate-900">Tasks</h2>
           <button @click="openNewTask" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
             <i class="fas fa-plus mr-2"></i> New Task
           </button>
@@ -492,7 +491,7 @@
           <div
             v-for="board in boards"
             :key="board.id"
-            class="bg-slate-900 rounded-lg p-4 min-h-[500px] border border-slate-800"
+            class="bg-white rounded-xl p-4 min-h-[500px] border border-gray-200 shadow-sm"
             @drop.prevent="moveTask($event, board.id)"
             @dragover.prevent
             @dragenter="setDragOver(board.id, true)"
@@ -500,9 +499,9 @@
             :class="{'drag-over': dragOverBoard === board.id}"
           >
             <div class="flex justify-between items-center mb-4">
-              <h3 class="font-semibold text-slate-100 cursor-pointer hover:text-indigo-400"
+              <h3 class="font-semibold text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
                   @click.stop="openBoardRedirect(board)">{{ board.name }}</h3>
-              <span class="bg-slate-800 text-slate-300 text-xs font-medium px-2 py-1 rounded-full">
+              <span class="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2 py-1 rounded-full border border-indigo-100">
                 {{ visibleTasksForBoard(board.id).length }}
               </span>
             </div>
@@ -511,10 +510,10 @@
               <div
                 v-for="task in visibleTasksForBoard(board.id)"
                 :key="task.id"
-                class="task-card bg-slate-800 shadow-sm p-4 cursor-move border-l-4"
+                class="task-card bg-white shadow-sm p-3.5 cursor-move border-l-4"
                 :class="{
                   'border-red-500': task.priority === 'high',
-                  'border-yellow-500': task.priority === 'medium',
+                  'border-amber-400': task.priority === 'medium',
                   'border-green-500': task.priority === 'low'
                 }"
                 draggable="true"
@@ -522,42 +521,41 @@
                 @click="handleTaskClick(task)"
                 @contextmenu.prevent="showTaskContextMenu($event, task)"
               >
-                <div class="flex justify-between items-start mb-2">
-                  <div class="flex items-center">
-                    <h4 class="font-medium text-gray-100">{{ task.name }}</h4>
+                <div class="flex justify-between items-start mb-1.5">
+                  <div class="flex items-center flex-1 min-w-0">
+                    <h4 class="font-medium text-slate-900 text-sm truncate">{{ task.name }}</h4>
 
                     <span v-if="task.taskType === 'super'"
-                          class="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-purple-900/50 text-purple-300">
+                          class="ml-2 shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
                       <i class="fas fa-bolt mr-1"></i> SUPER
                     </span>
                   </div>
 
-                  <div class="text-xs px-2 py-1 rounded-full" :class="{
-                    'bg-red-900/50 text-red-300': task.priority === 'high',
-                    'bg-yellow-900/50 text-yellow-300': task.priority === 'medium',
-                    'bg-green-900/50 text-green-300': task.priority === 'low'
+                  <div class="shrink-0 text-[10px] px-2 py-0.5 rounded-full font-semibold ml-2" :class="{
+                    'bg-red-50 text-red-700 border border-red-200': task.priority === 'high',
+                    'bg-amber-50 text-amber-700 border border-amber-200': task.priority === 'medium',
+                    'bg-green-50 text-green-700 border border-green-200': task.priority === 'low'
                   }">
                     {{ task.priority }}
                   </div>
                 </div>
 
-                <p class="text-gray-400 text-sm mb-3">{{ task.description }}</p>
+                <p class="text-slate-500 text-xs mb-2.5 line-clamp-2">{{ task.description }}</p>
 
                 <!-- ✅ Super Task extra line -->
-                <div v-if="task.taskType === 'super'" class="text-[11px] text-purple-300 mb-2">
+                <div v-if="task.taskType === 'super'" class="text-[10px] text-purple-600 mb-2 bg-purple-50 rounded px-2 py-1">
                   <i class="fas fa-terminal mr-1"></i>
                   {{ task.codeMeta && task.codeMeta.codeName ? task.codeMeta.codeName : 'Code Task' }}
-                  <span class="text-gray-400">· {{ (task.codeMeta && task.codeMeta.language) ? task.codeMeta.language : 'code' }}</span>
-                  <span v-if="task.codeMeta && task.codeMeta.filePath" class="text-gray-400">· {{ task.codeMeta.filePath }}</span>
+                  <span class="text-slate-400">· {{ (task.codeMeta && task.codeMeta.language) ? task.codeMeta.language : 'code' }}</span>
                 </div>
 
-                <div class="flex justify-between items-center text-xs text-gray-400">
+                <div class="flex justify-between items-center text-xs text-slate-400 mt-1">
                   <span><i class="far fa-clock mr-1"></i> {{ formatDate(task.dueDate) }}</span>
                   <div class="flex">
                     <div
                       v-for="assignee in task.assignees"
                       :key="assignee"
-                      class="w-6 h-6 rounded-full bg-indigo-500 text-white text-xs flex items-center justify-center border border-slate-700 -ml-1"
+                      class="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center border-2 border-white -ml-1"
                       :title="assignee"
                     >
                       {{ getInitials(assignee) }}
@@ -574,7 +572,7 @@
       <!-- Files -->
       <div v-if="currentTab === 'files'" class="space-y-6">
         <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-slate-100">Files</h2>
+          <h2 class="text-2xl font-bold text-slate-900">Files</h2>
           <div>
             <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden">
             <button @click="$refs.fileInput.click()"
@@ -585,13 +583,13 @@
         </div>
 
         <div v-if="uploadProgress > 0 && uploadProgress < 100"
-             class="bg-slate-900 rounded-lg p-4 shadow-sm border border-slate-800">
+             class="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div class="flex justify-between items-center mb-2">
-            <span class="font-medium text-gray-100">Uploading file...</span>
-            <span class="text-sm text-gray-400">{{ uploadProgress }}%</span>
+            <span class="font-medium text-slate-900 text-sm">Uploading file...</span>
+            <span class="text-sm text-slate-500">{{ uploadProgress }}%</span>
           </div>
-          <div class="w-full bg-slate-700 rounded-full h-2">
-            <div class="h-2 rounded-full file-progress"
+          <div class="w-full bg-gray-200 rounded-full h-1.5">
+            <div class="h-1.5 rounded-full file-progress"
                  :style="{ width: uploadProgress + '%' }"></div>
           </div>
         </div>
@@ -608,13 +606,14 @@
               <i class="fas fa-times"></i>
             </button>
             <div class="flex justify-center mb-4">
-              <div class="w-12 h-12 rounded-lg flex items-center justify-center text-2xl glow"
+              <div class="w-12 h-12 rounded-lg flex items-center justify-center text-xl"
                    :class="{
-                     'bg-blue-900/50 text-blue-300': file.type === 'doc' || file.type === 'docx',
-                     'bg-red-900/50 text-red-300': file.type === 'pdf',
-                     'bg-green-900/50 text-green-300': file.type === 'xls' || file.type === 'xlsx',
-                     'bg-yellow-900/50 text-yellow-300': file.type === 'zip',
-                     'bg-purple-900/50 text-purple-300': file.type === 'png' || file.type === 'jpg' || file.type === 'jpeg'
+                     'bg-blue-50 text-blue-600': file.type === 'doc' || file.type === 'docx',
+                     'bg-red-50 text-red-600': file.type === 'pdf',
+                     'bg-green-50 text-green-600': file.type === 'xls' || file.type === 'xlsx',
+                     'bg-amber-50 text-amber-600': file.type === 'zip',
+                     'bg-purple-50 text-purple-600': file.type === 'png' || file.type === 'jpg' || file.type === 'jpeg',
+                     'bg-gray-100 text-gray-500': file.type === 'txt' || file.type === 'other'
                    }">
                 <i class="fas" :class="{
                   'fa-file-word': file.type === 'doc' || file.type === 'docx',
@@ -626,16 +625,16 @@
                 }"></i>
               </div>
             </div>
-            <h3 class="font-semibold text-center mb-1 truncate text-gray-100">{{ file.name }}</h3>
-            <p class="text-gray-400 text-sm text-center mb-3">{{ file.size }}</p>
+            <h3 class="font-semibold text-center mb-1 truncate text-slate-900 text-sm">{{ file.name }}</h3>
+            <p class="text-slate-400 text-xs text-center mb-3">{{ file.size }}</p>
 
-            <div class="flex justify-between items-center text-xs text-gray-400">
+            <div class="flex justify-between items-center text-xs text-slate-400">
               <span>{{ formatDate(file.uploaded) }}</span>
               <div class="flex space-x-2">
-                <button @click="downloadFile(file)" class="text-blue-400 hover:text-blue-200">
+                <button @click="downloadFile(file)" class="text-indigo-500 hover:text-indigo-700 transition-colors">
                   <i class="fas fa-download"></i>
                 </button>
-                <button @click="openFile(file)" class="text-green-400 hover:text-green-200">
+                <button @click="openFile(file)" class="text-green-500 hover:text-green-700 transition-colors">
                   <i class="fas fa-external-link-alt"></i>
                 </button>
               </div>
@@ -647,32 +646,32 @@
       <!-- Activity Log -->
       <div v-if="currentTab === 'activity'" class="space-y-6">
         <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-slate-100">Activity Log</h2>
-          <button @click="loadActivityLog" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
+          <h2 class="text-2xl font-bold text-slate-900">Activity Log</h2>
+          <button @click="loadActivityLog" class="px-3 py-1.5 rounded-lg text-xs bg-white text-slate-700 hover:bg-gray-50 border border-gray-200 transition-colors">
             <i class="fas fa-sync-alt mr-1"></i> Refresh
           </button>
         </div>
 
         <div v-if="!activityLogs.length" class="empty-state p-8 text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-400">
             <i class="fas fa-history text-2xl"></i>
           </div>
-          <h3 class="text-lg font-medium text-gray-100 mb-2">No activity yet</h3>
-          <p class="text-gray-400">Actions like creating tasks, moving cards, and commenting will appear here.</p>
+          <h3 class="text-lg font-medium text-slate-900 mb-2">No activity yet</h3>
+          <p class="text-slate-500">Actions like creating tasks, moving cards, and commenting will appear here.</p>
         </div>
 
         <div v-else class="space-y-2">
           <div v-for="log in activityLogs" :key="log.id"
-               class="flex items-start gap-3 p-3 rounded-lg bg-slate-900/60 border border-slate-800 hover:border-indigo-500/20 transition-colors">
+               class="flex items-start gap-3 p-3 rounded-lg bg-white border border-gray-200 hover:border-indigo-200 transition-colors shadow-sm">
             <div class="activity-icon"
                  :class="{
-                   'bg-green-900/60 text-green-300': log.action === 'created',
-                   'bg-blue-900/60 text-blue-300': log.action === 'updated',
-                   'bg-red-900/60 text-red-300': log.action === 'deleted',
-                   'bg-yellow-900/60 text-yellow-300': log.action === 'moved',
-                   'bg-indigo-900/60 text-indigo-300': log.action === 'commented',
-                   'bg-purple-900/60 text-purple-300': log.action === 'attached_file',
-                   'bg-gray-700 text-gray-300': !['created','updated','deleted','moved','commented','attached_file'].includes(log.action)
+                   'bg-green-50 text-green-600': log.action === 'created',
+                   'bg-blue-50 text-blue-600': log.action === 'updated',
+                   'bg-red-50 text-red-600': log.action === 'deleted',
+                   'bg-amber-50 text-amber-600': log.action === 'moved',
+                   'bg-indigo-50 text-indigo-600': log.action === 'commented',
+                   'bg-purple-50 text-purple-600': log.action === 'attached_file',
+                   'bg-gray-100 text-gray-500': !['created','updated','deleted','moved','commented','attached_file'].includes(log.action)
                  }">
               <i class="fas"
                  :class="{
@@ -686,10 +685,10 @@
                  }"></i>
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-sm text-gray-100">{{ log.detail || (log.actor + ' ' + log.action + ' ' + log.targetType + ' ' + log.targetName) }}</p>
-              <p class="text-[11px] text-gray-400 mt-0.5">{{ formatNotificationTime(log.createdAt) }}</p>
+              <p class="text-sm text-slate-800">{{ log.detail || (log.actor + ' ' + log.action + ' ' + log.targetType + ' ' + log.targetName) }}</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">{{ formatNotificationTime(log.createdAt) }}</p>
             </div>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-gray-700/60 text-gray-300 flex-shrink-0">{{ log.targetType }}</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-slate-500 border border-gray-200 flex-shrink-0">{{ log.targetType }}</span>
           </div>
         </div>
       </div>
@@ -697,39 +696,39 @@
       <!-- Calendar Tab -->
       <div v-if="currentTab === 'calendar'" class="space-y-4">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-slate-100"><i class="fas fa-calendar-alt mr-2 text-indigo-400"></i>Calendar</h2>
+          <h2 class="text-lg font-semibold text-slate-900"><i class="fas fa-calendar-alt mr-2 text-indigo-600"></i>Calendar</h2>
           <div class="flex items-center gap-2">
-            <button @click="calendarPrev" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
+            <button @click="calendarPrev" class="px-3 py-1.5 rounded-lg text-xs bg-white text-slate-700 hover:bg-gray-50 border border-gray-200 transition-colors">
               <i class="fas fa-chevron-left"></i>
             </button>
-            <span class="text-sm font-medium text-gray-200 min-w-[160px] text-center">{{ calendarMonthLabel }}</span>
-            <button @click="calendarNext" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
+            <span class="text-sm font-medium text-slate-900 min-w-[160px] text-center">{{ calendarMonthLabel }}</span>
+            <button @click="calendarNext" class="px-3 py-1.5 rounded-lg text-xs bg-white text-slate-700 hover:bg-gray-50 border border-gray-200 transition-colors">
               <i class="fas fa-chevron-right"></i>
             </button>
           </div>
         </div>
 
         <!-- Legend -->
-        <div class="flex items-center gap-4 text-[10px] mb-2">
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-700/60"></span> Overdue</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-900/50"></span> High</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-yellow-900/50"></span> Medium</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-900/50"></span> Low</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-700/60"></span> Done</span>
+        <div class="flex items-center gap-4 text-[10px] mb-2 text-slate-600">
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-500"></span> Overdue</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-400"></span> High</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-400"></span> Medium</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-500"></span> Low</span>
+          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-indigo-400"></span> Done</span>
         </div>
 
-        <div class="grid grid-cols-7 gap-px bg-slate-800/50 rounded-xl overflow-hidden border border-slate-800">
+        <div class="grid grid-cols-7 gap-px bg-gray-200 rounded-xl overflow-hidden border border-gray-200">
           <!-- Day headers -->
           <div v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="d"
-               class="bg-slate-900 text-center text-[11px] text-slate-400 py-2 font-semibold">{{ d }}</div>
+               class="bg-gray-50 text-center text-[11px] text-slate-500 py-2 font-semibold">{{ d }}</div>
           <!-- Calendar cells -->
           <div v-for="(cell, idx) in calendarDays" :key="idx"
-               class="bg-slate-950/80 min-h-[80px] p-1.5"
-               :class="{ 'bg-slate-900/40': !cell }">
+               class="bg-white min-h-[80px] p-1.5"
+               :class="{ 'bg-gray-50': !cell }">
             <template v-if="cell">
               <div class="text-[11px] font-semibold mb-1"
-                   :class="isToday(cell.iso) ? 'text-indigo-300' : 'text-slate-400'">
-                <span v-if="isToday(cell.iso)" class="px-1.5 py-0.5 rounded-full bg-indigo-600/40">{{ cell.day }}</span>
+                   :class="isToday(cell.iso) ? 'text-indigo-600' : 'text-slate-500'">
+                <span v-if="isToday(cell.iso)" class="px-1.5 py-0.5 rounded-full bg-indigo-600 text-white">{{ cell.day }}</span>
                 <span v-else>{{ cell.day }}</span>
               </div>
               <div class="space-y-0.5">
@@ -752,42 +751,42 @@
   <!-- Task Detail Modal (Comments, Attachments, Subtasks) -->
   <transition name="fade">
     <div v-if="showTaskDetailModal && detailTask" class="fixed inset-0 z-40 flex items-center justify-center confirmation-modal" @click.self="closeTaskDetail">
-      <div class="bg-slate-900 rounded-xl shadow-xl w-full max-w-2xl p-6 border border-slate-700 modal max-h-[90vh] overflow-y-auto">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 border border-gray-200 modal max-h-[90vh] overflow-y-auto">
         <div class="flex items-start justify-between mb-4">
           <div>
-            <h3 class="text-lg font-semibold text-slate-100">{{ detailTask.name }}</h3>
-            <p class="text-xs text-gray-400 mt-1">{{ detailTask.description || 'No description' }}</p>
+            <h3 class="text-lg font-semibold text-slate-900">{{ detailTask.name }}</h3>
+            <p class="text-xs text-slate-500 mt-1">{{ detailTask.description || 'No description' }}</p>
           </div>
           <div class="flex items-center gap-2">
-            <button @click="editTaskFromDetail" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
+            <button @click="editTaskFromDetail" class="px-3 py-1.5 rounded-lg text-xs bg-gray-100 text-slate-700 hover:bg-gray-200 border border-gray-200 transition-colors">
               <i class="fas fa-edit mr-1"></i> Edit
             </button>
-            <button @click="closeTaskDetail" class="px-3 py-1.5 rounded-lg text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
+            <button @click="closeTaskDetail" class="px-2 py-1.5 rounded-lg text-xs bg-gray-100 text-slate-500 hover:bg-gray-200 border border-gray-200 transition-colors">
               <i class="fas fa-times"></i>
             </button>
           </div>
         </div>
 
-        <div class="flex items-center gap-3 mb-5 text-xs">
-          <span class="px-2 py-1 rounded-full" :class="{
-            'bg-red-900/50 text-red-300': detailTask.priority === 'high',
-            'bg-yellow-900/50 text-yellow-300': detailTask.priority === 'medium',
-            'bg-green-900/50 text-green-300': detailTask.priority === 'low'
+        <div class="flex items-center gap-2 mb-5 text-xs flex-wrap">
+          <span class="px-2 py-1 rounded-full font-medium" :class="{
+            'bg-red-50 text-red-700 border border-red-200': detailTask.priority === 'high',
+            'bg-amber-50 text-amber-700 border border-amber-200': detailTask.priority === 'medium',
+            'bg-green-50 text-green-700 border border-green-200': detailTask.priority === 'low'
           }">{{ detailTask.priority }}</span>
-          <span class="text-gray-400"><i class="far fa-clock mr-1"></i>{{ formatDate(detailTask.dueDate) }}</span>
-          <span class="text-gray-400"><i class="fas fa-columns mr-1"></i>{{ getBoardName(detailTask.boardId) }}</span>
+          <span class="text-slate-500"><i class="far fa-clock mr-1"></i>{{ formatDate(detailTask.dueDate) }}</span>
+          <span class="text-slate-500"><i class="fas fa-columns mr-1"></i>{{ getBoardName(detailTask.boardId) }}</span>
         </div>
 
         <!-- Subtasks / Checklist -->
         <div class="mb-5">
           <div class="flex items-center justify-between mb-2">
-            <h4 class="text-sm font-semibold text-slate-200"><i class="fas fa-check-square mr-2 text-indigo-400"></i>Checklist</h4>
-            <span v-if="taskSubtasks.length" class="text-[11px] text-gray-400">
+            <h4 class="text-sm font-semibold text-slate-700"><i class="fas fa-check-square mr-2 text-indigo-600"></i>Checklist</h4>
+            <span v-if="taskSubtasks.length" class="text-[11px] text-slate-400">
               {{ taskSubtasks.filter(s => s.isDone).length }}/{{ taskSubtasks.length }}
             </span>
           </div>
           <div v-if="taskSubtasks.length" class="mb-2">
-            <div class="w-full bg-slate-700 rounded-full h-1.5 mb-3">
+            <div class="w-full bg-gray-200 rounded-full h-1.5 mb-3">
               <div class="h-1.5 rounded-full bg-indigo-500 transition-all"
                    :style="{ width: (taskSubtasks.length ? (taskSubtasks.filter(s=>s.isDone).length / taskSubtasks.length * 100) : 0) + '%' }"></div>
             </div>
@@ -795,9 +794,9 @@
           <div class="space-y-1">
             <div v-for="sub in taskSubtasks" :key="sub.id"
                  class="subtask-row flex items-center gap-2 px-2 py-1.5 rounded group">
-              <input type="checkbox" :checked="sub.isDone" @change="toggleSubtask(sub)" class="accent-indigo-500">
-              <span class="flex-1 text-sm" :class="sub.isDone ? 'subtask-done text-gray-400' : 'text-gray-100'">{{ sub.title }}</span>
-              <button @click="deleteSubtask(sub.id)" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 text-xs transition-opacity">
+              <input type="checkbox" :checked="sub.isDone" @change="toggleSubtask(sub)" class="accent-indigo-600">
+              <span class="flex-1 text-sm" :class="sub.isDone ? 'subtask-done text-slate-400' : 'text-slate-900'">{{ sub.title }}</span>
+              <button @click="deleteSubtask(sub.id)" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs transition-opacity">
                 <i class="fas fa-times"></i>
               </button>
             </div>
@@ -805,31 +804,31 @@
           <div class="flex items-center gap-2 mt-2">
             <input v-model="newSubtaskTitle" @keydown.enter.prevent="addSubtask"
                    placeholder="Add checklist item..."
-                   class="flex-1 px-3 py-1.5 bg-slate-800 border border-slate-700 rounded text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500">
-            <button @click="addSubtask" class="px-3 py-1.5 rounded text-xs neon-button text-white">Add</button>
+                   class="flex-1 px-3 py-1.5 modal-input text-sm">
+            <button @click="addSubtask" class="px-3 py-1.5 rounded-lg text-xs neon-button text-white">Add</button>
           </div>
         </div>
 
         <!-- Attachments -->
         <div class="mb-5">
-          <h4 class="text-sm font-semibold text-slate-200 mb-2"><i class="fas fa-paperclip mr-2 text-indigo-400"></i>Attachments</h4>
+          <h4 class="text-sm font-semibold text-slate-700 mb-2"><i class="fas fa-paperclip mr-2 text-indigo-600"></i>Attachments</h4>
           <div v-if="taskAttachments.length" class="space-y-2 mb-2">
             <div v-for="att in taskAttachments" :key="att.id"
-                 class="flex items-center justify-between px-3 py-2 bg-slate-800/60 rounded-lg border border-slate-700/50 group">
+                 class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg border border-gray-200 group">
               <div class="flex items-center gap-2 min-w-0">
-                <i class="fas fa-file text-indigo-400 text-xs"></i>
-                <a :href="att.url" target="_blank" class="text-sm text-slate-100 hover:text-indigo-300 truncate">{{ att.name }}</a>
-                <span class="text-[10px] text-gray-400">{{ att.size }}</span>
+                <i class="fas fa-file text-indigo-500 text-xs"></i>
+                <a :href="att.url" target="_blank" class="text-sm text-slate-800 hover:text-indigo-600 truncate">{{ att.name }}</a>
+                <span class="text-[10px] text-slate-400">{{ att.size }}</span>
               </div>
-              <button @click="deleteAttachment(att.id)" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 text-xs transition-opacity">
+              <button @click="deleteAttachment(att.id)" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-xs transition-opacity">
                 <i class="fas fa-trash"></i>
               </button>
             </div>
           </div>
-          <div v-else class="text-xs text-gray-400 mb-2">No attachments yet.</div>
+          <div v-else class="text-xs text-slate-400 mb-2">No attachments yet.</div>
           <div>
             <input type="file" ref="taskAttachInput" @change="uploadTaskAttachment" class="hidden">
-            <button @click="$refs.taskAttachInput.click()" class="px-3 py-1.5 rounded text-xs bg-slate-800 text-slate-200 hover:bg-slate-700">
+            <button @click="$refs.taskAttachInput.click()" class="px-3 py-1.5 rounded-lg text-xs bg-gray-100 text-slate-700 hover:bg-gray-200 border border-gray-200 transition-colors">
               <i class="fas fa-upload mr-1"></i> Upload File
             </button>
           </div>
@@ -837,26 +836,26 @@
 
         <!-- Comments -->
         <div>
-          <h4 class="text-sm font-semibold text-slate-200 mb-2"><i class="fas fa-comments mr-2 text-indigo-400"></i>Comments</h4>
+          <h4 class="text-sm font-semibold text-slate-700 mb-2"><i class="fas fa-comments mr-2 text-indigo-600"></i>Comments</h4>
           <div v-if="taskComments.length" class="space-y-2 mb-3 max-h-60 overflow-y-auto">
             <div v-for="c in taskComments" :key="c.id" class="comment-bubble px-3 py-2 group">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-indigo-300">{{ c.author }}</span>
+                <span class="text-xs font-semibold text-indigo-600">{{ c.author }}</span>
                 <div class="flex items-center gap-2">
-                  <span class="text-[10px] text-gray-400">{{ formatNotificationTime(c.createdAt) }}</span>
-                  <button @click="deleteComment(c.id)" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 text-[10px] transition-opacity">
+                  <span class="text-[10px] text-slate-400">{{ formatNotificationTime(c.createdAt) }}</span>
+                  <button @click="deleteComment(c.id)" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 text-[10px] transition-opacity">
                     <i class="fas fa-trash"></i>
                   </button>
                 </div>
               </div>
-              <p class="text-sm text-gray-200 mt-1">{{ c.body }}</p>
+              <p class="text-sm text-slate-700 mt-1">{{ c.body }}</p>
             </div>
           </div>
-          <div v-else class="text-xs text-gray-400 mb-3">No comments yet. Be the first to comment.</div>
+          <div v-else class="text-xs text-slate-400 mb-3">No comments yet. Be the first to comment.</div>
           <div class="flex items-start gap-2">
             <textarea v-model="newCommentBody" @keydown.ctrl.enter="addComment" rows="2" placeholder="Write a comment... (Ctrl+Enter to send)"
-                      class="flex-1 px-3 py-2 bg-slate-800 border border-slate-700 rounded text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"></textarea>
-            <button @click="addComment" class="px-3 py-2 rounded text-xs neon-button text-white self-end">
+                      class="flex-1 px-3 py-2 modal-input text-sm resize-none"></textarea>
+            <button @click="addComment" class="px-3 py-2 rounded-lg text-xs neon-button text-white self-end">
               <i class="fas fa-paper-plane"></i>
             </button>
           </div>
@@ -868,34 +867,30 @@
   <!-- ✅ Task Modal (SCROLL FIX INSIDE) -->
   <transition name="fade">
     <div v-if="showTaskModal" class="fixed inset-0 z-40 flex items-center justify-center confirmation-modal">
-      <!-- ✅ IMPORTANT: max-h + overflow -->
-      <div class="bg-slate-900 rounded-xl shadow-xl w-full max-w-lg p-6 border border-slate-700 modal max-h-[85vh] overflow-y-auto">
-        <h3 class="text-lg font-semibold text-slate-100 mb-4">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 border border-gray-200 modal max-h-[85vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold text-slate-900 mb-4">
           {{ editingTask ? 'Edit Task' : 'New Task' }}
         </h3>
 
         <div class="space-y-3 text-sm">
           <div>
-            <label class="block text-slate-300 mb-1">Task Name</label>
-            <input v-model="currentTask.name"
-                   class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-slate-600 font-medium mb-1">Task Name</label>
+            <input v-model="currentTask.name" class="modal-input">
           </div>
 
           <div>
-            <label class="block text-slate-300 mb-1">Description</label>
-            <textarea v-model="currentTask.description" rows="3"
-                      class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+            <label class="block text-slate-600 font-medium mb-1">Description</label>
+            <textarea v-model="currentTask.description" rows="3" class="modal-input resize-none"></textarea>
           </div>
 
           <!-- Task Type -->
           <div>
-            <label class="block text-slate-300 mb-1">Task Type</label>
-            <select v-model="currentTask.taskType"
-                    class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-slate-600 font-medium mb-1">Task Type</label>
+            <select v-model="currentTask.taskType" class="modal-input">
               <option value="normal">Normal</option>
               <option value="super">Super Task (CodeSpace)</option>
             </select>
-            <p v-if="currentTask.taskType === 'super'" class="mt-1 text-[11px] text-purple-300">
+            <p v-if="currentTask.taskType === 'super'" class="mt-1 text-[11px] text-purple-600">
               <i class="fas fa-bolt mr-1"></i>
               Clicking this task will open CodeSpace with its starter code.
             </p>
@@ -903,9 +898,8 @@
 
           <!-- Project -->
           <div>
-            <label class="block text-slate-300 mb-1">Project (optional)</label>
-            <select v-model.number="currentTask.projectId"
-                    class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-slate-600 font-medium mb-1">Project (optional)</label>
+            <select v-model.number="currentTask.projectId" class="modal-input">
               <option :value="null">No project</option>
               <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
             </select>
@@ -913,47 +907,45 @@
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-slate-300 mb-1">Priority</label>
-              <select v-model="currentTask.priority"
-                      class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <label class="block text-slate-600 font-medium mb-1">Priority</label>
+              <select v-model="currentTask.priority" class="modal-input">
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
                 <option value="low">Low</option>
               </select>
             </div>
             <div>
-              <label class="block text-slate-300 mb-1">Due Date</label>
-              <input type="date" v-model="currentTask.dueDate"
-                     class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <label class="block text-slate-600 font-medium mb-1">Due Date</label>
+              <input type="date" v-model="currentTask.dueDate" class="modal-input">
             </div>
           </div>
 
           <!-- Assignees (Team Head only) -->
-          <div v-if="currentUserRole === 'head'" class="bg-slate-800/60 p-3 rounded-lg border border-slate-700">
-            <div class="flex items-center justify-between">
-              <label class="block text-gray-300 text-sm">Assign to members</label>
+          <div v-if="currentUserRole === 'head'" class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-slate-700 text-sm font-medium">Assign to members</label>
               <button type="button" @click="currentTask.assignees = []"
-                      class="text-[11px] text-gray-300 hover:text-gray-100">
+                      class="text-[11px] text-slate-500 hover:text-slate-700">
                 Clear
               </button>
             </div>
 
-            <div v-if="!teamMembers.length" class="mt-2 text-xs text-gray-400">
+            <div v-if="!teamMembers.length" class="text-xs text-slate-400">
               No team members loaded.
             </div>
 
-            <div v-else class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-1">
               <label v-for="m in teamMembers" :key="m.email"
-                     class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-700 cursor-pointer">
+                     class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white cursor-pointer transition-colors">
                 <input type="checkbox"
-                       class="accent-indigo-500"
+                       class="accent-indigo-600"
                        :value="m.email"
                        v-model="currentTask.assignees" />
-                <span class="text-xs text-gray-100 truncate" :title="m.name + ' (' + m.email + ')'">
+                <span class="text-xs text-slate-900 truncate" :title="m.name + ' (' + m.email + ')'">
                   {{ m.name }}
                 </span>
-                <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full"
-                      :class="m.role === 'head' ? 'bg-purple-900/50 text-purple-200' : 'bg-gray-900/50 text-gray-300'">
+                <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full shrink-0"
+                      :class="m.role === 'head' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-gray-100 text-gray-600'">
                   {{ m.role === 'head' ? 'Head' : 'Member' }}
                 </span>
               </label>
@@ -961,24 +953,22 @@
           </div>
 
           <!-- ✅ Super Task CodeSpace Meta -->
-          <div v-if="currentTask.taskType === 'super'" class="bg-slate-800/60 p-3 rounded-lg border border-purple-500/20">
-            <p class="text-xs text-purple-300 mb-2">
+          <div v-if="currentTask.taskType === 'super'" class="bg-purple-50 p-3 rounded-lg border border-purple-200">
+            <p class="text-xs text-purple-700 mb-2 font-semibold">
               <i class="fas fa-code mr-1"></i> CodeSpace Details
             </p>
 
-            <!-- ✅ Code Name (REQUIRED) -->
             <div class="mb-3">
-              <label class="block text-gray-300 mb-1 text-xs">Code Name (required)</label>
+              <label class="block text-slate-600 mb-1 text-xs font-medium">Code Name (required)</label>
               <input v-model="currentTask.codeMeta.codeName"
                      placeholder="e.g. Fix JWT Middleware"
-                     class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+                     class="modal-input text-sm">
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-gray-300 mb-1 text-xs">Language</label>
-                <select v-model="currentTask.codeMeta.language"
-                        class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+                <label class="block text-slate-600 mb-1 text-xs font-medium">Language</label>
+                <select v-model="currentTask.codeMeta.language" class="modal-input text-sm">
                   <option>javascript</option>
                   <option>typescript</option>
                   <option>python</option>
@@ -989,39 +979,39 @@
               </div>
 
               <div>
-                <label class="block text-gray-300 mb-1 text-xs">File Path (optional)</label>
+                <label class="block text-slate-600 mb-1 text-xs font-medium">File Path (optional)</label>
                 <input v-model="currentTask.codeMeta.filePath"
                        placeholder="e.g. backend/routes/auth.js"
-                       class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+                       class="modal-input text-sm">
               </div>
             </div>
 
             <div class="mt-3">
-              <label class="block text-gray-300 mb-1 text-xs">Starter Code</label>
+              <label class="block text-slate-600 mb-1 text-xs font-medium">Starter Code</label>
               <textarea v-model="currentTask.codeMeta.starterCode" rows="6"
                         placeholder="// starter code here..."
-                        class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm"></textarea>
+                        class="modal-input text-sm resize-none font-mono"></textarea>
             </div>
 
             <div class="mt-3">
-              <label class="block text-gray-300 mb-1 text-xs">Expected Output / Notes (optional)</label>
+              <label class="block text-slate-600 mb-1 text-xs font-medium">Expected Output / Notes (optional)</label>
               <input v-model="currentTask.codeMeta.expectedOutput"
                      placeholder="e.g. validate JWT and reject invalid tokens"
-                     class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+                     class="modal-input text-sm">
             </div>
 
             <div class="grid grid-cols-2 gap-3 mt-3">
               <div>
-                <label class="block text-gray-300 mb-1 text-xs">Repo URL (optional)</label>
+                <label class="block text-slate-600 mb-1 text-xs font-medium">Repo URL (optional)</label>
                 <input v-model="currentTask.codeMeta.repoUrl"
                        placeholder="https://github.com/..."
-                       class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+                       class="modal-input text-sm">
               </div>
               <div>
-                <label class="block text-gray-300 mb-1 text-xs">Branch (optional)</label>
+                <label class="block text-slate-600 mb-1 text-xs font-medium">Branch (optional)</label>
                 <input v-model="currentTask.codeMeta.branch"
                        placeholder="dev / feature-x"
-                       class="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-gray-100 text-sm">
+                       class="modal-input text-sm">
               </div>
             </div>
           </div>
@@ -1029,13 +1019,13 @@
 
         <div class="mt-5 flex justify-end space-x-3">
           <button @click="closeTaskModal"
-                  class="px-4 py-2 rounded-lg text-sm bg-slate-700 text-slate-200 hover:bg-slate-600">
+                  class="px-4 py-2 rounded-lg text-sm bg-gray-100 text-slate-700 hover:bg-gray-200 border border-gray-200 transition-colors">
             Cancel
           </button>
           <button @click="saveTask" :disabled="isSaving"
                   class="px-4 py-2 rounded-lg text-sm text-white neon-button disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
             <i v-if="isSaving" class="fas fa-spinner fa-spin"></i>
-            {{ isSaving ? 'Saving\u2026' : (editingTask ? 'Save Changes' : 'Create Task') }}
+            {{ isSaving ? 'Saving…' : (editingTask ? 'Save Changes' : 'Create Task') }}
           </button>
         </div>
       </div>
@@ -1045,43 +1035,43 @@
   <!-- Approvals Modal (Head only) -->
   <transition name="fade">
     <div v-if="showApprovalsModal" class="fixed inset-0 z-50 flex items-center justify-center confirmation-modal">
-      <div class="bg-slate-900 rounded-xl shadow-xl w-full max-w-2xl p-6 border border-slate-700 modal max-h-[85vh] overflow-y-auto">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 border border-gray-200 modal max-h-[85vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-purple-300">
-            Approval Requests
+          <h3 class="text-lg font-semibold text-slate-900">
+            <i class="fas fa-clipboard-check mr-2 text-indigo-600"></i>Approval Requests
           </h3>
           <button @click="closeApprovals"
-                  class="px-3 py-2 rounded-lg text-sm bg-gray-700 text-gray-200 hover:bg-gray-600">
+                  class="px-3 py-2 rounded-lg text-sm bg-gray-100 text-slate-600 hover:bg-gray-200 border border-gray-200 transition-colors">
             Close
           </button>
         </div>
 
-        <div v-if="!approvalRequests.length" class="text-sm text-gray-300">
+        <div v-if="!approvalRequests.length" class="text-sm text-slate-500">
           No pending requests.
         </div>
 
         <div v-else class="space-y-3">
           <div v-for="req in approvalRequests"
                :key="req.id"
-               class="p-4 rounded-lg border border-gray-700 bg-gray-800/60">
+               class="p-4 rounded-lg border border-gray-200 bg-gray-50">
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1">
-                <p class="text-sm text-gray-100">
-                  <span class="font-semibold text-indigo-300">{{ req.requestedBy }}</span>
-                  <span class="text-gray-300"> requested </span>
-                  <span class="font-semibold text-purple-200">{{ req.action }}</span>
-                  <span class="text-gray-300"> on </span>
-                  <span class="font-semibold text-gray-100">{{ req.entityType }}</span>
+                <p class="text-sm text-slate-900">
+                  <span class="font-semibold text-indigo-600">{{ req.requestedBy }}</span>
+                  <span class="text-slate-500"> requested </span>
+                  <span class="font-semibold text-purple-600">{{ req.action }}</span>
+                  <span class="text-slate-500"> on </span>
+                  <span class="font-semibold text-slate-900">{{ req.entityType }}</span>
                 </p>
-                <p class="text-xs text-gray-400 mt-1">{{ req.summary }}</p>
+                <p class="text-xs text-slate-400 mt-1">{{ req.summary }}</p>
               </div>
-              <div class="flex items-center space-x-2">
+              <div class="flex items-center space-x-2 shrink-0">
                 <button @click="approveRequest(req.id)"
-                        class="px-3 py-1.5 rounded-lg text-xs bg-green-700/80 text-green-100 hover:bg-green-600">
+                        class="px-3 py-1.5 rounded-lg text-xs bg-green-600 text-white hover:bg-green-700 transition-colors">
                   Approve
                 </button>
                 <button @click="rejectRequest(req.id)"
-                        class="px-3 py-1.5 rounded-lg text-xs bg-red-700/80 text-red-100 hover:bg-red-600">
+                        class="px-3 py-1.5 rounded-lg text-xs bg-red-500 text-white hover:bg-red-600 transition-colors">
                   Reject
                 </button>
               </div>
@@ -1095,25 +1085,22 @@
   <!-- Project Modal -->
   <transition name="fade">
     <div v-if="showProjectModal" class="fixed inset-0 z-40 flex items-center justify-center confirmation-modal">
-      <div class="bg-slate-900 rounded-xl shadow-xl w-full max-w-lg p-6 border border-slate-700 modal max-h-[85vh] overflow-y-auto">
-        <h3 class="text-lg font-semibold text-slate-100 mb-4">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 border border-gray-200 modal max-h-[85vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold text-slate-900 mb-4">
           {{ editingProject ? 'Edit Project' : 'New Project' }}
         </h3>
         <div class="space-y-3 text-sm">
           <div>
-            <label class="block text-slate-300 mb-1">Project Name</label>
-            <input v-model="currentProject.name"
-                   class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-slate-600 font-medium mb-1">Project Name</label>
+            <input v-model="currentProject.name" class="modal-input">
           </div>
           <div>
-            <label class="block text-slate-300 mb-1">Description</label>
-            <textarea v-model="currentProject.description" rows="3"
-                      class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+            <label class="block text-slate-600 font-medium mb-1">Description</label>
+            <textarea v-model="currentProject.description" rows="3" class="modal-input resize-none"></textarea>
           </div>
           <div>
-            <label class="block text-slate-300 mb-1">Status</label>
-            <select v-model="currentProject.status"
-                    class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-slate-600 font-medium mb-1">Status</label>
+            <select v-model="currentProject.status" class="modal-input">
               <option value="active">Active</option>
               <option value="completed">Completed</option>
               <option value="archived">Archived</option>
@@ -1121,33 +1108,33 @@
           </div>
 
           <div>
-            <div class="flex items-center justify-between">
-              <label class="block text-gray-300 mb-1">Project Members</label>
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-slate-700 font-medium">Project Members</label>
               <button v-if="currentUserRole === 'head'" type="button" @click="currentProject.members = []"
-                      class="text-[11px] text-gray-300 hover:text-gray-100">
+                      class="text-[11px] text-slate-500 hover:text-slate-700">
                 Clear
               </button>
             </div>
 
-            <div v-if="!currentProject.members.length" class="text-xs text-gray-400">
+            <div v-if="!currentProject.members.length" class="text-xs text-slate-400">
               No members selected.
             </div>
 
             <div v-else class="flex flex-wrap gap-2 mb-2">
               <span v-for="memberEmail in currentProject.members" :key="memberEmail"
-                    class="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-900/30 text-indigo-200 text-xs">
+                    class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs border border-indigo-200">
                 {{ memberEmail }}
-                <button v-if="currentUserRole === 'head'" type="button" @click="removeProjectMember(memberEmail)" class="text-indigo-200 hover:text-white">
+                <button v-if="currentUserRole === 'head'" type="button" @click="removeProjectMember(memberEmail)" class="text-indigo-500 hover:text-indigo-700">
                   <i class="fas fa-times"></i>
                 </button>
               </span>
             </div>
 
-            <div v-if="teamMembers.length" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <label v-for="m in teamMembers" :key="m.email" class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-700 cursor-pointer">
-                <input type="checkbox" class="accent-indigo-500" :checked="isProjectMember(m.email)"
+            <div v-if="teamMembers.length" class="grid grid-cols-1 sm:grid-cols-2 gap-1 bg-gray-50 rounded-lg p-2">
+              <label v-for="m in teamMembers" :key="m.email" class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white cursor-pointer transition-colors">
+                <input type="checkbox" class="accent-indigo-600" :checked="isProjectMember(m.email)"
                        :disabled="currentUserRole !== 'head'" @change="toggleProjectMember(m.email)" />
-                <span class="text-xs text-gray-100 truncate">{{ m.name }} ({{ m.email }})</span>
+                <span class="text-xs text-slate-900 truncate">{{ m.name }} ({{ m.email }})</span>
               </label>
             </div>
           </div>
@@ -1155,13 +1142,13 @@
 
         <div class="mt-5 flex justify-end space-x-3">
           <button @click="closeProjectModal"
-                  class="px-4 py-2 rounded-lg text-sm bg-gray-700 text-gray-200 hover:bg-gray-600">
+                  class="px-4 py-2 rounded-lg text-sm bg-gray-100 text-slate-700 hover:bg-gray-200 border border-gray-200 transition-colors">
             Cancel
           </button>
           <button @click="saveProject" :disabled="isSaving"
                   class="px-4 py-2 rounded-lg text-sm text-white neon-button disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2">
             <i v-if="isSaving" class="fas fa-spinner fa-spin"></i>
-            {{ isSaving ? 'Saving\u2026' : (editingProject ? 'Save Changes' : 'Create Project') }}
+            {{ isSaving ? 'Saving…' : (editingProject ? 'Save Changes' : 'Create Project') }}
           </button>
         </div>
       </div>
@@ -1171,19 +1158,19 @@
   <!-- Confirmation Modal -->
   <transition name="fade">
     <div v-if="showConfirmationModal" class="fixed inset-0 z-50 flex items-center justify-center confirmation-modal">
-      <div class="bg-slate-900 rounded-xl shadow-xl w-full max-w-sm p-6 border border-slate-700">
-        <h3 class="text-lg font-semibold text-red-400 mb-2">Are you sure?</h3>
-        <p class="text-sm text-gray-300 mb-4">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 border border-gray-200">
+        <h3 class="text-lg font-semibold text-red-600 mb-2">Are you sure?</h3>
+        <p class="text-sm text-slate-500 mb-4">
           This will permanently delete the {{ itemToDelete.type }}:
-          <span class="font-semibold">{{ itemToDelete.name }}</span>
+          <span class="font-semibold text-slate-900">{{ itemToDelete.name }}</span>
         </p>
         <div class="flex justify-end space-x-3">
           <button @click="showConfirmationModal = false"
-                  class="px-4 py-2 rounded-lg text-sm bg-gray-700 text-gray-200 hover:bg-gray-600">
+                  class="px-4 py-2 rounded-lg text-sm bg-gray-100 text-slate-700 hover:bg-gray-200 border border-gray-200 transition-colors">
             Cancel
           </button>
           <button @click="executeDelete"
-                  class="px-4 py-2 rounded-lg text-sm bg-red-600 text-white hover:bg-red-500">
+                  class="px-4 py-2 rounded-lg text-sm bg-red-600 text-white hover:bg-red-700 transition-colors">
             Delete
           </button>
         </div>
@@ -1196,34 +1183,34 @@
        :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
     <div v-if="contextMenu.type === 'task'" class="min-w-[180px]">
       <button @click.stop="editTask(contextMenu.item)"
-              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
-        <i class="fas fa-edit mr-2 text-indigo-400"></i> Edit
+              class="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center transition-colors text-slate-700">
+        <i class="fas fa-edit mr-2 text-indigo-600"></i> Edit
       </button>
 
       <button v-if="contextMenu.item && contextMenu.item.taskType === 'super'"
               @click.stop="openSuperTask(contextMenu.item)"
-              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
-        <i class="fas fa-code mr-2 text-purple-300"></i> Open in CodeSpace
+              class="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center transition-colors text-slate-700">
+        <i class="fas fa-code mr-2 text-purple-600"></i> Open in CodeSpace
       </button>
 
       <button @click.stop="confirmDeleteTask(contextMenu.item)"
-              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
-        <i class="fas fa-trash mr-2 text-red-400"></i> Delete
+              class="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center transition-colors text-slate-700">
+        <i class="fas fa-trash mr-2 text-red-500"></i> Delete
       </button>
     </div>
 
     <div v-if="contextMenu.type === 'file'" class="min-w-[150px]">
       <button @click.stop="openFile(contextMenu.item)"
-              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
-        <i class="fas fa-external-link-alt mr-2 text-green-400"></i> Open
+              class="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center transition-colors text-slate-700">
+        <i class="fas fa-external-link-alt mr-2 text-green-600"></i> Open
       </button>
       <button @click.stop="downloadFile(contextMenu.item)"
-              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
-        <i class="fas fa-download mr-2 text-indigo-400"></i> Download
+              class="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center transition-colors text-slate-700">
+        <i class="fas fa-download mr-2 text-indigo-600"></i> Download
       </button>
       <button @click.stop="confirmDeleteFile(contextMenu.item)"
-              class="w-full text-left px-4 py-2 hover:bg-gray-700 flex items-center transition-colors text-gray-100">
-        <i class="fas fa-trash mr-2 text-red-400"></i> Delete
+              class="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center transition-colors text-slate-700">
+        <i class="fas fa-trash mr-2 text-red-500"></i> Delete
       </button>
     </div>
   </div>
@@ -1231,10 +1218,10 @@
   <!-- Toast -->
   <transition name="fade">
     <div v-if="showToast"
-         class="fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg flex items-center glow"
-         :class="toastIsError ? 'bg-red-900/80 text-red-200 border border-red-500/40' : 'bg-slate-800 text-indigo-300 border border-slate-700'">
-      <i class="fas mr-2" :class="toastIsError ? 'fa-triangle-exclamation' : 'fa-check-circle'"></i>
-      <span>{{ toastMessage }}</span>
+         class="fixed bottom-4 right-4 px-4 py-3 rounded-xl shadow-lg flex items-center"
+         :class="toastIsError ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-white text-indigo-700 border border-indigo-200'">
+      <i class="fas mr-2" :class="toastIsError ? 'fa-triangle-exclamation text-red-500' : 'fa-check-circle text-indigo-500'"></i>
+      <span class="text-sm font-medium">{{ toastMessage }}</span>
     </div>
   </transition>
 

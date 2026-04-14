@@ -27,31 +27,31 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <style>
         body { font-family: "Inter", sans-serif; }
-        .stat-card { transition: transform .15s; }
-        .stat-card:hover { transform: translateY(-2px); }
+        .stat-card { transition: transform .15s, box-shadow .15s; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
     </style>
 </head>
 
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body class="bg-gray-50 text-gray-800 min-h-screen">
     <div id="app" class="flex flex-col min-h-screen">
         <!-- Header -->
-        <header class="bg-slate-900/70 backdrop-blur border-b border-slate-800 py-4 px-6 flex justify-between items-center">
+        <header class="bg-white/80 backdrop-blur border-b border-gray-200 py-4 px-6 flex justify-between items-center">
             <div>
-              <h1 class="text-xl font-bold text-gray-100">TaskHive Analytics</h1>
-              <p class="text-xs text-gray-400">Logged in as: <span class="text-gray-200">{{ currentUserName }}</span></p>
+              <h1 class="text-xl font-bold text-gray-900">TaskHive Analytics</h1>
+              <p class="text-xs text-gray-500">Logged in as: <span class="text-gray-700 font-medium">{{ currentUserName }}</span></p>
             </div>
             <div class="flex items-center space-x-3">
-                <a href="/workspace/" class="px-3 py-1 rounded-lg text-sm bg-slate-800 text-slate-200 hover:bg-slate-700">
+                <a href="/workspace/" class="px-3 py-1 rounded-lg text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200">
                     <i class="fas fa-arrow-left mr-1"></i> Back to Board
                 </a>
                 <!-- Export buttons -->
-                <a href="/api/export/csv/" class="px-3 py-1 rounded-lg text-sm bg-emerald-700/80 text-emerald-100 hover:bg-emerald-600">
+                <a href="/api/export/csv/" class="px-3 py-1 rounded-lg text-sm bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200">
                     <i class="fas fa-file-csv mr-1"></i> CSV
                 </a>
-                <a href="/api/export/pdf/" target="_blank" class="px-3 py-1 rounded-lg text-sm bg-blue-700/80 text-blue-100 hover:bg-blue-600">
+                <a href="/api/export/pdf/" target="_blank" class="px-3 py-1 rounded-lg text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200">
                     <i class="fas fa-file-pdf mr-1"></i> Report
                 </a>
-                <button @click="logout" class="px-3 py-1 rounded-lg text-sm bg-red-600/90 text-white hover:bg-red-600">
+                <button @click="logout" class="px-3 py-1 rounded-lg text-sm bg-red-500 text-white hover:bg-red-600">
                   <i class="fas fa-right-from-bracket mr-1"></i> Logout
                 </button>
             </div>
@@ -60,69 +60,69 @@
         <main class="flex-1 p-6 space-y-6">
             <!-- Summary Cards Row 1 -->
             <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                <div class="stat-card bg-slate-900/60 rounded-xl p-4 border border-slate-800">
-                    <p class="text-xs text-slate-400">Total Tasks</p>
-                    <p class="text-2xl font-bold text-slate-100">{{ d.totalTasks }}</p>
+                <div class="stat-card bg-white rounded-xl p-4 border border-gray-200">
+                    <p class="text-xs text-gray-500">Total Tasks</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ d.totalTasks }}</p>
                 </div>
-                <div class="stat-card bg-slate-900/60 rounded-xl p-4 border border-slate-800" v-for="col in d.columns" :key="col.name">
-                    <p class="text-xs text-slate-400">{{ col.name }}</p>
-                    <p class="text-2xl font-bold text-indigo-400">{{ col.count }}</p>
+                <div class="stat-card bg-white rounded-xl p-4 border border-gray-200" v-for="col in d.columns" :key="col.name">
+                    <p class="text-xs text-gray-500">{{ col.name }}</p>
+                    <p class="text-2xl font-bold text-indigo-600">{{ col.count }}</p>
                 </div>
-                <div class="stat-card bg-slate-900/60 rounded-xl p-4 border border-red-800/40">
-                    <p class="text-xs text-slate-400">Overdue</p>
-                    <p class="text-2xl font-bold text-red-400">{{ d.overdue }}</p>
+                <div class="stat-card bg-white rounded-xl p-4 border border-red-200">
+                    <p class="text-xs text-gray-500">Overdue</p>
+                    <p class="text-2xl font-bold text-red-500">{{ d.overdue }}</p>
                 </div>
             </section>
 
             <!-- Project + Priority summary -->
             <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="stat-card bg-slate-900/60 rounded-xl p-4 border border-slate-800">
-                    <p class="text-xs text-slate-400">Projects</p>
-                    <p class="text-2xl font-bold text-slate-100">{{ d.projectStats.total }}</p>
-                    <p class="text-[10px] text-slate-500">{{ d.projectStats.active }} active &middot; {{ d.projectStats.completed }} done</p>
+                <div class="stat-card bg-white rounded-xl p-4 border border-gray-200">
+                    <p class="text-xs text-gray-500">Projects</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ d.projectStats.total }}</p>
+                    <p class="text-[10px] text-gray-400">{{ d.projectStats.active }} active &middot; {{ d.projectStats.completed }} done</p>
                 </div>
-                <div class="stat-card bg-slate-900/60 rounded-xl p-4 border border-red-900/30">
-                    <p class="text-xs text-gray-400">High Priority</p>
-                    <p class="text-2xl font-bold text-red-300">{{ d.priority.high }}</p>
+                <div class="stat-card bg-white rounded-xl p-4 border border-red-200">
+                    <p class="text-xs text-gray-500">High Priority</p>
+                    <p class="text-2xl font-bold text-red-500">{{ d.priority.high }}</p>
                 </div>
-                <div class="stat-card bg-slate-900/60 rounded-xl p-4 border border-yellow-900/30">
-                    <p class="text-xs text-gray-400">Medium Priority</p>
-                    <p class="text-2xl font-bold text-yellow-300">{{ d.priority.medium }}</p>
+                <div class="stat-card bg-white rounded-xl p-4 border border-yellow-200">
+                    <p class="text-xs text-gray-500">Medium Priority</p>
+                    <p class="text-2xl font-bold text-yellow-600">{{ d.priority.medium }}</p>
                 </div>
-                <div class="stat-card bg-slate-900/60 rounded-xl p-4 border border-green-900/30">
-                    <p class="text-xs text-gray-400">Low Priority</p>
-                    <p class="text-2xl font-bold text-green-300">{{ d.priority.low }}</p>
+                <div class="stat-card bg-white rounded-xl p-4 border border-green-200">
+                    <p class="text-xs text-gray-500">Low Priority</p>
+                    <p class="text-2xl font-bold text-green-600">{{ d.priority.low }}</p>
                 </div>
             </section>
 
             <!-- Charts Row 1: Column distribution + Priority -->
             <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-slate-900/60 rounded-xl p-5 border border-slate-800">
-                    <h3 class="text-sm font-semibold text-slate-100 mb-3"><i class="fas fa-columns mr-2 text-indigo-400"></i>Tasks by Column</h3>
+                <div class="bg-white rounded-xl p-5 border border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-columns mr-2 text-indigo-500"></i>Tasks by Column</h3>
                     <canvas id="columnChart" height="200"></canvas>
                 </div>
-                <div class="bg-slate-900/60 rounded-xl p-5 border border-slate-800">
-                    <h3 class="text-sm font-semibold text-slate-100 mb-3"><i class="fas fa-fire mr-2 text-red-400"></i>Priority Distribution</h3>
+                <div class="bg-white rounded-xl p-5 border border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-fire mr-2 text-red-500"></i>Priority Distribution</h3>
                     <canvas id="priorityChart" height="200"></canvas>
                 </div>
             </section>
 
             <!-- Charts Row 2: Creation + Completion trends -->
             <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-slate-900/60 rounded-xl p-5 border border-slate-800">
-                    <h3 class="text-sm font-semibold text-slate-100 mb-3"><i class="fas fa-chart-line mr-2 text-indigo-400"></i>Task Creation Trend (14 days)</h3>
+                <div class="bg-white rounded-xl p-5 border border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-chart-line mr-2 text-indigo-500"></i>Task Creation Trend (14 days)</h3>
                     <canvas id="creationChart" height="200"></canvas>
                 </div>
-                <div class="bg-slate-900/60 rounded-xl p-5 border border-slate-800">
-                    <h3 class="text-sm font-semibold text-slate-100 mb-3"><i class="fas fa-chart-area mr-2 text-green-400"></i>Completion Trend (14 days)</h3>
+                <div class="bg-white rounded-xl p-5 border border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-chart-area mr-2 text-green-500"></i>Completion Trend (14 days)</h3>
                     <canvas id="completionChart" height="200"></canvas>
                 </div>
             </section>
 
             <!-- Charts Row 3: Member workload -->
             <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-slate-900/60 rounded-xl p-5 border border-slate-800">
-                    <h3 class="text-sm font-semibold text-slate-100 mb-3"><i class="fas fa-users mr-2 text-purple-400"></i>Member Workload</h3>
+                <div class="bg-white rounded-xl p-5 border border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-800 mb-3"><i class="fas fa-users mr-2 text-purple-500"></i>Member Workload</h3>
                     <canvas id="workloadChart" height="200"></canvas>
                 </div>
             </section>
@@ -131,18 +131,18 @@
 
     <script>
         const chartColors = {
-            cyan: 'rgba(99,102,241,0.8)',
-            cyanBg: 'rgba(99,102,241,0.15)',
-            green: 'rgba(74,222,128,0.8)',
-            greenBg: 'rgba(74,222,128,0.15)',
-            red: 'rgba(248,113,113,0.8)',
-            yellow: 'rgba(251,191,36,0.8)',
-            purple: 'rgba(192,132,252,0.8)',
+            cyan: 'rgba(79,70,229,0.8)',
+            cyanBg: 'rgba(79,70,229,0.08)',
+            green: 'rgba(22,163,74,0.8)',
+            greenBg: 'rgba(22,163,74,0.08)',
+            red: 'rgba(239,68,68,0.8)',
+            yellow: 'rgba(202,138,4,0.8)',
+            purple: 'rgba(147,51,234,0.8)',
             gray: 'rgba(156,163,175,0.5)',
         };
         const darkTheme = {
-            color: '#9ca3af',
-            borderColor: 'rgba(75,85,99,0.3)',
+            color: '#6b7280',
+            borderColor: 'rgba(229,231,235,0.6)',
         };
 
         Chart.defaults.color = darkTheme.color;
