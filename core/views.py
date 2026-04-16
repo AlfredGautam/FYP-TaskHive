@@ -51,6 +51,14 @@ from .email_utils import (
 from .rate_limit import rate_limit
 
 
+def error_404(request, exception=None):
+    return render(request, "404.html", status=404)
+
+
+def error_500(request):
+    return render(request, "500.html", status=500)
+
+
 def api_health(request):
     """Health check endpoint for monitoring."""
     from django.db import connection

@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Team Setup - TaskHive</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><text y='.9em' font-size='65' x='14'>🧊</text></svg>">
 
   <!-- ✅ SAFE AUTH GUARD (single) -->
   <script>
@@ -29,9 +30,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     body { font-family: 'Inter', sans-serif; }
-    .neon-text { }
-    .glow { box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-    .glow-strong { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 16px;
+      box-shadow: 0 2px 8px rgba(79,70,229,0.3);
+    }
     .panel {
       background: #ffffff;
       border: 1px solid #e2e8f0;
@@ -53,12 +59,21 @@
       background: #fff;
     }
     .neon-button {
-      background: #4f46e5;
+      background: linear-gradient(135deg, #4f46e5, #6d28d9);
       transition: all 0.2s ease;
+      box-shadow: 0 4px 14px -2px rgba(79,70,229,0.35);
     }
     .neon-button:hover {
-      background: #4338ca;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px -4px rgba(79,70,229,0.45);
     }
+    .alert-msg {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 9px 13px; border-radius: 9px;
+      font-size: 13px; font-weight: 500; line-height: 1.4;
+    }
+    .alert-msg.error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+    .alert-msg.success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
     .slide-enter-active, .slide-leave-active { transition: all 0.3s ease; }
     .slide-enter, .slide-leave-to { opacity: 0; max-height: 0; overflow: hidden; }
     .slide-enter-to, .slide-leave { opacity: 1; max-height: 800px; }
@@ -78,9 +93,9 @@
   <header class="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
     <div class="w-full px-6 lg:px-10 py-3.5 flex items-center justify-between">
       <a href="/user/" class="flex items-center gap-3 no-underline" @click.prevent="goHome">
-        <div class="text-indigo-600 text-xl"><i class="fas fa-cubes"></i></div>
+        <div class="logo-icon"><i class="fas fa-cubes"></i></div>
         <div>
-          <div class="text-base font-bold text-slate-900 leading-tight">TaskHive</div>
+          <div class="text-base font-bold text-slate-900 leading-tight tracking-tight">TaskHive</div>
           <div class="text-[10px] text-slate-400 tracking-wider uppercase">Dashboard</div>
         </div>
       </a>
@@ -186,7 +201,10 @@
             {{ inviteLoading ? 'Sending...' : 'Invite' }}
           </button>
         </div>
-        <div v-if="inviteMsg" class="text-xs" :class="inviteError ? 'text-red-500' : 'text-green-600'">{{ inviteMsg }}</div>
+        <div v-if="inviteMsg" class="alert-msg" :class="inviteError ? 'error' : 'success'">
+          <i :class="inviteError ? 'fas fa-circle-exclamation' : 'fas fa-circle-check'" style="margin-top:1px;font-size:13px;"></i>
+          <span>{{ inviteMsg }}</span>
+        </div>
       </div>
 
       <!-- Sent Invitations (admin only) -->
@@ -280,7 +298,10 @@
         <button @click="createTeam" :disabled="createLoading" class="w-full px-3 py-2.5 rounded-lg neon-button text-white font-semibold text-sm">
           {{ createLoading ? 'Creating...' : 'Create Team' }}
         </button>
-        <div v-if="createMsg" class="text-sm" :class="createError ? 'text-red-500' : 'text-green-600'">{{ createMsg }}</div>
+        <div v-if="createMsg" class="alert-msg" :class="createError ? 'error' : 'success'">
+          <i :class="createError ? 'fas fa-circle-exclamation' : 'fas fa-circle-check'" style="margin-top:1px;font-size:13px;"></i>
+          <span>{{ createMsg }}</span>
+        </div>
       </div>
 
       <div class="panel glow p-6 space-y-4">
@@ -297,7 +318,10 @@
         <button @click="joinTeam" :disabled="joinLoading" class="w-full px-3 py-2.5 rounded-lg neon-button text-white font-semibold text-sm">
           {{ joinLoading ? 'Joining...' : 'Join Team' }}
         </button>
-        <div v-if="joinMsg" class="text-sm" :class="joinError ? 'text-red-500' : 'text-green-600'">{{ joinMsg }}</div>
+        <div v-if="joinMsg" class="alert-msg" :class="joinError ? 'error' : 'success'">
+          <i :class="joinError ? 'fas fa-circle-exclamation' : 'fas fa-circle-check'" style="margin-top:1px;font-size:13px;"></i>
+          <span>{{ joinMsg }}</span>
+        </div>
       </div>
     </section>
 

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>404 - Page Not Found | TaskHive</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><text y='.9em' font-size='65' x='14'>🧊</text></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f0f4ff;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(79,70,229,0.12) 0%, transparent 60%),
+        radial-gradient(circle at 1px 1px, rgba(79,70,229,0.05) 1px, transparent 0);
+      background-size: auto, 28px 28px;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 40px 16px;
+    }
+    .logo-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 22px;
+      box-shadow: 0 4px 14px rgba(79,70,229,0.35);
+    }
+    .error-card {
+      background: #fff;
+      border-radius: 24px;
+      padding: 48px 40px;
+      border: 1px solid rgba(226,232,240,0.8);
+      box-shadow: 0 8px 40px -8px rgba(15,23,42,0.12), 0 1px 3px rgba(15,23,42,0.04);
+      text-align: center;
+      max-width: 480px;
+      width: 100%;
+      animation: fadeInUp 0.4s ease backwards;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 28px; border-radius: 10px;
+      background: linear-gradient(135deg, #4f46e5, #6d28d9);
+      color: #fff; font-size: 14px; font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px -2px rgba(79,70,229,0.4);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px -4px rgba(79,70,229,0.5); }
+    .btn-ghost {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 28px; border-radius: 10px;
+      background: #fff; color: #374151;
+      font-size: 14px; font-weight: 600;
+      border: 1.5px solid #e2e8f0;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .btn-ghost:hover { border-color: #4f46e5; color: #4f46e5; background: #eef2ff; }
+    @keyframes fadeInUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    .float-anim { animation: float 3s ease-in-out infinite; }
+  </style>
+</head>
+<body>
+  <div style="width:100%;max-width:480px;">
+    <!-- Logo -->
+    <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:32px;">
+      <div class="logo-icon"><i class="fas fa-cubes"></i></div>
+      <div>
+        <div style="font-size:20px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">TaskHive</div>
+        <div style="font-size:11px;color:#94a3b8;font-weight:500;">Team Collaboration Platform</div>
+      </div>
+    </div>
+
+    <div class="error-card">
+      <!-- Big 404 -->
+      <div class="float-anim" style="font-size:80px;font-weight:800;line-height:1;background:linear-gradient(135deg,#4f46e5,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;">
+        404
+      </div>
+      <div style="width:48px;height:3px;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:99px;margin:0 auto 20px;"></div>
+
+      <h1 style="font-size:22px;font-weight:700;color:#0f172a;margin-bottom:10px;">Page not found</h1>
+      <p style="font-size:14px;color:#64748b;line-height:1.6;margin-bottom:32px;">
+        The page you're looking for doesn't exist or has been moved. Let's get you back on track.
+      </p>
+
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <a href="/user/" class="btn-primary"><i class="fas fa-house"></i> Go to Dashboard</a>
+        <a href="javascript:history.back()" class="btn-ghost"><i class="fas fa-arrow-left"></i> Go Back</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
