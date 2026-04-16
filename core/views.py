@@ -51,6 +51,14 @@ from .email_utils import (
 from .rate_limit import rate_limit
 
 
+def error_404(request, exception=None):
+    return render(request, "404.html", status=404)
+
+
+def error_500(request):
+    return render(request, "500.html", status=500)
+
+
 def api_health(request):
     """Health check endpoint for monitoring."""
     from django.db import connection
@@ -188,6 +196,62 @@ def api_login(request):
 
     login(request, user)
     return JsonResponse({"ok": True, "redirect": "/user/"})
+
+
+@csrf_exempt
+@require_POST
+@rate_limit(max_requests=20, window_seconds=60)
+def api_google_auth(request):
+    """Verify a Google ID-token and log the user in (create account if new)."""
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    credential = data.get("credential", "").strip()
+    if not credential:
+        return JsonResponse({"ok": False, "error": "Missing credential"}, status=400)
+
+    # Verify the token with google-auth
+    from google.oauth2 import id_token as google_id_token
+    from google.auth.transport import requests as google_requests
+
+    try:
+        idinfo = google_id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            settings.GOOGLE_OAUTH_CLIENT_ID,
+        )
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Invalid Google token."}, status=401)
+
+    email = (idinfo.get("email") or "").strip().lower()
+    if not email or not idinfo.get("email_verified"):
+        return JsonResponse({"ok": False, "error": "Google account email not verified."}, status=401)
+
+    name = idinfo.get("name") or email.split("@")[0]
+
+    # Get or create user
+    user = User.objects.filter(email__iexact=email).first()
+    if user is None:
+        # New user — create with unusable password (Google-only)
+        username = email  # match existing convention
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            first_name=name.split()[0] if name else "",
+            last_name=" ".join(name.split()[1:]) if name and len(name.split()) > 1 else "",
+        )
+        user.set_unusable_password()
+        user.save()
+        UserProfile.objects.get_or_create(user=user)
+        try:
+            send_welcome_email(email, name)
+        except Exception:
+            logger.warning("Failed to send welcome email to %s", email)
+
+    login(request, user, backend="core.backends.EmailBackend")
+    return JsonResponse({"ok": True, "redirect": "/user/", "name": user.get_full_name() or user.username, "email": user.email})
 
 
 def _gen_team_code() -> str:

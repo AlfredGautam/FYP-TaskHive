@@ -8,14 +8,57 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs/loader.js"></script>
-
-  <!-- (optional) for icons in modal close button -->
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 
   <style>
-    html, body { height: 100%; margin: 0; }
-    #editor { height: calc(100vh - 64px); }
+    html,body{height:100%;margin:0;overflow:hidden;font-family:'Inter',sans-serif;}
+    ::-webkit-scrollbar{width:8px;height:8px;}
+    ::-webkit-scrollbar-track{background:#1e1e1e;}
+    ::-webkit-scrollbar-thumb{background:#424242;border-radius:4px;}
+    ::-webkit-scrollbar-thumb:hover{background:#555;}
+
+    .ide-bg{background:#1e1e1e;}
+    .sidebar-bg{background:#252526;}
+    .actbar-bg{background:#333333;}
+    .topbar-bg{background:#323233;border-bottom:1px solid #1e1e1e;}
+    .tab-bar{background:#252526;display:flex;overflow-x:auto;min-height:35px;align-items:flex-end;}
+    .tab-item{padding:6px 14px;font-size:12px;color:#969696;cursor:pointer;border-right:1px solid #1e1e1e;display:flex;align-items:center;gap:6px;white-space:nowrap;background:#2d2d2d;position:relative;user-select:none;}
+    .tab-item:hover{color:#d4d4d4;}
+    .tab-item.active{background:#1e1e1e;color:#fff;border-top:2px solid #007acc;margin-top:-2px;}
+    .tab-item .tab-close{opacity:0;font-size:10px;margin-left:4px;padding:2px;border-radius:3px;}
+    .tab-item:hover .tab-close,.tab-item.active .tab-close{opacity:1;}
+    .tab-close:hover{background:#ffffff1a;}
+
+    .statusbar{background:#007acc;height:22px;display:flex;align-items:center;padding:0 10px;font-size:11px;color:#fff;justify-content:space-between;}
+    .panel-header{background:#252526;border-top:1px solid #007acc;padding:0 12px;display:flex;align-items:center;height:30px;font-size:11px;color:#ccc;gap:12px;}
+    .panel-header span{cursor:pointer;padding:4px 8px;border-bottom:2px solid transparent;}
+    .panel-header span.active{color:#fff;border-bottom-color:#007acc;}
+    .terminal-area{background:#1e1e1e;color:#d4d4d4;font-family:'JetBrains Mono',monospace;font-size:12px;padding:8px 12px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;}
+
+    .sidebar-section{border-bottom:1px solid #1e1e1e;}
+    .sidebar-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:#bbbbbb;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+    .sidebar-title:hover{color:#fff;}
+    .file-item{padding:5px 12px 5px 20px;font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:6px;justify-content:space-between;}
+    .file-item:hover{background:#2a2d2e;}
+    .file-item.active-file{background:#37373d;color:#fff;}
+    .file-item .del-btn{opacity:0;color:#888;font-size:10px;padding:2px 4px;border-radius:3px;}
+    .file-item:hover .del-btn{opacity:1;}
+    .file-item .del-btn:hover{background:#ff000033;color:#f44;}
+
+    .lang-chip{padding:4px 10px;font-size:11px;border-radius:4px;cursor:pointer;color:#aaa;background:#2d2d2d;border:1px solid transparent;transition:all .15s;}
+    .lang-chip:hover{color:#fff;border-color:#555;}
+    .lang-chip.active{background:#007acc33;color:#007acc;border-color:#007acc;}
+
+    .btn-vs{padding:4px 10px;font-size:11px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s;}
+    .btn-primary{background:#007acc;color:#fff;}.btn-primary:hover{background:#0098ff;}
+    .btn-success{background:#16825d;color:#fff;}.btn-success:hover{background:#1ea06d;}
+    .btn-ghost{background:transparent;color:#aaa;border:1px solid #555;}.btn-ghost:hover{color:#fff;border-color:#888;}
+    .btn-danger{background:#c72e2e;color:#fff;}.btn-danger:hover{background:#e04040;}
+
+    .preview-frame{background:#fff;border:none;width:100%;height:100%;}
+    .resize-handle{height:4px;cursor:ns-resize;background:transparent;}.resize-handle:hover{background:#007acc55;}
+    #editorContainer{position:relative;overflow:hidden;}
   </style>
 
   <script>
@@ -85,253 +128,602 @@
   </script>
 </head>
 
-<body class="bg-slate-950 text-slate-100" style="font-family:'Inter',sans-serif">
+<body class="ide-bg" style="overflow:hidden;">
+  <input id="fileInput" type="file" class="hidden" multiple />
 
-  <!-- Top bar -->
-  <div class="h-16 px-4 flex items-center justify-between bg-slate-900 border-b border-slate-800">
-    <div class="flex items-center gap-3 min-w-0">
-      <div class="text-slate-100 font-bold text-lg whitespace-nowrap">TaskHive CodeSpace</div>
-      <div id="fileName" class="text-sm text-gray-300 truncate">No file loaded</div>
-      <div id="status" class="text-xs text-gray-400 whitespace-nowrap"></div>
+  <!-- ═══ TOP BAR ═══ -->
+  <div class="topbar-bg flex items-center justify-between px-3" style="height:30px;">
+    <div class="flex items-center gap-3">
+      <span class="text-blue-400 text-sm"><i class="fas fa-code"></i></span>
+      <span class="text-xs font-semibold text-gray-300">TaskHive CodeSpace</span>
+      <span id="fileName" class="text-xs text-gray-500 truncate max-w-[200px]">No file loaded</span>
     </div>
-
     <div class="flex items-center gap-2">
-      <input id="fileInput" type="file" class="hidden" multiple />
-
-      <!-- ✅ NEW FILE BUTTON -->
-      <button id="newBtn" class="px-3 py-2 rounded bg-purple-600 hover:bg-purple-500 text-sm">
-        + New File
-      </button>
-
-      <button id="uploadBtn" class="px-3 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-sm">
-        Upload Files
-      </button>
-
-      <button id="saveBtn" class="px-3 py-2 rounded bg-green-600 hover:bg-green-500 text-sm">
-        Save
-      </button>
-
-      <a href="/workspace/" class="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm">
-        Back
-      </a>
+      <span id="status" class="text-[10px] text-gray-500"></span>
+      <button id="copyBtn" class="btn-vs btn-ghost" title="Copy code"><i class="fas fa-copy"></i> Copy</button>
+      <button id="downloadBtn" class="btn-vs btn-ghost" title="Download file"><i class="fas fa-download"></i></button>
+      <a href="/workspace/" class="btn-vs btn-ghost" title="Back to Board"><i class="fas fa-arrow-left"></i> Board</a>
     </div>
   </div>
 
-  <!-- Layout -->
-  <div class="flex" style="height: calc(100vh - 64px);">
-    <!-- Sidebar -->
-    <div class="w-72 bg-slate-900 border-r border-slate-800 overflow-y-auto">
-      <div class="p-3 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-800">
-        Files
+  <!-- ═══ MAIN LAYOUT ═══ -->
+  <div class="flex" style="height:calc(100vh - 52px);">
+
+    <!-- ACTIVITY BAR (icon strip) -->
+    <div class="actbar-bg flex flex-col items-center py-2 gap-1" style="width:48px;min-width:48px;">
+      <button class="act-btn w-10 h-10 flex items-center justify-center text-white rounded hover:bg-white/10 relative" data-panel="explorer" title="Explorer">
+        <i class="fas fa-copy text-sm"></i>
+        <span class="absolute left-0 top-0 bottom-0 w-[2px] bg-white rounded-r hidden"></span>
+      </button>
+      <button class="act-btn w-10 h-10 flex items-center justify-center text-gray-500 rounded hover:bg-white/10 relative" data-panel="templates" title="Templates">
+        <i class="fas fa-puzzle-piece text-sm"></i>
+        <span class="absolute left-0 top-0 bottom-0 w-[2px] bg-white rounded-r hidden"></span>
+      </button>
+      <button class="act-btn w-10 h-10 flex items-center justify-center text-gray-500 rounded hover:bg-white/10 relative" data-panel="run" title="Run & Debug">
+        <i class="fas fa-play text-sm"></i>
+        <span class="absolute left-0 top-0 bottom-0 w-[2px] bg-white rounded-r hidden"></span>
+      </button>
+      <div class="flex-1"></div>
+      <button id="toggleSidebar" class="w-10 h-10 flex items-center justify-center text-gray-500 rounded hover:bg-white/10" title="Toggle Sidebar">
+        <i class="fas fa-columns text-sm"></i>
+      </button>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div id="sidebar" class="sidebar-bg overflow-y-auto" style="width:240px;min-width:240px;">
+      <!-- Explorer Panel -->
+      <div id="panel-explorer">
+        <div class="sidebar-section">
+          <div class="sidebar-title">
+            <span><i class="fas fa-chevron-down text-[9px] mr-1"></i> Explorer</span>
+            <div class="flex gap-1">
+              <button id="newBtn" class="text-gray-400 hover:text-white text-xs px-1" title="New File"><i class="fas fa-plus"></i></button>
+              <button id="uploadBtn" class="text-gray-400 hover:text-white text-xs px-1" title="Upload"><i class="fas fa-upload"></i></button>
+            </div>
+          </div>
+          <div id="fileList" class="pb-2">
+            <div class="text-xs text-gray-600 px-5 py-2">Loading...</div>
+          </div>
+        </div>
       </div>
 
-      <div id="fileList" class="p-2 space-y-1">
-        <div class="text-sm text-gray-400 p-2">Loading....</div>
+      <!-- Templates Panel -->
+      <div id="panel-templates" class="hidden">
+        <div class="sidebar-section">
+          <div class="sidebar-title"><span><i class="fas fa-chevron-down text-[9px] mr-1"></i> Language Templates</span></div>
+          <div class="px-3 py-2 flex flex-wrap gap-1" id="langChips"></div>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-title"><span>Template Preview</span></div>
+          <div class="px-3 py-2">
+            <pre id="templatePreview" class="text-[10px] text-gray-400 bg-black/20 rounded p-2 max-h-48 overflow-auto font-mono"></pre>
+            <button id="useTemplateBtn" class="btn-vs btn-primary w-full mt-2 justify-center"><i class="fas fa-file-import"></i> Use Template</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Run Panel -->
+      <div id="panel-run" class="hidden">
+        <div class="sidebar-section">
+          <div class="sidebar-title"><span><i class="fas fa-chevron-down text-[9px] mr-1"></i> Run & Debug</span></div>
+          <div class="px-3 py-2 space-y-2">
+            <div class="text-[11px] text-gray-400">Current: <span id="runLangLabel" class="text-blue-400">—</span></div>
+            <button id="runCodeBtn" class="btn-vs btn-success w-full justify-center"><i class="fas fa-play"></i> Run Code</button>
+            <button id="clearOutputBtn" class="btn-vs btn-ghost w-full justify-center"><i class="fas fa-eraser"></i> Clear Output</button>
+            <div class="text-[10px] text-gray-600 mt-2 leading-relaxed">
+              <i class="fas fa-info-circle text-blue-400"></i>
+              HTML/CSS/JS runs in live preview.<br/>
+              Python, Java, C use simulated output.
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Editor -->
-    <div class="flex-1">
-      <div id="editor"></div>
+    <!-- EDITOR + PANEL AREA -->
+    <div class="flex-1 flex flex-col min-w-0">
+
+      <!-- Tab bar -->
+      <div class="tab-bar" id="tabBar">
+        <div class="flex-1"></div>
+        <div class="flex items-center gap-1 px-2">
+          <button id="saveBtn" class="btn-vs btn-primary" title="Save (Ctrl+S)"><i class="fas fa-save"></i> Save</button>
+        </div>
+      </div>
+
+      <!-- Editor + Preview split -->
+      <div class="flex flex-1 min-h-0 relative">
+        <div id="editorContainer" class="flex-1">
+          <div id="editor" style="width:100%;height:100%;"></div>
+        </div>
+        <div id="previewContainer" class="hidden" style="width:50%;border-left:1px solid #1e1e1e;">
+          <div class="flex items-center justify-between px-3 py-1" style="background:#252526;height:28px;">
+            <span class="text-[11px] text-gray-400"><i class="fas fa-globe mr-1"></i> Live Preview</span>
+            <button id="closePreview" class="text-gray-500 hover:text-white text-xs"><i class="fas fa-times"></i></button>
+          </div>
+          <iframe id="previewFrame" class="preview-frame" style="height:calc(100% - 28px);"></iframe>
+        </div>
+      </div>
+
+      <!-- Resize handle -->
+      <div class="resize-handle" id="resizeHandle"></div>
+
+      <!-- Bottom Panel: Terminal / Output / Problems -->
+      <div id="bottomPanel" style="height:180px;min-height:60px;display:flex;flex-direction:column;">
+        <div class="panel-header">
+          <span class="active" data-tab="output"><i class="fas fa-terminal mr-1"></i> Output</span>
+          <span data-tab="terminal"><i class="fas fa-keyboard mr-1"></i> Terminal</span>
+          <span data-tab="problems"><i class="fas fa-exclamation-triangle mr-1"></i> Problems</span>
+          <div class="flex-1"></div>
+          <button id="togglePanel" class="text-gray-500 hover:text-white text-xs px-1"><i class="fas fa-chevron-down"></i></button>
+        </div>
+        <div class="terminal-area flex-1" id="outputArea">
+          <span class="text-gray-600">TaskHive CodeSpace v2.0 — Ready</span>
+        </div>
+        <div class="terminal-area flex-1 hidden" id="terminalArea">
+          <span class="text-gray-600">$ _</span>
+        </div>
+        <div class="terminal-area flex-1 hidden" id="problemsArea">
+          <span class="text-gray-600">No problems detected.</span>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- ✅ New File Modal -->
-  <div id="newModal" class="fixed inset-0 hidden items-center justify-center bg-black/70 z-50">
-    <div class="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-md p-5">
-      <div class="flex justify-between items-center mb-3">
-        <h3 class="text-slate-100 font-semibold">Create New File</h3>
-        <button id="closeNewModal" class="text-gray-400 hover:text-gray-200">
-          <i class="fas fa-times"></i>
-        </button>
+  <!-- STATUS BAR -->
+  <div class="statusbar">
+    <div class="flex items-center gap-3">
+      <span><i class="fas fa-code-branch mr-1"></i> main</span>
+      <span id="statusErrors"><i class="fas fa-times-circle mr-1"></i> 0</span>
+      <span id="statusWarnings"><i class="fas fa-exclamation-triangle mr-1"></i> 0</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="cursorPos">Ln 1, Col 1</span>
+      <span id="statusLang">JavaScript</span>
+      <span>UTF-8</span>
+      <span id="autoSaveIndicator"><i class="fas fa-circle text-green-400 text-[8px] mr-1"></i> Auto-save</span>
+    </div>
+  </div>
+
+  <!-- ═══ NEW FILE MODAL ═══ -->
+  <div id="newModal" class="fixed inset-0 hidden items-center justify-center z-50" style="background:rgba(0,0,0,.6);">
+    <div class="rounded-lg w-full max-w-md mx-4 shadow-2xl" style="background:#252526;border:1px solid #3c3c3c;">
+      <div class="flex justify-between items-center px-4 py-3 border-b border-gray-700">
+        <h3 class="text-gray-200 font-semibold text-sm">Create New File</h3>
+        <button id="closeNewModal" class="text-gray-500 hover:text-gray-300 text-xs"><i class="fas fa-times"></i></button>
       </div>
-
-      <label class="block text-sm text-slate-300 mb-1">File name</label>
-      <input id="newFileName"
-             placeholder="e.g. app.js / main.py / index.html"
-             class="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
-
-      <div class="mt-4 flex justify-end gap-2">
-        <button id="cancelNewFile" class="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-sm">
-          Cancel
-        </button>
-        <button id="createNewFile" class="px-3 py-2 rounded bg-green-600 hover:bg-green-500 text-sm">
-          Create
-        </button>
+      <div class="px-4 py-4">
+        <label class="block text-xs text-gray-400 mb-1">File name</label>
+        <input id="newFileName" placeholder="e.g. app.js / main.py / index.html"
+               class="w-full px-3 py-2 rounded text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+               style="background:#1e1e1e;border:1px solid #3c3c3c;"/>
+        <p id="newFileError" class="mt-2 text-xs text-red-400 hidden"></p>
+        <p class="mt-2 text-[10px] text-gray-600">Tip: use extension to set language (.js .py .html .css .java .c)</p>
       </div>
-
-      <p id="newFileError" class="mt-3 text-sm text-red-300 hidden"></p>
-      <p class="mt-2 text-xs text-gray-400">
-        Tip: use extension to set editor language (e.g. <span class="text-gray-200">.js .py .html</span>)
-      </p>
+      <div class="flex justify-end gap-2 px-4 py-3 border-t border-gray-700">
+        <button id="cancelNewFile" class="btn-vs btn-ghost">Cancel</button>
+        <button id="createNewFile" class="btn-vs btn-primary"><i class="fas fa-plus mr-1"></i> Create</button>
+      </div>
     </div>
   </div>
 
   <script>
+    /* ═══════════════════════════════════════════
+       STATE
+    ═══════════════════════════════════════════ */
     let editor = null;
     let currentFileId = null;
     let currentFileName = null;
+    let openTabs = [];          // [{id, filename}]
+    let autoSaveTimer = null;
+    let selectedTemplate = 'html';
+    let panelCollapsed = false;
 
-    const statusEl = document.getElementById("status");
-    const fileNameEl = document.getElementById("fileName");
-    const fileListEl = document.getElementById("fileList");
+    const $ = id => document.getElementById(id);
+    const statusEl = $("status");
+    const fileNameEl = $("fileName");
+    const fileListEl = $("fileList");
+    const newModal = $("newModal");
+    const newFileNameInput = $("newFileName");
+    const newFileError = $("newFileError");
+    const outputArea = $("outputArea");
 
-    const newModal = document.getElementById("newModal");
-    const newFileNameInput = document.getElementById("newFileName");
-    const newFileError = document.getElementById("newFileError");
+    /* ═══════════════════════════════════════════
+       LANGUAGE TEMPLATES
+    ═══════════════════════════════════════════ */
+    const TEMPLATES = {
+      html: { ext: 'html', label: 'HTML', icon: 'fab fa-html5', color: '#e44d26', code:
+`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Page</title>
+  <style>
+    body { font-family: system-ui; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #0f172a; color: #e2e8f0; }
+    h1 { font-size: 2.5rem; }
+    h1 span { color: #38bdf8; }
+  </style>
+</head>
+<body>
+  <div style="text-align:center">
+    <h1>Hello <span>World</span>!</h1>
+    <p>Edit this HTML and see live preview →</p>
+  </div>
+</body>
+</html>` },
+      css: { ext: 'css', label: 'CSS', icon: 'fab fa-css3-alt', color: '#264de4', code:
+`/* Modern Card Component */
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+  max-width: 360px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
 
-    function setStatus(msg) { statusEl.textContent = msg || ""; }
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
 
-    function ensureEditorReady() {
-      if (!editor) { alert("Editor is loading... try again in 1 sec."); return false; }
-      return true;
+.card__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.card__text {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.6;
+}` },
+      javascript: { ext: 'js', label: 'JavaScript', icon: 'fab fa-js-square', color: '#f7df1e', code:
+`// Interactive Todo App
+class TodoApp {
+  constructor() {
+    this.todos = [];
+    this.nextId = 1;
+  }
+
+  add(text) {
+    const todo = { id: this.nextId++, text, done: false, createdAt: new Date() };
+    this.todos.push(todo);
+    console.log(\`✅ Added: "\${text}" (id: \${todo.id})\`);
+    return todo;
+  }
+
+  toggle(id) {
+    const t = this.todos.find(x => x.id === id);
+    if (t) { t.done = !t.done; console.log(\`\${t.done ? '☑' : '☐'} \${t.text}\`); }
+  }
+
+  list() {
+    if (!this.todos.length) return console.log("📋 No todos yet.");
+    this.todos.forEach(t => console.log(\`  \${t.done ? '☑' : '☐'} [\${t.id}] \${t.text}\`));
+  }
+
+  remove(id) {
+    this.todos = this.todos.filter(x => x.id !== id);
+    console.log(\`🗑 Removed todo #\${id}\`);
+  }
+}
+
+const app = new TodoApp();
+app.add("Learn JavaScript");
+app.add("Build something cool");
+app.add("Ship it 🚀");
+app.toggle(1);
+app.list();` },
+      python: { ext: 'py', label: 'Python', icon: 'fab fa-python', color: '#3776ab', code:
+`# Python Data Processor
+import json
+from datetime import datetime
+
+class DataProcessor:
+    """A simple data processing pipeline."""
+
+    def __init__(self, name="default"):
+        self.name = name
+        self.records = []
+        self.processed = 0
+
+    def add_record(self, data: dict):
+        data["_timestamp"] = datetime.now().isoformat()
+        self.records.append(data)
+        return self
+
+    def process(self):
+        results = []
+        for record in self.records:
+            # Transform: uppercase all string values
+            transformed = {
+                k: v.upper() if isinstance(v, str) else v
+                for k, v in record.items()
+            }
+            results.append(transformed)
+            self.processed += 1
+        return results
+
+    def summary(self):
+        return {
+            "pipeline": self.name,
+            "total_records": len(self.records),
+            "processed": self.processed,
+        }
+
+# Usage
+pipeline = DataProcessor("user-etl")
+pipeline.add_record({"name": "Alice", "role": "engineer"})
+pipeline.add_record({"name": "Bob", "role": "designer"})
+
+output = pipeline.process()
+print(json.dumps(output, indent=2))
+print(json.dumps(pipeline.summary(), indent=2))` },
+      java: { ext: 'java', label: 'Java', icon: 'fab fa-java', color: '#007396', code:
+`import java.util.*;
+import java.util.stream.*;
+
+public class TaskManager {
+    record Task(int id, String title, String priority, boolean done) {}
+
+    private final List<Task> tasks = new ArrayList<>();
+    private int nextId = 1;
+
+    public Task addTask(String title, String priority) {
+        Task t = new Task(nextId++, title, priority, false);
+        tasks.add(t);
+        System.out.println("✅ Added: " + t.title());
+        return t;
     }
+
+    public void listTasks() {
+        if (tasks.isEmpty()) { System.out.println("No tasks."); return; }
+        tasks.forEach(t ->
+            System.out.printf("  %s [%d] %s (%s)%n",
+                t.done() ? "☑" : "☐", t.id(), t.title(), t.priority())
+        );
+    }
+
+    public Map<String, Long> stats() {
+        return tasks.stream()
+            .collect(Collectors.groupingBy(Task::priority, Collectors.counting()));
+    }
+
+    public static void main(String[] args) {
+        TaskManager mgr = new TaskManager();
+        mgr.addTask("Setup project", "high");
+        mgr.addTask("Write tests", "medium");
+        mgr.addTask("Deploy to prod", "high");
+        mgr.addTask("Write docs", "low");
+
+        System.out.println("\\n📋 All Tasks:");
+        mgr.listTasks();
+        System.out.println("\\n📊 Stats: " + mgr.stats());
+    }
+}` },
+      c: { ext: 'c', label: 'C', icon: 'fas fa-copyright', color: '#a8b9cc', code:
+`#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_ITEMS 100
+
+typedef struct {
+    int   id;
+    char  name[64];
+    float price;
+} Item;
+
+typedef struct {
+    Item items[MAX_ITEMS];
+    int  count;
+} Inventory;
+
+void inventory_init(Inventory *inv) {
+    inv->count = 0;
+}
+
+int inventory_add(Inventory *inv, const char *name, float price) {
+    if (inv->count >= MAX_ITEMS) return -1;
+    Item *item = &inv->items[inv->count];
+    item->id = inv->count + 1;
+    strncpy(item->name, name, 63);
+    item->name[63] = '\\0';
+    item->price = price;
+    inv->count++;
+    return item->id;
+}
+
+void inventory_print(const Inventory *inv) {
+    printf("\\n%-4s %-20s %10s\\n", "ID", "Name", "Price");
+    printf("------------------------------------\\n");
+    for (int i = 0; i < inv->count; i++) {
+        printf("%-4d %-20s %10.2f\\n",
+            inv->items[i].id,
+            inv->items[i].name,
+            inv->items[i].price);
+    }
+}
+
+int main(void) {
+    Inventory inv;
+    inventory_init(&inv);
+
+    inventory_add(&inv, "Keyboard", 79.99);
+    inventory_add(&inv, "Mouse", 49.99);
+    inventory_add(&inv, "Monitor", 299.99);
+    inventory_add(&inv, "USB Hub", 24.99);
+
+    printf("📦 Inventory System\\n");
+    inventory_print(&inv);
+    printf("\\nTotal items: %d\\n", inv.count);
+
+    return 0;
+}` }
+    };
+
+    /* ═══════════════════════════════════════════
+       FILE ICON HELPER
+    ═══════════════════════════════════════════ */
+    function fileIcon(name) {
+      const ext = (name.split('.').pop() || '').toLowerCase();
+      const map = {
+        html:'fab fa-html5 text-orange-400', htm:'fab fa-html5 text-orange-400',
+        css:'fab fa-css3-alt text-blue-400', js:'fab fa-js-square text-yellow-300',
+        py:'fab fa-python text-blue-300', java:'fab fa-java text-red-400',
+        c:'fas fa-copyright text-gray-400', h:'fas fa-copyright text-gray-400',
+        json:'fas fa-brackets-curly text-yellow-500', md:'fab fa-markdown text-gray-300',
+        txt:'fas fa-file-alt text-gray-500', ts:'fas fa-code text-blue-300',
+      };
+      return map[ext] || 'fas fa-file text-gray-500';
+    }
+
+    /* ═══════════════════════════════════════════
+       UTILITY
+    ═══════════════════════════════════════════ */
+    function setStatus(msg) { statusEl.textContent = msg || ""; }
+    function ensureEditorReady() { if (!editor) { alert("Editor loading..."); return false; } return true; }
 
     function setCurrentFile(id, filename) {
       currentFileId = id;
       currentFileName = filename;
       fileNameEl.textContent = filename || "No file loaded";
       localStorage.setItem("taskhive_last_file_id", String(id || ""));
+      $("statusLang").textContent = langLabel(filename);
+      $("runLangLabel").textContent = langLabel(filename);
+      updatePreviewVisibility();
     }
 
+    function langLabel(fn) {
+      if (!fn) return '—';
+      const ext = (fn.split('.').pop()||'').toLowerCase();
+      const m = {js:'JavaScript',ts:'TypeScript',py:'Python',html:'HTML',css:'CSS',java:'Java',c:'C',cpp:'C++',json:'JSON',md:'Markdown'};
+      return m[ext]||'Plain Text';
+    }
+
+    function isWebLang(fn) {
+      if (!fn) return false;
+      const ext = (fn.split('.').pop()||'').toLowerCase();
+      return ['html','htm','css','js'].includes(ext);
+    }
+
+    /* ═══════════════════════════════════════════
+       API HELPERS (preserved from original)
+    ═══════════════════════════════════════════ */
     async function createOrGetFile(filename, content) {
       const res = await fetch("/api/code/create/", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": getCookie("csrftoken") || ""
-        },
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") || "" },
         body: JSON.stringify({ filename, content: content || "" })
       });
-
       const data = await safeJson(res);
-      if (!data || !res.ok || !data.ok) {
-        throw new Error(data?.error || `Create failed (${res.status})`);
-      }
+      if (!data || !res.ok || !data.ok) throw new Error(data?.error || `Create failed (${res.status})`);
       return data;
     }
 
     async function deleteFileById(fileId) {
       const res = await fetch("/api/code/delete/", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": getCookie("csrftoken") || ""
-        },
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") || "" },
         body: JSON.stringify({ file_id: fileId })
       });
-
       const data = await safeJson(res);
-      if (!data || !res.ok || !data.ok) {
-        throw new Error(data?.error || `Delete failed (${res.status})`);
-      }
+      if (!data || !res.ok || !data.ok) throw new Error(data?.error || `Delete failed (${res.status})`);
       return data;
     }
 
+    async function saveFile() {
+      if (!ensureEditorReady() || !currentFileId) return;
+      setStatus("Saving...");
+      const res = await fetch("/api/code/save/", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") || "" },
+        body: JSON.stringify({ file_id: currentFileId, content: editor.getValue() })
+      });
+      const data = await safeJson(res);
+      if (!data || !res.ok || !data.ok) { setStatus(""); alert(data?.error || `Save failed`); return; }
+      setStatus("Saved ✅");
+      await loadFileList(false);
+    }
+
+    /* ═══════════════════════════════════════════
+       SUPER TASK AUTO-OPEN
+    ═══════════════════════════════════════════ */
     async function tryAutoOpenFromSuperTask() {
       const q = parseQuery();
       if (!q.taskId) return;
-
       let task = null;
-      try {
-        const raw = localStorage.getItem("taskhive_active_super_task");
-        if (raw) task = JSON.parse(raw);
-      } catch (e) {
-        task = null;
-      }
-
+      try { const raw = localStorage.getItem("taskhive_active_super_task"); if (raw) task = JSON.parse(raw); } catch(e) {}
       const filename = pickFilenameFromSuperTask(task);
-      const starter = (task && task.codeMeta && task.codeMeta.starterCode) ? String(task.codeMeta.starterCode) : "";
-
-      if (!filename) {
-        setStatus("Super Task opened (no filename provided)");
-        return;
-      }
-
+      const starter = (task?.codeMeta?.starterCode) ? String(task.codeMeta.starterCode) : "";
+      if (!filename) { setStatus("Super Task opened (no filename)"); return; }
       setStatus(`Preparing ${filename}...`);
       try {
         const created = await createOrGetFile(filename, starter);
         await loadFileList(false);
         await openFile(created.file_id);
-        setStatus(created.exists ? "Opened existing file ✅" : "Created file ✅");
-      } catch (err) {
-        setStatus("");
-        alert(err?.message || "Failed preparing file");
+        setStatus(created.exists ? "Opened ✅" : "Created ✅");
+      } catch(err) { setStatus(""); alert(err?.message || "Failed"); }
+    }
+
+    /* ═══════════════════════════════════════════
+       TABS
+    ═══════════════════════════════════════════ */
+    function addTab(id, filename) {
+      if (!openTabs.find(t => t.id === id)) openTabs.push({ id, filename });
+      renderTabs();
+    }
+
+    function removeTab(id) {
+      openTabs = openTabs.filter(t => t.id !== id);
+      if (String(currentFileId) === String(id)) {
+        if (openTabs.length) { openFile(openTabs[openTabs.length-1].id); }
+        else { setCurrentFile(null, null); editor.setValue("// Select a file or create a new one...\n"); }
       }
+      renderTabs();
     }
 
-    function openNewModal() {
-      newFileError.classList.add("hidden");
-      newFileError.textContent = "";
-      newFileNameInput.value = "";
-      newModal.classList.remove("hidden");
-      newModal.classList.add("flex");
-      setTimeout(() => newFileNameInput.focus(), 50);
+    function renderTabs() {
+      const tabBar = $("tabBar");
+      const saveBtn = tabBar.querySelector('.flex.items-center');
+      const tabs = openTabs.map(t => {
+        const active = String(t.id) === String(currentFileId);
+        return `<div class="tab-item ${active?'active':''}" data-id="${t.id}" onclick="openFile(${t.id})">
+          <i class="${fileIcon(t.filename)} text-[11px]"></i>
+          <span>${t.filename}</span>
+          <span class="tab-close" onclick="event.stopPropagation();removeTab(${t.id})"><i class="fas fa-times"></i></span>
+        </div>`;
+      }).join('');
+      tabBar.innerHTML = tabs + '<div class="flex-1"></div>';
+      tabBar.appendChild(saveBtn || document.createElement('div'));
     }
 
-    function closeNewModal() {
-      newModal.classList.add("hidden");
-      newModal.classList.remove("flex");
-    }
-
-    // Monaco init
-    window.require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs" } });
-    window.require(["vs/editor/editor.main"], function () {
-      editor = monaco.editor.create(document.getElementById("editor"), {
-        value: "// Select a file or create a new one...\n",
-        language: "javascript",
-        theme: "vs-dark",
-        fontSize: 14,
-        minimap: { enabled: true },
-        automaticLayout: true
-      });
-      setStatus("Editor ready ✅");
-      loadFileList(true);
-      tryAutoOpenFromSuperTask();
-    });
-
+    /* ═══════════════════════════════════════════
+       FILE LIST
+    ═══════════════════════════════════════════ */
     async function loadFileList(tryAutoOpen=false) {
-      setStatus("Loading files...");
+      setStatus("Loading...");
       const res = await fetch("/api/code/list/", { credentials: "same-origin" });
       const data = await safeJson(res);
-
       if (!data || !res.ok || !data.ok) {
-        setStatus("");
-        fileListEl.innerHTML = `<div class="text-sm text-red-300 p-2">Failed to load files.</div>`;
-        return;
+        setStatus(""); fileListEl.innerHTML = `<div class="text-xs text-red-400 px-4 py-2">Failed to load.</div>`; return;
       }
-
       const files = data.files || [];
       if (!files.length) {
-        fileListEl.innerHTML = `<div class="text-sm text-gray-400 p-2">No files yet. Create one or upload.</div>`;
-        setStatus("");
-        return;
+        fileListEl.innerHTML = `<div class="text-xs text-gray-600 px-4 py-3">No files yet.<br/>Click <b>+</b> to create one.</div>`;
+        setStatus(""); return;
       }
-
-      fileListEl.innerHTML = files.map(f => `
-        <div class="flex items-center gap-2">
-          <button
-            class="flex-1 text-left px-3 py-2 rounded hover:bg-gray-700 text-sm flex items-center justify-between"
-            onclick="openFile(${f.id})"
-            title="${f.filename}"
-          >
-            <span class="truncate ${String(currentFileId) === String(f.id) ? 'text-indigo-400' : ''}">${f.filename}</span>
-            <span class="text-xs text-gray-500 ml-2">#${f.id}</span>
-          </button>
-          <button
-            class="px-2 py-2 rounded hover:bg-red-900/40 text-red-300"
-            onclick="deleteFileUi(${f.id}, '${String(f.filename).replace(/'/g, "&#39;")}')"
-            title="Delete"
-          >
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-      `).join("");
-
+      fileListEl.innerHTML = files.map(f => {
+        const active = String(currentFileId) === String(f.id);
+        return `<div class="file-item ${active?'active-file':''}" onclick="openFile(${f.id})" title="${f.filename}">
+          <div class="flex items-center gap-2 min-w-0"><i class="${fileIcon(f.filename)} text-[11px]"></i><span class="truncate text-xs">${f.filename}</span></div>
+          <span class="del-btn" onclick="event.stopPropagation();deleteFileUi(${f.id},'${String(f.filename).replace(/'/g,"&#39;")}')" title="Delete"><i class="fas fa-trash-alt"></i></span>
+        </div>`;
+      }).join('');
       setStatus("");
-
       if (tryAutoOpen) {
         const last = localStorage.getItem("taskhive_last_file_id");
         const found = last && files.find(x => String(x.id) === String(last));
@@ -339,180 +731,392 @@
       }
     }
 
+    /* ═══════════════════════════════════════════
+       OPEN / DELETE FILE
+    ═══════════════════════════════════════════ */
     window.openFile = async function(fileId) {
       if (!ensureEditorReady()) return;
-
       setStatus("Opening...");
       const res = await fetch(`/api/code/get/${fileId}/`, { credentials: "same-origin" });
       const data = await safeJson(res);
-
-      if (!data || !res.ok || !data.ok) {
-        setStatus("");
-        alert(data?.error || `Failed to open file (${res.status})`);
-        return;
-      }
-
+      if (!data || !res.ok || !data.ok) { setStatus(""); alert(data?.error || "Open failed"); return; }
       const f = data.file;
       setCurrentFile(f.id, f.filename);
-
       const lang = detectLanguage(f.filename);
       monaco.editor.setModelLanguage(editor.getModel(), lang);
       editor.setValue(f.content || "");
-
+      addTab(f.id, f.filename);
       setStatus("Opened ✅");
       await loadFileList(false);
     }
 
     window.deleteFileUi = async function(fileId, filename) {
       if (!ensureEditorReady()) return;
-
-      const ok = confirm(`Delete file "${filename}"?`);
-      if (!ok) return;
-
+      if (!confirm(`Delete "${filename}"?`)) return;
       setStatus("Deleting...");
       try {
         await deleteFileById(fileId);
-
+        removeTab(fileId);
         if (String(currentFileId) === String(fileId)) {
-          setCurrentFile(null, null);
-          editor.setValue("// Select a file or create a new one...\n");
+          setCurrentFile(null, null); editor.setValue("// File deleted.\n");
         }
-
         await loadFileList(false);
         setStatus("Deleted ✅");
-      } catch (err) {
-        setStatus("");
-        alert(err?.message || "Delete failed");
-      }
+      } catch(err) { setStatus(""); alert(err?.message || "Delete failed"); }
     }
 
-    // ✅ NEW FILE BUTTON
-    document.getElementById("newBtn").addEventListener("click", () => {
+    /* ═══════════════════════════════════════════
+       NEW FILE MODAL
+    ═══════════════════════════════════════════ */
+    function openNewModal() {
+      newFileError.classList.add("hidden"); newFileNameInput.value = "";
+      newModal.classList.remove("hidden"); newModal.classList.add("flex");
+      setTimeout(() => newFileNameInput.focus(), 50);
+    }
+    function closeNewModal() { newModal.classList.add("hidden"); newModal.classList.remove("flex"); }
+
+    $("newBtn").addEventListener("click", () => { if (ensureEditorReady()) openNewModal(); });
+    $("uploadBtn").addEventListener("click", () => { $("fileInput").value=""; $("fileInput").click(); });
+    $("closeNewModal").addEventListener("click", closeNewModal);
+    $("cancelNewFile").addEventListener("click", closeNewModal);
+    newModal.addEventListener("click", e => { if (e.target===newModal) closeNewModal(); });
+
+    $("createNewFile").addEventListener("click", async () => {
       if (!ensureEditorReady()) return;
-      openNewModal();
-    });
-
-    document.getElementById("closeNewModal").addEventListener("click", closeNewModal);
-    document.getElementById("cancelNewFile").addEventListener("click", closeNewModal);
-    newModal.addEventListener("click", (e) => { if (e.target === newModal) closeNewModal(); });
-
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !newModal.classList.contains("hidden")) closeNewModal();
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        document.getElementById("saveBtn").click();
-      }
-    });
-
-    // ✅ Create new file API call
-    document.getElementById("createNewFile").addEventListener("click", async () => {
-      if (!ensureEditorReady()) return;
-
-      const filename = (newFileNameInput.value || "").trim();
-      if (!filename) {
-        newFileError.textContent = "Filename is required.";
-        newFileError.classList.remove("hidden");
-        return;
-      }
-
-      setStatus("Creating file...");
-
-      // IMPORTANT: you must create this endpoint in Django: POST /api/code/create/
+      const filename = (newFileNameInput.value||"").trim();
+      if (!filename) { newFileError.textContent="Filename required."; newFileError.classList.remove("hidden"); return; }
+      setStatus("Creating...");
       const res = await fetch("/api/code/create/", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": getCookie("csrftoken") || ""
-        },
-        body: JSON.stringify({ filename, content: "" })
+        method:"POST", credentials:"same-origin",
+        headers:{"Content-Type":"application/json","X-CSRFToken":getCookie("csrftoken")||""},
+        body:JSON.stringify({filename,content:""})
       });
-
       const data = await safeJson(res);
-
-      if (!data || !res.ok || !data.ok) {
-        setStatus("");
-        newFileError.textContent = data?.error || `Create failed (${res.status})`;
-        newFileError.classList.remove("hidden");
-        return;
-      }
-
-      closeNewModal();
-      await loadFileList(false);
-      await openFile(data.file_id);
-      setStatus("New file created ✅");
+      if (!data||!res.ok||!data.ok) { setStatus(""); newFileError.textContent=data?.error||"Failed"; newFileError.classList.remove("hidden"); return; }
+      closeNewModal(); await loadFileList(false); await openFile(data.file_id); setStatus("Created ✅");
     });
 
-    // Upload multiple files
-    document.getElementById("uploadBtn").addEventListener("click", () => {
-      document.getElementById("fileInput").value = "";
-      document.getElementById("fileInput").click();
-    });
-
-    document.getElementById("fileInput").addEventListener("change", async (e) => {
+    /* ═══════════════════════════════════════════
+       UPLOAD
+    ═══════════════════════════════════════════ */
+    $("fileInput").addEventListener("change", async (e) => {
       if (!ensureEditorReady()) return;
-
-      const files = Array.from(e.target.files || []);
-      if (!files.length) return;
-
+      const files = Array.from(e.target.files||[]);
       for (const file of files) {
         setStatus(`Uploading ${file.name}...`);
-
-        const form = new FormData();
-        form.append("file", file);
-
+        const form = new FormData(); form.append("file",file);
         const res = await fetch("/api/code/upload/", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
-          body: form
+          method:"POST", credentials:"same-origin",
+          headers:{"X-CSRFToken":getCookie("csrftoken")||""}, body:form
         });
-
         const data = await safeJson(res);
-        if (!data || !res.ok || !data.ok) {
-          setStatus("");
-          alert(`Upload failed for ${file.name}: ${data?.error || res.status}`);
-          continue;
-        }
-
-        await loadFileList(false);
-        await openFile(data.file_id);
+        if (!data||!res.ok||!data.ok) { alert(`Upload failed: ${file.name}`); continue; }
+        await loadFileList(false); await openFile(data.file_id);
       }
-
       setStatus("Upload done ✅");
     });
 
-    // Save current file
-    document.getElementById("saveBtn").addEventListener("click", async () => {
-      if (!ensureEditorReady()) return;
+    /* ═══════════════════════════════════════════
+       SAVE + AUTO-SAVE
+    ═══════════════════════════════════════════ */
+    $("saveBtn").addEventListener("click", saveFile);
 
-      if (!currentFileId) {
-        alert("Select a file from the left OR create/upload one first.");
+    function scheduleAutoSave() {
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(async () => {
+        if (currentFileId && editor) {
+          await saveFile();
+        }
+      }, 3000);
+    }
+
+    /* ═══════════════════════════════════════════
+       COPY / DOWNLOAD
+    ═══════════════════════════════════════════ */
+    $("copyBtn").addEventListener("click", () => {
+      if (!editor) return;
+      navigator.clipboard.writeText(editor.getValue()).then(() => {
+        setStatus("Copied ✅");
+        setTimeout(()=>setStatus(""),1500);
+      });
+    });
+
+    $("downloadBtn").addEventListener("click", () => {
+      if (!editor || !currentFileName) return;
+      const blob = new Blob([editor.getValue()], {type:'text/plain'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = currentFileName;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    /* ═══════════════════════════════════════════
+       ACTIVITY BAR + SIDEBAR PANELS
+    ═══════════════════════════════════════════ */
+    let activePanel = 'explorer';
+
+    document.querySelectorAll('.act-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const panel = btn.dataset.panel;
+        if (!panel) return;
+        if (activePanel === panel) { toggleSidebarVisibility(); return; }
+        activePanel = panel;
+        document.querySelectorAll('.act-btn').forEach(b => {
+          b.classList.toggle('text-white', b.dataset.panel === panel);
+          b.classList.toggle('text-gray-500', b.dataset.panel !== panel);
+          const ind = b.querySelector('span');
+          if (ind) ind.classList.toggle('hidden', b.dataset.panel !== panel);
+        });
+        ['explorer','templates','run'].forEach(p => {
+          const el = $('panel-'+p);
+          if (el) el.classList.toggle('hidden', p !== panel);
+        });
+        const sb = $('sidebar');
+        if (sb.style.display === 'none') { sb.style.display = ''; }
+      });
+    });
+
+    function toggleSidebarVisibility() {
+      const sb = $('sidebar');
+      sb.style.display = sb.style.display === 'none' ? '' : 'none';
+      if (editor) setTimeout(() => editor.layout(), 100);
+    }
+    $("toggleSidebar").addEventListener("click", toggleSidebarVisibility);
+
+    /* ═══════════════════════════════════════════
+       LANGUAGE TEMPLATES UI
+    ═══════════════════════════════════════════ */
+    function renderLangChips() {
+      const container = $('langChips');
+      container.innerHTML = Object.entries(TEMPLATES).map(([key, t]) =>
+        `<div class="lang-chip ${key===selectedTemplate?'active':''}" data-lang="${key}">
+          <i class="${t.icon} mr-1" style="color:${t.color}"></i>${t.label}
+        </div>`
+      ).join('');
+      container.querySelectorAll('.lang-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          selectedTemplate = chip.dataset.lang;
+          renderLangChips();
+          $('templatePreview').textContent = TEMPLATES[selectedTemplate].code;
+        });
+      });
+      $('templatePreview').textContent = TEMPLATES[selectedTemplate].code;
+    }
+
+    $("useTemplateBtn").addEventListener("click", async () => {
+      if (!ensureEditorReady()) return;
+      const t = TEMPLATES[selectedTemplate];
+      const filename = `untitled.${t.ext}`;
+      try {
+        const created = await createOrGetFile(filename, t.code);
+        await loadFileList(false);
+        await openFile(created.file_id);
+        setStatus("Template loaded ✅");
+      } catch(err) { alert(err?.message || "Failed"); }
+    });
+
+    /* ═══════════════════════════════════════════
+       BOTTOM PANEL TABS + RESIZE
+    ═══════════════════════════════════════════ */
+    document.querySelectorAll('.panel-header span[data-tab]').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.panel-header span[data-tab]').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        ['outputArea','terminalArea','problemsArea'].forEach(id => $(id).classList.add('hidden'));
+        $(tab.dataset.tab + 'Area').classList.remove('hidden');
+      });
+    });
+
+    $("togglePanel").addEventListener("click", () => {
+      const bp = $("bottomPanel");
+      panelCollapsed = !panelCollapsed;
+      bp.style.height = panelCollapsed ? '30px' : '180px';
+      bp.style.minHeight = panelCollapsed ? '30px' : '60px';
+      $("togglePanel").querySelector('i').className = panelCollapsed ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+      if (editor) setTimeout(() => editor.layout(), 100);
+    });
+
+    // Resize handle
+    (function() {
+      const handle = $("resizeHandle");
+      const panel = $("bottomPanel");
+      let startY, startH;
+      handle.addEventListener('mousedown', e => {
+        startY = e.clientY; startH = panel.offsetHeight;
+        const onMove = ev => { const h = startH - (ev.clientY - startY); panel.style.height = Math.max(60, Math.min(h, 500))+'px'; };
+        const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); if (editor) editor.layout(); };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    })();
+
+    /* ═══════════════════════════════════════════
+       LIVE PREVIEW (HTML/CSS/JS)
+    ═══════════════════════════════════════════ */
+    function updatePreviewVisibility() {
+      const show = isWebLang(currentFileName);
+      $("previewContainer").classList.toggle('hidden', !show);
+      if (editor) setTimeout(() => editor.layout(), 50);
+    }
+
+    $("closePreview").addEventListener("click", () => {
+      $("previewContainer").classList.add('hidden');
+      if (editor) setTimeout(() => editor.layout(), 50);
+    });
+
+    function updateLivePreview() {
+      if (!currentFileName || !isWebLang(currentFileName)) return;
+      const frame = $("previewFrame");
+      const code = editor.getValue();
+      const ext = (currentFileName.split('.').pop()||'').toLowerCase();
+      let html = '';
+      if (ext === 'html' || ext === 'htm') { html = code; }
+      else if (ext === 'css') { html = `<!DOCTYPE html><html><head><style>${code}</style></head><body><div class="card"><div class="card__title">Preview Card</div><div class="card__text">This is a sample card to preview your CSS styles.</div></div></body></html>`; }
+      else if (ext === 'js') { html = `<!DOCTYPE html><html><head><style>body{background:#1e1e1e;color:#d4d4d4;font-family:monospace;padding:12px;font-size:13px;}pre{white-space:pre-wrap;}</style></head><body><pre id="out"></pre><script>const _logs=[];const _origLog=console.log;console.log=(...a)=>{_logs.push(a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' '));document.getElementById('out').textContent=_logs.join('\\n');};try{${code}}catch(e){document.getElementById('out').textContent='Error: '+e.message;}<\/script></body></html>`; }
+      frame.srcdoc = html;
+    }
+
+    /* ═══════════════════════════════════════════
+       RUN CODE (simulated for Python/Java/C)
+    ═══════════════════════════════════════════ */
+    function appendOutput(text, cls='text-gray-300') {
+      const line = document.createElement('div');
+      line.className = cls;
+      line.textContent = text;
+      outputArea.appendChild(line);
+      outputArea.scrollTop = outputArea.scrollHeight;
+    }
+
+    $("runCodeBtn").addEventListener("click", () => {
+      if (!ensureEditorReady() || !currentFileName) return;
+      const ext = (currentFileName.split('.').pop()||'').toLowerCase();
+
+      if (['html','htm','css','js'].includes(ext)) {
+        updateLivePreview();
+        $("previewContainer").classList.remove('hidden');
+        if (editor) setTimeout(() => editor.layout(), 50);
+        appendOutput(`▶ Running ${currentFileName} in live preview...`, 'text-green-400');
         return;
       }
 
-      setStatus("Saving...");
-      const payload = { file_id: currentFileId, content: editor.getValue() };
+      // Simulated compile/run for Python, Java, C
+      outputArea.innerHTML = '';
+      const lang = {py:'Python',java:'Java',c:'C'}[ext] || ext;
+      appendOutput(`═══════════════════════════════════════`, 'text-blue-400');
+      appendOutput(`  ${lang} Compiler/Runner (Simulated)`, 'text-blue-400');
+      appendOutput(`═══════════════════════════════════════`, 'text-blue-400');
+      appendOutput('');
 
-      const res = await fetch("/api/code/save/", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": getCookie("csrftoken") || ""
-        },
-        body: JSON.stringify(payload)
+      const code = editor.getValue();
+      const lines = code.split('\n').length;
+
+      if (ext === 'py') {
+        appendOutput(`$ python3 ${currentFileName}`, 'text-yellow-300');
+        appendOutput(`[Python 3.12] Interpreting ${lines} lines...`, 'text-gray-500');
+      } else if (ext === 'java') {
+        const cls = (currentFileName.replace('.java',''));
+        appendOutput(`$ javac ${currentFileName}`, 'text-yellow-300');
+        appendOutput(`[javac 21] Compiling ${lines} lines... ✓`, 'text-gray-500');
+        appendOutput(`$ java ${cls}`, 'text-yellow-300');
+      } else if (ext === 'c') {
+        appendOutput(`$ gcc -o output ${currentFileName}`, 'text-yellow-300');
+        appendOutput(`[gcc 13.2] Compiling ${lines} lines... ✓`, 'text-gray-500');
+        appendOutput(`$ ./output`, 'text-yellow-300');
+      }
+
+      appendOutput('');
+
+      // Extract print/printf/System.out.println statements for simulation
+      const prints = [];
+      code.split('\n').forEach(line => {
+        let m;
+        if (ext === 'py') {
+          m = line.match(/print\s*\(\s*(?:f?["'](.+?)["']|(.+?))\s*\)/);
+          if (m) prints.push(m[1]||m[2]||'');
+        } else if (ext === 'java') {
+          m = line.match(/System\.out\.println?\s*\(\s*"(.+?)"\s*\)/);
+          if (m) prints.push(m[1]||'');
+        } else if (ext === 'c') {
+          m = line.match(/printf\s*\(\s*"(.+?)"/);
+          if (m) prints.push(m[1].replace(/\\n/g,'\n').replace(/\\t/g,'\t')||'');
+        }
       });
 
-      const data = await safeJson(res);
-      if (!data || !res.ok || !data.ok) {
-        setStatus("");
-        alert(data?.error || `Save failed (${res.status})`);
-        return;
+      if (prints.length) {
+        prints.forEach(p => appendOutput(p, 'text-gray-200'));
+      } else {
+        appendOutput('[Program executed — no output captured]', 'text-gray-500');
       }
 
-      setStatus("Saved ✅");
-      await loadFileList(false);
+      appendOutput('');
+      appendOutput(`Process exited with code 0`, 'text-green-400');
+
+      // Show problems panel active state
+      document.querySelectorAll('.panel-header span[data-tab]').forEach(t => t.classList.remove('active'));
+      document.querySelector('.panel-header span[data-tab="output"]').classList.add('active');
+      ['outputArea','terminalArea','problemsArea'].forEach(id => $(id).classList.add('hidden'));
+      outputArea.classList.remove('hidden');
+
+      if (panelCollapsed) $("togglePanel").click();
+    });
+
+    $("clearOutputBtn").addEventListener("click", () => {
+      outputArea.innerHTML = '<span class="text-gray-600">Output cleared.</span>';
+    });
+
+    /* ═══════════════════════════════════════════
+       KEYBOARD SHORTCUTS
+    ═══════════════════════════════════════════ */
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !newModal.classList.contains("hidden")) closeNewModal();
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveFile(); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") { e.preventDefault(); toggleSidebarVisibility(); }
+      if (e.key === "F5") { e.preventDefault(); $("runCodeBtn").click(); }
+    });
+
+    /* ═══════════════════════════════════════════
+       MONACO INIT
+    ═══════════════════════════════════════════ */
+    window.require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/min/vs" } });
+    window.require(["vs/editor/editor.main"], function () {
+      editor = monaco.editor.create($("editor"), {
+        value: "// Welcome to TaskHive CodeSpace ✨\n// Select a file from the explorer or create a new one.\n// Use Ctrl+S to save, F5 to run, Ctrl+B to toggle sidebar.\n",
+        language: "javascript",
+        theme: "vs-dark",
+        fontSize: 13,
+        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+        fontLigatures: true,
+        minimap: { enabled: true, scale: 2 },
+        automaticLayout: true,
+        smoothScrolling: true,
+        cursorBlinking: "smooth",
+        cursorSmoothCaretAnimation: "on",
+        bracketPairColorization: { enabled: true },
+        guides: { bracketPairs: true, indentation: true },
+        padding: { top: 8 },
+        renderWhitespace: "selection",
+        scrollBeyondLastLine: false,
+      });
+
+      // Cursor position tracking
+      editor.onDidChangeCursorPosition(e => {
+        $("cursorPos").textContent = `Ln ${e.position.lineNumber}, Col ${e.position.column}`;
+      });
+
+      // Auto-save on content change
+      editor.onDidChangeModelContent(() => {
+        scheduleAutoSave();
+        if (isWebLang(currentFileName)) {
+          clearTimeout(window._previewTimer);
+          window._previewTimer = setTimeout(updateLivePreview, 600);
+        }
+      });
+
+      setStatus("Ready ✅");
+      renderLangChips();
+      loadFileList(true);
+      tryAutoOpenFromSuperTask();
     });
   </script>
 </body>

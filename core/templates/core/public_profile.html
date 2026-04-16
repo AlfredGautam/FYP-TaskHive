@@ -4,35 +4,104 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TaskHive - Public Profile</title>
+  <title>TaskHive - Profile</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><text y='.9em' font-size='65' x='14'>🧊</text></svg>">
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #f8fafc; }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 16px;
+      box-shadow: 0 2px 8px rgba(79,70,229,0.3);
+    }
+    .profile-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px -4px rgba(15,23,42,0.08), 0 1px 3px rgba(15,23,42,0.04);
+    }
+    .social-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 8px;
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      color: #475569; font-size: 13px; font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .social-link:hover { border-color: #4f46e5; color: #4f46e5; background: #eef2ff; }
+    @keyframes fadeInUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    .profile-card { animation: fadeInUp 0.4s ease backwards; }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen" style="font-family:'Inter',sans-serif">
-  <div id="app" class="max-w-4xl mx-auto px-4 py-8">
-    <a href="/user/" class="inline-flex items-center text-sm text-indigo-400 hover:text-indigo-300 mb-4">
-      ← Back
-    </a>
+<body class="text-slate-900 min-h-screen">
 
-    <div class="bg-slate-900 border border-slate-700/60 rounded-2xl overflow-hidden">
-      <div class="h-44 bg-gradient-to-r from-indigo-900/50 to-slate-800/50 relative">
+  <!-- Header -->
+  <header style="position:sticky;top:0;z-index:50;background:rgba(255,255,255,0.9);backdrop-filter:blur(16px);border-bottom:1px solid #f1f5f9;">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="logo-icon"><i class="fas fa-cubes"></i></div>
+        <span class="text-base font-bold text-slate-900 tracking-tight">TaskHive</span>
+      </div>
+      <a href="/user/" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors">
+        <i class="fas fa-arrow-left text-xs"></i> Back to Dashboard
+      </a>
+    </div>
+  </header>
+
+  <div id="app" class="max-w-2xl mx-auto px-4 py-10">
+
+    <!-- Loading state -->
+    <div v-if="!profileLoaded" class="profile-card p-12 text-center">
+      <i class="fas fa-circle-notch fa-spin text-indigo-400 text-2xl mb-3"></i>
+      <p class="text-sm text-slate-400">Loading profile...</p>
+    </div>
+
+    <!-- Profile Card -->
+    <div v-else class="profile-card">
+      <!-- Cover -->
+      <div class="h-40 relative overflow-hidden" style="background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 50%, #dbeafe 100%);">
         <img v-if="profile.cover_url" :src="profile.cover_url" class="absolute inset-0 w-full h-full object-cover" alt="cover" />
+        <div class="absolute inset-0" style="background:linear-gradient(to bottom,transparent 60%,rgba(255,255,255,0.15));"></div>
       </div>
 
-      <div class="px-6 pb-6 -mt-10">
-        <img :src="profile.photo_url || defaultPhoto" class="w-24 h-24 rounded-full border-4 border-indigo-500 bg-slate-900 object-cover" alt="profile" />
-        <h1 class="text-2xl font-bold mt-4">{{ profile.display_name || profile.name || 'User' }}</h1>
-        <p class="text-sm text-gray-400">@{{ profile.username_public || username }}</p>
-        <p class="text-sm text-gray-300 mt-3">{{ profile.tagline || '' }}</p>
-        <p class="text-sm text-gray-400 mt-3 whitespace-pre-line">{{ profile.bio || 'No bio provided.' }}</p>
+      <!-- Avatar + Info -->
+      <div class="px-6 pb-8">
+        <div class="flex items-end justify-between -mt-12 mb-4">
+          <img :src="profile.photo_url || defaultPhoto" class="w-24 h-24 rounded-full border-4 border-white bg-white object-cover shadow-lg" alt="profile" />
+        </div>
 
-        <div class="mt-5 flex flex-wrap gap-3 text-sm">
-          <a v-if="profile.github" :href="profile.github" target="_blank" class="px-3 py-1 rounded bg-slate-950 border border-slate-700 hover:border-indigo-500 transition-colors">GitHub</a>
-          <a v-if="profile.linkedin" :href="profile.linkedin" target="_blank" class="px-3 py-1 rounded bg-slate-950 border border-slate-700 hover:border-indigo-500 transition-colors">LinkedIn</a>
-          <span class="px-3 py-1 rounded bg-slate-950 border border-slate-700 text-slate-400">{{ profile.email }}</span>
+        <h1 class="text-2xl font-bold text-slate-900 leading-tight">{{ profile.display_name || profile.name || 'User' }}</h1>
+        <p class="text-sm text-slate-400 mt-0.5 font-medium">@{{ profile.username_public || username }}</p>
+
+        <p v-if="profile.tagline" class="text-sm font-semibold text-indigo-600 mt-3">{{ profile.tagline }}</p>
+
+        <p class="text-sm text-slate-500 mt-3 leading-relaxed whitespace-pre-line" style="max-width:520px;">
+          {{ profile.bio || 'No bio provided.' }}
+        </p>
+
+        <!-- Social / Contact links -->
+        <div v-if="profile.github || profile.linkedin || profile.email" class="mt-5 flex flex-wrap gap-2">
+          <a v-if="profile.github" :href="profile.github" target="_blank" rel="noopener" class="social-link">
+            <i class="fab fa-github"></i> GitHub
+          </a>
+          <a v-if="profile.linkedin" :href="profile.linkedin" target="_blank" rel="noopener" class="social-link">
+            <i class="fab fa-linkedin text-blue-600"></i> LinkedIn
+          </a>
+          <span v-if="profile.email" class="social-link" style="cursor:default;">
+            <i class="fas fa-envelope text-indigo-400"></i> {{ profile.email }}
+          </span>
         </div>
       </div>
     </div>
+
   </div>
 
   <script>
@@ -43,12 +112,14 @@
           username: '',
           defaultPhoto: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
           profile: {},
+          profileLoaded: false,
         };
       },
       async mounted() {
         const parts = window.location.pathname.split('/').filter(Boolean);
         this.username = decodeURIComponent(parts[1] || '');
         await this.loadProfile();
+        this.profileLoaded = true;
       },
       methods: {
         async loadProfile() {

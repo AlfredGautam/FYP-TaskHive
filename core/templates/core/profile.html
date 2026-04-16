@@ -12,20 +12,24 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <style>
-    body { font-family: 'Inter', sans-serif; transition: background-color 0.3s ease, color 0.3s ease; }
+    body { font-family: 'Inter', sans-serif; transition: background-color 0.3s ease, color 0.3s ease; background-color: #f8fafc; color: #0f172a; }
     .neon-text { }
-    .glow { }
     .neon-button { background: #4f46e5; transition: all 0.2s ease; }
     .neon-button:hover { background: #4338ca; }
     .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease-in-out; }
     .fade-enter, .fade-leave-to { opacity: 0; }
-
-    body.light-mode { background-color: #f8fafc; color: #0f172a; }
-    body.light-mode .bg-gray-900 { background-color:#f1f5f9 !important; color:#0f172a; }
-    body.light-mode .bg-gray-800 { background-color:#e2e8f0 !important; color:#0f172a; }
-    body.light-mode .bg-gray-700 { background-color:#cbd5e1 !important; color:#0f172a; }
-    body.light-mode .text-gray-100 { color:#0f172a !important; }
-    body.light-mode .text-gray-300 { color:#475569 !important; }
+    .form-input {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      color: #0f172a;
+    }
+    .form-input:focus {
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+      border-color: #6366f1;
+      outline: none;
+      background: #fff;
+    }
   </style>
 
   <!-- If not logged in (cookie session), backend will also protect /profile/.
@@ -39,35 +43,35 @@
   </script>
 </head>
 
-<body class="bg-slate-950 text-slate-100">
+<body class="bg-slate-50 text-slate-900">
 <div id="app" class="min-h-screen flex flex-col items-center py-8 px-4 sm:px-6">
 
   <!-- Top bar -->
   <div class="w-full max-w-5xl flex justify-between items-center mb-4">
     <div>
-      <h1 class="text-2xl sm:text-3xl font-bold text-slate-100">Profile & Settings</h1>
-      <p class="text-xs text-slate-400 mt-1">Manage your TaskHive identity, security, and appearance.</p>
+      <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">Profile & Settings</h1>
+      <p class="text-xs text-slate-500 mt-1">Manage your TaskHive identity, security, and appearance.</p>
     </div>
 
-    <a href="/workspace/" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-sm rounded-lg flex items-center border border-slate-700">
+    <a href="/workspace/" class="px-4 py-2 bg-white hover:bg-gray-50 text-sm rounded-lg flex items-center border border-gray-200 text-slate-700 transition-colors">
       <i class="fas fa-arrow-left mr-2"></i> Back to Board
     </a>
   </div>
 
   <!-- COVER + AVATAR CARD -->
-  <div class="w-full max-w-5xl bg-slate-900 rounded-2xl overflow-hidden border border-slate-700/60 mb-6">
+  <div class="w-full max-w-5xl bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm mb-6">
     <!-- Cover -->
-    <div class="relative h-40 sm:h-48 bg-gradient-to-r from-indigo-900/40 via-slate-800/40 to-slate-900/40">
+    <div class="relative h-40 sm:h-48 bg-gradient-to-r from-indigo-50 via-slate-100 to-gray-100">
       <img v-if="user.coverPhoto" :src="user.coverPhoto" alt="Cover"
            class="absolute inset-0 w-full h-full object-cover" />
-      <div class="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent"></div>
+      <div class="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent"></div>
 
       <input type="file" ref="coverInput" @change="changeCover" class="hidden" accept="image/*" />
       <button
         @click="$refs.coverInput.click()"
-        class="absolute right-4 bottom-4 px-3 py-1.5 text-xs rounded-full bg-slate-900/80 text-slate-100 hover:bg-slate-900 flex items-center"
+        class="absolute right-4 bottom-4 px-3 py-1.5 text-xs rounded-lg bg-white/90 text-slate-700 hover:bg-white border border-gray-200 flex items-center shadow-sm"
       >
-        <i class="fas fa-image mr-2 text-indigo-400"></i>
+        <i class="fas fa-image mr-2 text-indigo-600"></i>
         {{ uploadingCover ? 'Uploading...' : 'Change Cover' }}
       </button>
     </div>
@@ -77,12 +81,12 @@
       <div class="flex items-center space-x-4">
         <div class="relative">
           <img :src="user.photo || defaultPhoto"
-               class="w-24 h-24 rounded-full border-4 border-indigo-500 object-cover shadow-lg bg-slate-900" />
+               class="w-24 h-24 rounded-full border-4 border-white object-cover shadow-md bg-white" />
 
           <input type="file" ref="photoInput" @change="changePhoto" class="hidden" accept="image/*" />
           <button
             @click="$refs.photoInput.click()"
-            class="absolute bottom-0 right-0 bg-indigo-500 hover:bg-indigo-400 text-white p-1.5 rounded-full shadow"
+            class="absolute bottom-0 right-0 bg-indigo-600 hover:bg-indigo-700 text-white p-1.5 rounded-full shadow"
             :title="uploadingPhoto ? 'Uploading...' : 'Change photo'"
           >
             <i class="fas fa-camera text-xs"></i>
@@ -90,10 +94,10 @@
         </div>
 
         <div class="mt-4 sm:mt-6">
-          <h2 class="text-xl font-semibold text-slate-100">
+          <h2 class="text-xl font-semibold text-slate-900">
             {{ user.displayName || user.name || 'User' }}
           </h2>
-          <p class="text-xs text-gray-400">@{{ user.username || 'username' }}</p>
+          <p class="text-xs text-slate-500">@{{ user.username || 'username' }}</p>
         </div>
       </div>
 
@@ -107,7 +111,7 @@
         </button>
         <button
           @click="resetProfile"
-          class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-sm text-slate-100 border border-slate-700"
+          class="px-4 py-2 rounded-lg bg-white hover:bg-gray-50 text-sm text-slate-700 border border-gray-200 transition-colors"
         >
           Reset
         </button>
@@ -121,72 +125,72 @@
     <!-- LEFT COLUMN -->
     <div class="space-y-6 lg:col-span-2">
       <!-- Basic Info -->
-      <section class="bg-slate-900 rounded-2xl p-5 border border-slate-700/60">
-        <h3 class="text-sm font-semibold text-indigo-400 mb-4 flex items-center">
+      <section class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+        <h3 class="text-sm font-semibold text-indigo-600 mb-4 flex items-center">
           <i class="fas fa-id-card mr-2"></i> Profile Information
         </h3>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
-            <label class="block text-slate-300 mb-1">Display Name</label>
+            <label class="block text-gray-700 mb-1 font-medium">Display Name</label>
             <input v-model="user.displayName"
-              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              class="w-full px-3 py-2 form-input" />
           </div>
 
           <div>
-            <label class="block text-slate-300 mb-1">Username</label>
+            <label class="block text-gray-700 mb-1 font-medium">Username</label>
             <input v-model="user.username"
-              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full px-3 py-2 form-input"
               placeholder="taskhiveDev" />
           </div>
 
           <div>
-            <label class="block text-slate-300 mb-1">Full Name</label>
+            <label class="block text-gray-700 mb-1 font-medium">Full Name</label>
             <input v-model="user.name"
-              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              class="w-full px-3 py-2 form-input" />
           </div>
 
           <div>
-            <label class="block text-slate-300 mb-1">Email</label>
+            <label class="block text-gray-700 mb-1 font-medium">Email</label>
             <input v-model="user.email" type="email"
-              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              class="w-full px-3 py-2 form-input" />
           </div>
 
           <div class="sm:col-span-2">
-            <label class="block text-slate-300 mb-1">Tagline</label>
+            <label class="block text-gray-700 mb-1 font-medium">Tagline</label>
             <input v-model="user.tagline"
               placeholder="Full-stack developer & team collaborator"
-              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              class="w-full px-3 py-2 form-input" />
           </div>
 
           <div class="sm:col-span-2">
-            <label class="block text-gray-300 mb-1">
-              Bio <span class="text-xs text-gray-500">({{ bioLength }}/500)</span>
+            <label class="block text-gray-700 mb-1 font-medium">
+              Bio <span class="text-xs text-gray-400 font-normal">({{ bioLength }}/500)</span>
             </label>
             <textarea v-model="user.bio" rows="3" maxlength="500"
-              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full px-3 py-2 form-input"
               placeholder="Tell your team who you are, what you do, and what you love working on."></textarea>
           </div>
         </div>
       </section>
 
       <!-- Social Links -->
-      <section class="bg-slate-900 rounded-2xl p-5 border border-slate-700/60">
-        <h3 class="text-sm font-semibold text-indigo-400 mb-4 flex items-center">
+      <section class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+        <h3 class="text-sm font-semibold text-indigo-600 mb-4 flex items-center">
           <i class="fas fa-share-nodes mr-2"></i> Social Links
         </h3>
 
         <div class="grid grid-cols-1 gap-4 text-sm">
           <div>
-            <label class="block text-slate-300 mb-1"><i class="fab fa-github mr-1"></i> GitHub</label>
+            <label class="block text-gray-700 mb-1 font-medium"><i class="fab fa-github mr-1"></i> GitHub</label>
             <input v-model="socials.github" placeholder="https://github.com/username"
-              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-indigo-500" />
+              class="w-full px-3 py-2 form-input" />
           </div>
 
           <div>
-            <label class="block text-slate-300 mb-1"><i class="fab fa-linkedin mr-1"></i> LinkedIn</label>
+            <label class="block text-gray-700 mb-1 font-medium"><i class="fab fa-linkedin mr-1"></i> LinkedIn</label>
             <input v-model="socials.linkedin" placeholder="https://linkedin.com/in/username"
-              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 focus:ring-2 focus:ring-indigo-500" />
+              class="w-full px-3 py-2 form-input" />
           </div>
         </div>
       </section>
@@ -196,49 +200,49 @@
     <div class="space-y-6">
 
       <!-- Appearance -->
-      <section class="bg-slate-900 rounded-2xl p-5 border border-slate-700/60 text-sm">
-        <h3 class="text-sm font-semibold text-indigo-400 mb-4 flex items-center">
+      <!-- <section class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm text-sm">
+        <h3 class="text-sm font-semibold text-indigo-600 mb-4 flex items-center">
           <i class="fas fa-palette mr-2"></i> Appearance
         </h3>
 
-        <p class="text-xs text-gray-400 mb-2">Theme Mode</p>
+        <p class="text-xs text-gray-500 mb-2 font-medium">Theme Mode</p>
         <div class="flex space-x-2 mb-4">
           <button
             v-for="mode in themeModes"
             :key="mode.id"
             @click="setTheme(mode.id)"
-            class="flex-1 px-2 py-2 rounded-lg border text-xs"
+            class="flex-1 px-2 py-2 rounded-lg border text-xs font-medium transition-colors"
             :class="{
-              'border-indigo-500 bg-indigo-900/30 text-indigo-200': themeMode === mode.id,
-              'border-slate-700 bg-slate-950 text-slate-200 hover:border-indigo-500/60': themeMode !== mode.id
+              'border-indigo-500 bg-indigo-50 text-indigo-700': themeMode === mode.id,
+              'border-gray-200 bg-white text-gray-600 hover:border-indigo-300': themeMode !== mode.id
             }"
           >
             <i :class="mode.icon" class="mr-1"></i>{{ mode.label }}
           </button>
-        </div>
+        </div> -->
 
-        <p class="text-xs text-gray-400 mb-2">Accent Color</p>
+        <!-- <p class="text-xs text-gray-500 mb-2 font-medium">Accent Color</p>
         <div class="flex flex-wrap gap-2">
           <button
             v-for="color in accentOptions"
             :key="color"
             @click="setAccent(color)"
-            class="w-7 h-7 rounded-full border-2"
+            class="w-7 h-7 rounded-full border-2 transition-transform hover:scale-110"
             :style="{ backgroundColor: color }"
-            :class="accentColor === color ? 'border-white' : 'border-transparent opacity-70 hover:opacity-100'"
+            :class="accentColor === color ? 'border-gray-900 scale-110' : 'border-transparent opacity-70 hover:opacity-100'"
           ></button>
         </div>
-      </section>
+      </section> -->
 
-      <!-- Tiny status card -->
-      <section class="bg-slate-900 rounded-2xl p-5 border border-red-800/50 text-sm">
-        <h3 class="text-sm font-semibold text-red-300 mb-3 flex items-center">
+      <!-- Danger Zone -->
+      <section class="bg-white rounded-2xl p-5 border border-red-200 shadow-sm text-sm">
+        <h3 class="text-sm font-semibold text-red-600 mb-3 flex items-center">
           <i class="fas fa-triangle-exclamation mr-2"></i> Danger Zone
         </h3>
-        <p class="text-xs text-gray-400 mb-3">Delete your account permanently. This cannot be undone.</p>
+        <p class="text-xs text-gray-500 mb-3">Delete your account permanently. This cannot be undone.</p>
         <button
           @click="deleteAccount"
-          class="w-full px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-white font-semibold"
+          class="w-full px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors"
         >
           Delete My Account
         </button>
@@ -251,7 +255,7 @@
   <transition name="fade">
     <div
       v-if="toastVisible"
-      class="fixed bottom-6 right-6 bg-slate-800 px-4 py-3 rounded-lg text-indigo-300 border border-slate-700 text-sm flex items-center"
+      class="fixed bottom-6 right-6 bg-white px-4 py-3 rounded-lg text-indigo-700 border border-indigo-100 shadow-lg text-sm flex items-center"
     >
       <i class="fas fa-check-circle mr-2"></i>
       <span>{{ toastMessage }}</span>

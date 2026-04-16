@@ -37,6 +37,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Application definition
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -45,6 +46,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'core',
 ]
+
+ASGI_APPLICATION = 'taskhive.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -138,6 +147,15 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+# =========================
+# GOOGLE OAUTH
+# =========================
+GOOGLE_OAUTH_CLIENT_ID = os.getenv(
+    "GOOGLE_OAUTH_CLIENT_ID",
+    "939758808224-vgtmml42msvsjrnlp2492srr3dqr2kut.apps.googleusercontent.com",
+)
 
 
 # =========================

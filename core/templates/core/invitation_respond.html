@@ -4,79 +4,148 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Team Invitation - TaskHive</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><text y='.9em' font-size='65' x='14'>🧊</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: 'Inter', sans-serif; background: #020617; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f0f4ff;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(79,70,229,0.12) 0%, transparent 60%),
+        radial-gradient(circle at 1px 1px, rgba(79,70,229,0.05) 1px, transparent 0);
+      background-size: auto, 28px 28px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+    .logo-icon {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 22px;
+      box-shadow: 0 4px 14px rgba(79,70,229,0.35);
+      flex-shrink: 0;
+    }
+    .auth-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 36px 32px;
+      border: 1px solid rgba(226,232,240,0.8);
+      box-shadow: 0 8px 40px -8px rgba(15,23,42,0.12), 0 1px 3px rgba(15,23,42,0.04);
+      animation: fadeInUp 0.4s ease backwards;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 24px; border-radius: 10px;
+      background: linear-gradient(135deg, #4f46e5, #6d28d9);
+      color: #fff; font-size: 14px; font-weight: 600; border: none; cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px -2px rgba(79,70,229,0.4);
+      text-decoration: none;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 20px -4px rgba(79,70,229,0.5); }
+    .btn-success {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 12px 20px; border-radius: 10px;
+      background: linear-gradient(135deg, #16a34a, #15803d);
+      color: #fff; font-size: 14px; font-weight: 600; border: none; cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px -2px rgba(22,163,74,0.35);
+    }
+    .btn-success:hover { transform: translateY(-1px); box-shadow: 0 8px 20px -4px rgba(22,163,74,0.45); }
+    .btn-ghost {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 12px 20px; border-radius: 10px;
+      background: #fff; color: #374151;
+      font-size: 14px; font-weight: 600;
+      border: 1.5px solid #e2e8f0; cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-ghost:hover { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+    .icon-circle {
+      width: 64px; height: 64px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px; font-size: 26px;
+    }
+    @keyframes fadeInUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
   </style>
 </head>
-<body class="text-gray-100">
-  <div class="max-w-md w-full mx-4">
-    <div class="text-center mb-8">
-      <h1 class="text-3xl font-bold text-slate-100"><i class="fas fa-cubes text-indigo-400 mr-2"></i>TaskHive</h1>
-      <p class="text-slate-400 mt-1 text-sm">Team Collaboration Platform</p>
+<body>
+  <div class="max-w-md w-full">
+    <div class="flex items-center justify-center gap-3 mb-8">
+      <div class="logo-icon"><i class="fas fa-cubes"></i></div>
+      <div>
+        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">TaskHive</h1>
+        <p class="text-xs text-slate-400 font-medium mt-0.5">Team Collaboration Platform</p>
+      </div>
     </div>
 
-    <div class="bg-slate-900 rounded-xl p-8 border border-slate-700/60 shadow-xl">
+    <div class="auth-card">
       {% if error %}
         <div class="text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-900/40 flex items-center justify-center">
-            <i class="fas fa-exclamation-triangle text-2xl text-red-400"></i>
+          <div class="icon-circle" style="background:#fef2f2;border:1px solid #fecaca;">
+            <i class="fas fa-triangle-exclamation" style="color:#dc2626;"></i>
           </div>
-          <h2 class="text-xl font-bold text-red-400 mb-2">{{ error_title }}</h2>
-          <p class="text-gray-400 text-sm">{{ error }}</p>
-          <a href="/workspace/" class="inline-block mt-6 px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors">
-            <i class="fas fa-arrow-right mr-2"></i>Go to TaskHive
-          </a>
+          <h2 class="text-xl font-bold text-slate-900 mb-2">{{ error_title }}</h2>
+          <p class="text-slate-500 text-sm mb-6">{{ error }}</p>
+          <a href="/login/" class="btn-primary"><i class="fas fa-arrow-right"></i> Go to TaskHive</a>
         </div>
 
       {% elif status == 'accepted' %}
         <div class="text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-green-900/40 flex items-center justify-center">
-            <i class="fas fa-check-circle text-2xl text-green-400"></i>
+          <div class="icon-circle" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+            <i class="fas fa-circle-check" style="color:#16a34a;"></i>
           </div>
-          <h2 class="text-xl font-bold text-green-400 mb-2">Invitation Accepted!</h2>
-          <p class="text-slate-400 text-sm">You have joined team <span class="text-indigo-300 font-semibold">{{ team_name }}</span>.</p>
-          <a href="/workspace/" class="inline-block mt-6 px-6 py-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold text-sm transition-colors">
-            <i class="fas fa-rocket mr-2"></i>Go to Workspace
-          </a>
+          <h2 class="text-xl font-bold text-slate-900 mb-2">Invitation Accepted!</h2>
+          <p class="text-slate-500 text-sm mb-1">You have joined team</p>
+          <p class="text-base font-bold text-indigo-600 mb-6">{{ team_name }}</p>
+          <a href="/workspace/" class="btn-primary"><i class="fas fa-rocket"></i> Go to Workspace</a>
         </div>
 
       {% elif status == 'declined' %}
         <div class="text-center">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-700/60 flex items-center justify-center">
-            <i class="fas fa-times-circle text-2xl text-gray-400"></i>
+          <div class="icon-circle" style="background:#f8fafc;border:1px solid #e2e8f0;">
+            <i class="fas fa-circle-xmark" style="color:#94a3b8;"></i>
           </div>
-          <h2 class="text-xl font-bold text-gray-300 mb-2">Invitation Declined</h2>
-          <p class="text-slate-400 text-sm">You have declined the invitation to team <span class="text-indigo-300 font-semibold">{{ team_name }}</span>.</p>
-          <a href="/workspace/" class="inline-block mt-6 px-6 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors">
-            <i class="fas fa-arrow-right mr-2"></i>Go to TaskHive
-          </a>
+          <h2 class="text-xl font-bold text-slate-900 mb-2">Invitation Declined</h2>
+          <p class="text-slate-500 text-sm mb-1">You declined the invitation to join</p>
+          <p class="text-base font-bold text-indigo-600 mb-6">{{ team_name }}</p>
+          <a href="/login/" class="btn-primary"><i class="fas fa-arrow-right"></i> Go to TaskHive</a>
         </div>
 
       {% else %}
-        <!-- Pending: show Accept / Decline buttons -->
         <div class="text-center mb-6">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-900/40 flex items-center justify-center">
-            <i class="fas fa-envelope-open-text text-2xl text-indigo-400"></i>
+          <div class="icon-circle" style="background:#eef2ff;border:1px solid #c7d2fe;">
+            <i class="fas fa-envelope-open-text" style="color:#4f46e5;"></i>
           </div>
-          <h2 class="text-xl font-bold text-gray-100 mb-1">Team Invitation</h2>
-          <p class="text-slate-400 text-sm"><span class="text-indigo-300">{{ invited_by }}</span> invited you to join</p>
-          <p class="text-lg font-bold text-indigo-300 mt-1">{{ team_name }}</p>
+          <p class="text-xs font-semibold text-indigo-500 uppercase tracking-widest mb-2">You're invited</p>
+          <h2 class="text-xl font-bold text-slate-900 mb-1">Team Invitation</h2>
+          <p class="text-slate-500 text-sm">
+            <span class="font-semibold text-slate-700">{{ invited_by }}</span> has invited you to join
+          </p>
+          <div class="mt-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-50 border border-indigo-100">
+            <i class="fas fa-users text-indigo-500 text-sm"></i>
+            <span class="text-base font-bold text-indigo-700">{{ team_name }}</span>
+          </div>
         </div>
 
         <div class="flex gap-3 mt-6">
           <form method="post" action="{% url 'invitation_accept_token' token=token %}" class="flex-1">
             {% csrf_token %}
-            <button type="submit" class="w-full px-4 py-3 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold text-sm transition-colors">
-              <i class="fas fa-check mr-2"></i>Accept
+            <button type="submit" class="btn-success">
+              <i class="fas fa-check"></i> Accept
             </button>
           </form>
           <form method="post" action="{% url 'invitation_decline_token' token=token %}" class="flex-1">
             {% csrf_token %}
-            <button type="submit" class="w-full px-4 py-3 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-sm transition-colors">
-              <i class="fas fa-times mr-2"></i>Decline
+            <button type="submit" class="btn-ghost">
+              <i class="fas fa-times"></i> Decline
             </button>
           </form>
         </div>
