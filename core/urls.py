@@ -78,7 +78,6 @@ urlpatterns = [
     path("api/register/", views.api_register, name="api_register"),
     path("api/register/verify/", views.api_register_verify, name="api_register_verify"),
     path("api/logout/", views.api_logout, name="api_logout"),
-    path("api/auth/google/", views.api_google_auth, name="api_google_auth"),
     path("api/me/", views.api_me, name="api_me"),
 
     # --------------------

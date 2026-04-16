@@ -150,15 +150,6 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 # =========================
-# GOOGLE OAUTH
-# =========================
-GOOGLE_OAUTH_CLIENT_ID = os.getenv(
-    "GOOGLE_OAUTH_CLIENT_ID",
-    "939758808224-vgtmml42msvsjrnlp2492srr3dqr2kut.apps.googleusercontent.com",
-)
-
-
-# =========================
 # CACHING
 # =========================
 CACHES = {

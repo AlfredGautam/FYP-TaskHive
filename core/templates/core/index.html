@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TaskHive - Workspace</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><text y='.9em' font-size='65' x='14'>🧊</text></svg>">
 
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -67,6 +68,22 @@
     .neon-button:hover {
       background: #4338ca;
     }
+
+    @keyframes today-ring-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(79,70,229,0.5); }
+      50% { box-shadow: 0 0 0 5px rgba(79,70,229,0); }
+    }
+    .today-ring {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff; font-size: 11px; font-weight: 700;
+      animation: today-ring-pulse 2s ease-in-out infinite;
+    }
+    .cal-event-chip {
+      cursor: pointer; transition: opacity 0.15s, transform 0.15s;
+    }
+    .cal-event-chip:hover { opacity: 0.85; transform: scale(1.02); }
 
     .search-input { background: #f8fafc; border-color: #e2e8f0; color: #0f172a; }
     .search-input::placeholder { color: #94a3b8; }
@@ -320,61 +337,6 @@
         </button>
       </nav>
 
-      <!-- Teams -->
-      <div class="pt-4 border-t border-gray-100">
-        <h3 class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Label Groups</h3>
-        <div class="space-y-0.5 max-h-48 overflow-y-auto pr-1">
-          <div
-            v-for="team in teams"
-            :key="team.id"
-            class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
-          >
-            <div class="flex items-center">
-              <span class="w-2 h-2 rounded-full mr-2.5" :style="{ backgroundColor: team.color }"></span>
-              <span class="text-sm truncate">{{ team.name }}</span>
-            </div>
-            <div class="flex items-center space-x-1.5 text-xs">
-              <button @click.stop="startEditTeam(team)" class="text-slate-400 hover:text-indigo-600 transition-colors">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button @click.stop="confirmDeleteTeam(team)" class="text-slate-400 hover:text-red-500 transition-colors">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
-          </div>
-          <div v-if="teams.length === 0" class="px-3 py-2 text-xs text-slate-400">
-            No groups yet.
-          </div>
-        </div>
-
-        <!-- Add / Edit team form -->
-        <div class="mt-2 bg-gray-50 rounded-lg p-3 border border-gray-100">
-          <p class="text-[11px] text-slate-500 mb-2 font-medium">
-            {{ editingTeamId ? 'Edit group' : 'Add group' }}
-          </p>
-          <input
-            v-model="newTeamName"
-            placeholder="Group name"
-            class="w-full mb-2 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-          />
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center space-x-2">
-              <label class="text-[11px] text-slate-500">Color:</label>
-              <input type="color" v-model="newTeamColor" class="w-7 h-5 border-0 p-0 bg-transparent rounded cursor-pointer" />
-            </div>
-            <button v-if="editingTeamId" @click="resetTeamForm" class="text-[11px] text-slate-500 hover:text-slate-700">
-              Cancel
-            </button>
-          </div>
-          <button
-            @click="createOrUpdateTeam"
-            class="w-full py-1.5 rounded-lg text-xs text-white neon-button flex items-center justify-center"
-          >
-            <i class="fas" :class="editingTeamId ? 'fa-save mr-1.5' : 'fa-plus mr-1.5'"></i>
-            {{ editingTeamId ? 'Update' : 'Add Group' }}
-          </button>
-        </div>
-      </div>
     </aside>
 
     <!-- Content -->
@@ -695,9 +657,14 @@
 
       <!-- Calendar Tab -->
       <div v-if="currentTab === 'calendar'" class="space-y-4">
-        <div class="flex items-center justify-between mb-4">
+
+        <!-- Header row -->
+        <div class="flex items-center justify-between">
           <h2 class="text-lg font-semibold text-slate-900"><i class="fas fa-calendar-alt mr-2 text-indigo-600"></i>Calendar</h2>
           <div class="flex items-center gap-2">
+            <button @click="calendarJumpToday" class="px-3 py-1.5 rounded-lg text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-medium transition-colors">
+              <i class="fas fa-crosshairs mr-1"></i> Today
+            </button>
             <button @click="calendarPrev" class="px-3 py-1.5 rounded-lg text-xs bg-white text-slate-700 hover:bg-gray-50 border border-gray-200 transition-colors">
               <i class="fas fa-chevron-left"></i>
             </button>
@@ -708,40 +675,90 @@
           </div>
         </div>
 
-        <!-- Legend -->
-        <div class="flex items-center gap-4 text-[10px] mb-2 text-slate-600">
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-500"></span> Overdue</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-400"></span> High</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-400"></span> Medium</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-500"></span> Low</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-indigo-400"></span> Done</span>
+        <!-- Monthly Stats Bar -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="bg-white rounded-xl px-4 py-3 border border-slate-200 flex items-center gap-3">
+            <div style="width:34px;height:34px;border-radius:10px;background:#eef2ff;display:flex;align-items:center;justify-content:center;"><i class="fas fa-list-check" style="color:#4f46e5;font-size:14px;"></i></div>
+            <div><div class="text-xl font-bold text-slate-900">{{ calendarMonthStats.due }}</div><div class="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Due this month</div></div>
+          </div>
+          <div class="bg-white rounded-xl px-4 py-3 border border-red-100 flex items-center gap-3">
+            <div style="width:34px;height:34px;border-radius:10px;background:#fef2f2;display:flex;align-items:center;justify-content:center;"><i class="fas fa-clock" style="color:#ef4444;font-size:14px;"></i></div>
+            <div><div class="text-xl font-bold text-red-500">{{ calendarMonthStats.overdue }}</div><div class="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Overdue</div></div>
+          </div>
+          <div class="bg-white rounded-xl px-4 py-3 border border-green-100 flex items-center gap-3">
+            <div style="width:34px;height:34px;border-radius:10px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;"><i class="fas fa-circle-check" style="color:#16a34a;font-size:14px;"></i></div>
+            <div><div class="text-xl font-bold text-green-600">{{ calendarMonthStats.done }}</div><div class="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Completed</div></div>
+          </div>
         </div>
 
-        <div class="grid grid-cols-7 gap-px bg-gray-200 rounded-xl overflow-hidden border border-gray-200">
-          <!-- Day headers -->
-          <div v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="d"
-               class="bg-gray-50 text-center text-[11px] text-slate-500 py-2 font-semibold">{{ d }}</div>
-          <!-- Calendar cells -->
-          <div v-for="(cell, idx) in calendarDays" :key="idx"
-               class="bg-white min-h-[80px] p-1.5"
-               :class="{ 'bg-gray-50': !cell }">
-            <template v-if="cell">
-              <div class="text-[11px] font-semibold mb-1"
-                   :class="isToday(cell.iso) ? 'text-indigo-600' : 'text-slate-500'">
-                <span v-if="isToday(cell.iso)" class="px-1.5 py-0.5 rounded-full bg-indigo-600 text-white">{{ cell.day }}</span>
-                <span v-else>{{ cell.day }}</span>
+        <!-- Legend + Calendar + Upcoming panel -->
+        <div class="flex gap-4 items-start">
+
+          <!-- Calendar grid -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 text-[10px] mb-2 text-slate-500 flex-wrap">
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-500"></span> Overdue</span>
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-400"></span> High</span>
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-400"></span> Medium</span>
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-500"></span> Low / Done</span>
+              <span class="flex items-center gap-1 ml-auto"><span class="w-10 h-2.5 rounded" style="background:linear-gradient(90deg,#eef2ff,#818cf8);"></span> Load intensity</span>
+            </div>
+            <div class="grid grid-cols-7 gap-px bg-gray-200 rounded-xl overflow-hidden border border-gray-200">
+              <div v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="d"
+                   class="bg-gray-50 text-center text-[11px] text-slate-500 py-2 font-semibold">{{ d }}</div>
+              <div v-for="(cell, idx) in calendarDays" :key="idx"
+                   class="min-h-[80px] p-1.5 transition-colors"
+                   :style="cell ? calendarHeatmapStyle(cell.events.length) : 'background:#f8fafc;'">
+                <template v-if="cell">
+                  <div class="text-[11px] font-semibold mb-1 leading-none">
+                    <span v-if="isToday(cell.iso)" class="today-ring">{{ cell.day }}</span>
+                    <span v-else class="text-slate-500">{{ cell.day }}</span>
+                  </div>
+                  <div class="space-y-0.5">
+                    <div v-for="ev in cell.events.slice(0, 3)" :key="ev.id"
+                         class="cal-event-chip text-[9px] px-1 py-0.5 rounded truncate"
+                         :class="calendarEventColor(ev)"
+                         :title="ev.title + ' — click to view'"
+                         @click="openTaskFromCalendar(ev)">
+                      {{ ev.title }}
+                    </div>
+                    <div v-if="cell.events.length > 3"
+                         class="text-[9px] text-indigo-600 px-1 font-medium cursor-pointer hover:underline"
+                         :title="'+' + (cell.events.length - 3) + ' more tasks'">+{{ cell.events.length - 3 }} more</div>
+                  </div>
+                </template>
               </div>
-              <div class="space-y-0.5">
-                <div v-for="ev in cell.events.slice(0, 3)" :key="ev.id"
-                     class="text-[9px] px-1 py-0.5 rounded truncate cursor-default"
-                     :class="calendarEventColor(ev)"
-                     :title="ev.title + ' (' + ev.column + ')'">
-                  {{ ev.title }}
-                </div>
-                <div v-if="cell.events.length > 3" class="text-[9px] text-gray-500 px-1">+{{ cell.events.length - 3 }} more</div>
-              </div>
-            </template>
+            </div>
           </div>
+
+          <!-- Upcoming Deadlines panel -->
+          <div class="w-52 flex-shrink-0">
+            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+                <i class="fas fa-bolt text-amber-500 text-xs"></i>
+                <span class="text-xs font-semibold text-slate-700">Upcoming Deadlines</span>
+              </div>
+              <div v-if="calendarUpcoming.length === 0" class="px-4 py-6 text-center">
+                <i class="fas fa-check-circle text-green-400 text-2xl mb-2"></i>
+                <p class="text-[11px] text-slate-400">No upcoming deadlines</p>
+              </div>
+              <div v-for="ev in calendarUpcoming" :key="ev.id"
+                   class="px-4 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer transition-colors"
+                   @click="openTaskFromCalendar(ev)">
+                <div class="flex items-start gap-2">
+                  <span class="mt-0.5 w-2 h-2 rounded-full flex-shrink-0"
+                        :class="ev.overdue ? 'bg-red-500' : ev.priority === 'high' ? 'bg-red-400' : ev.priority === 'medium' ? 'bg-amber-400' : 'bg-green-400'"></span>
+                  <div class="min-w-0">
+                    <div class="text-[11px] font-medium text-slate-800 truncate">{{ ev.title }}</div>
+                    <div class="text-[10px] mt-0.5" :class="ev.overdue ? 'text-red-500 font-semibold' : 'text-slate-400'">
+                      <i class="far fa-calendar mr-0.5"></i>{{ ev.date }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1255,11 +1272,6 @@
         itemToDelete: { type: "", name: "", id: null },
         contextMenu: { visible: false, type: null, item: null, x: 0, y: 0 },
 
-        teams: [],
-        newTeamName: "",
-        newTeamColor: "#00ffff",
-        editingTeamId: null,
-
         currentTask: {
           id: null,
           name: "",
@@ -1377,6 +1389,24 @@
 
       calendarMonthLabel() {
         return new Date(this.calendarYear, this.calendarMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+      },
+
+      calendarMonthStats() {
+        const prefix = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}`;
+        const month = this.calendarEvents.filter(e => e.date && e.date.startsWith(prefix));
+        return {
+          due: month.length,
+          overdue: month.filter(e => e.overdue && !e.done).length,
+          done: month.filter(e => e.done).length
+        };
+      },
+
+      calendarUpcoming() {
+        const today = new Date().toISOString().slice(0, 10);
+        return this.calendarEvents
+          .filter(e => e.date >= today && !e.done)
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .slice(0, 6);
       },
 
       currentUserObj() {
@@ -2134,47 +2164,6 @@
 
       getProjectTaskCount(projectId) { return this.tasks.filter(t => t.projectId === projectId).length; },
 
-      createOrUpdateTeam() {
-        const name = this.newTeamName.trim();
-        if (!name) return this.showToastMessage("Team name is required", true);
-
-        if (this.editingTeamId) {
-          const idx = this.teams.findIndex(t => t.id === this.editingTeamId);
-          if (idx !== -1) {
-            this.teams[idx].name = name;
-            this.teams[idx].color = this.newTeamColor;
-          }
-          this.showToastMessage("Team updated");
-        } else {
-          const newId = this.teams.length ? Math.max(...this.teams.map(t => t.id)) + 1 : 1;
-          this.teams.push({ id: newId, name, color: this.newTeamColor });
-          this.showToastMessage("Team added");
-        }
-        this.resetTeamForm();
-      },
-
-      startEditTeam(team) {
-        this.editingTeamId = team.id;
-        this.newTeamName = team.name;
-        this.newTeamColor = team.color;
-      },
-
-      confirmDeleteTeam(team) {
-        this.itemToDelete = { type: 'team', name: team.name, id: team.id };
-        this.showConfirmationModal = true;
-      },
-
-      deleteTeam(teamId) {
-        this.teams = this.teams.filter(t => t.id !== teamId);
-        this.showToastMessage("Team deleted successfully");
-      },
-
-      resetTeamForm() {
-        this.editingTeamId = null;
-        this.newTeamName = "";
-        this.newTeamColor = "#00ffff";
-      },
-
       handleFileUpload(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -2278,7 +2267,6 @@
         if (type === 'task') this.deleteTask(id);
         else if (type === 'project') this.deleteProject(id);
         else if (type === 'file') this.deleteFile(id);
-        else if (type === 'team') this.deleteTeam(id);
         this.showConfirmationModal = false;
       },
 
@@ -2463,16 +2451,39 @@
         else this.calendarMonth++;
       },
 
+      calendarJumpToday() {
+        const now = new Date();
+        this.calendarMonth = now.getMonth();
+        this.calendarYear = now.getFullYear();
+      },
+
       isToday(iso) {
         return iso === new Date().toISOString().slice(0, 10);
       },
 
+      calendarHeatmapStyle(count) {
+        if (count === 0) return 'background:#ffffff;';
+        if (count === 1) return 'background:#eef2ff;';
+        if (count === 2) return 'background:#e0e7ff;';
+        if (count === 3) return 'background:#c7d2fe;';
+        return 'background:#a5b4fc;';
+      },
+
       calendarEventColor(ev) {
-        if (ev.done) return 'bg-green-700/60 text-green-200';
-        if (ev.overdue) return 'bg-red-700/60 text-red-200';
-        if (ev.priority === 'high') return 'bg-red-900/50 text-red-300';
-        if (ev.priority === 'low') return 'bg-green-900/50 text-green-300';
-        return 'bg-yellow-900/50 text-yellow-300';
+        if (ev.done) return 'bg-green-100 text-green-800';
+        if (ev.overdue) return 'bg-red-100 text-red-800';
+        if (ev.priority === 'high') return 'bg-red-50 text-red-700';
+        if (ev.priority === 'low') return 'bg-green-50 text-green-700';
+        return 'bg-amber-50 text-amber-700';
+      },
+
+      openTaskFromCalendar(ev) {
+        const full = this.tasks.find(t => t.id === ev.id);
+        if (full) {
+          this.openTaskDetail(full);
+        } else {
+          this.openTaskDetail({ id: ev.id, name: ev.title, description: '', priority: ev.priority || 'medium', dueDate: ev.date, boardId: null });
+        }
       }
     }
   });
