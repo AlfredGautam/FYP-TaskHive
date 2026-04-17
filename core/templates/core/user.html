@@ -187,6 +187,7 @@
               <div class="flex items-center gap-3 mt-0.5">
                 <span class="text-xs text-slate-400">Code: <strong class="text-slate-700">{{ selectedTeam.code }}</strong></span>
                 <button @click="copyCode(selectedTeam.code)" class="text-xs text-indigo-600 hover:text-indigo-700 transition-colors"><i class="fas fa-copy"></i> Copy</button>
+                <button @click="copyJoinLink(selectedTeam.code)" class="text-xs text-purple-600 hover:text-purple-700 transition-colors"><i class="fas fa-link"></i> Copy Join Link</button>
                 <span class="badge" :class="selectedTeam.role === 'head' ? 'badge-head' : 'badge-member'">{{ selectedTeam.role === 'head' ? 'Admin' : 'Member' }}</span>
                 <span v-if="copyMsg" class="text-xs text-green-600 animate-pulse">{{ copyMsg }}</span>
               </div>
@@ -201,9 +202,9 @@
             <a :href="'/workspace/' + selectedTeam.id + '/'" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg neon-button text-white font-semibold text-sm">
               <i class="fas fa-rocket"></i> Go to Workspace
             </a>
-            <!-- <a href="/profile/" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 text-sm text-slate-700 transition-all">
+            <a href="/profile/" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 text-sm text-slate-700 transition-all">
               <i class="fas fa-user-edit"></i> Edit Profile
-            </a> -->
+            </a>
             <button @click="leaveTeam" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 text-slate-600 hover:text-red-600 text-sm transition-all">
               <i class="fas fa-sign-out-alt"></i> Leave Team
             </button>
@@ -422,6 +423,8 @@ new Vue({
     } catch (e) { /* keep default */ }
     this.loadTeams();
     this.loadPendingInvitations();
+    const urlCode = new URLSearchParams(window.location.search).get('code');
+    if (urlCode) { this.joinCode = urlCode; }
   },
   methods: {
     getCookie(name) {
@@ -491,6 +494,15 @@ new Vue({
     copyCode(code) {
       navigator.clipboard.writeText(code).then(() => {
         this.copyMsg = 'Copied!';
+        setTimeout(() => { this.copyMsg = ''; }, 2000);
+      }).catch(() => {
+        this.copyMsg = 'Copy failed';
+      });
+    },
+    copyJoinLink(code) {
+      const link = window.location.origin + '/user/?code=' + encodeURIComponent(code);
+      navigator.clipboard.writeText(link).then(() => {
+        this.copyMsg = 'Join link copied!';
         setTimeout(() => { this.copyMsg = ''; }, 2000);
       }).catch(() => {
         this.copyMsg = 'Copy failed';

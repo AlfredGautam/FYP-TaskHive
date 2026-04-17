@@ -112,6 +112,29 @@
       outline: none;
       background: #fff;
     }
+
+    /* ── Dark Mode ── */
+    body.dark { background-color: #0f172a !important; color: #e2e8f0 !important; }
+    body.dark header { background-color: #1e293b !important; border-color: #334155 !important; }
+    body.dark aside { background-color: #1e293b !important; border-color: #334155 !important; }
+    body.dark .flex-1.overflow-auto { background-color: #0f172a !important; }
+    body.dark .bg-white { background-color: #1e293b !important; }
+    body.dark .bg-slate-50 { background-color: #0f172a !important; }
+    body.dark .text-slate-900 { color: #f1f5f9 !important; }
+    body.dark .text-slate-800 { color: #e2e8f0 !important; }
+    body.dark .text-slate-700 { color: #cbd5e1 !important; }
+    body.dark .text-slate-600 { color: #94a3b8 !important; }
+    body.dark .text-slate-500 { color: #64748b !important; }
+    body.dark .border-gray-200 { border-color: #334155 !important; }
+    body.dark .border-gray-100 { border-color: #1e293b !important; }
+    body.dark .task-card { background-color: #1e293b !important; border-color: #334155; }
+    body.dark .project-card { background-color: #1e293b !important; border-color: #334155; }
+    body.dark .search-input { background-color: #1e293b !important; border-color: #334155 !important; color: #e2e8f0 !important; }
+    body.dark .search-results { background-color: #1e293b !important; border-color: #334155 !important; }
+    body.dark .context-menu { background-color: #1e293b !important; border-color: #334155 !important; }
+
+    /* ── Bulk select checkbox ── */
+    .bulk-checkbox { width:16px;height:16px;cursor:pointer;accent-color:#4f46e5; }
   </style>
 
   <!-- ✅ SINGLE SAFE AUTH GUARD -->
@@ -133,11 +156,11 @@
   </script>
 </head>
 
-<body class="bg-slate-50 text-slate-900 min-h-screen">
-<div id="app" class="flex flex-col min-h-screen" @click="closeContextMenu">
+<body class="bg-slate-50 text-slate-900" style="height:100vh;overflow:hidden;">
+<div id="app" class="flex flex-col" style="height:100vh;overflow:hidden;" @click="closeContextMenu">
 
   <!-- Header -->
-  <header class="bg-white border-b border-gray-200 py-3 px-6 flex justify-between items-center shadow-sm">
+  <header class="bg-white border-b border-gray-200 px-6 flex justify-between items-center shadow-sm flex-shrink-0" style="height:60px;min-height:60px;max-height:60px;">
     <div class="flex items-center">
       <div class="text-indigo-600 text-xl mr-3">
         <i class="fas fa-cubes"></i>
@@ -306,6 +329,13 @@
         </div>
       </div>
 
+      <button @click="toggleDarkMode"
+              class="hidden md:inline w-8 h-8 rounded-full flex items-center justify-center border transition-all"
+              :class="darkMode ? 'bg-slate-700 border-slate-600 text-amber-300' : 'bg-white border-gray-200 text-slate-500 hover:bg-gray-100'"
+              :title="darkMode ? 'Light mode' : 'Dark mode'">
+        <i :class="darkMode ? 'fas fa-sun text-xs' : 'fas fa-moon text-xs'"></i>
+      </button>
+
       <button @click="logout"
               class="hidden md:inline px-3 py-1 rounded-lg text-xs bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 text-slate-600 hover:text-red-600 transition-all">
         <i class="fas fa-right-from-bracket mr-1"></i> Logout
@@ -318,9 +348,9 @@
   </header>
 
   <!-- Main -->
-  <main class="flex flex-1 overflow-hidden">
+  <main class="flex overflow-hidden" style="height:calc(100vh - 60px);min-height:0;">
     <!-- Sidebar -->
-    <aside class="w-64 bg-white border-r border-gray-200 py-5 px-3 flex flex-col shadow-sm">
+    <aside class="w-64 bg-white border-r border-gray-200 py-5 px-3 flex flex-col shadow-sm flex-shrink-0" style="height:100%;overflow-y:auto;">
       <nav class="space-y-0.5 flex-1">
         <button
           v-for="tab in tabs"
@@ -491,11 +521,20 @@
 
       <!-- Tasks -->
       <div v-if="currentTab === 'tasks'" class="space-y-6">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-wrap justify-between items-center gap-3">
           <h2 class="text-2xl font-bold text-slate-900">Tasks</h2>
-          <button @click="openNewTask" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
-            <i class="fas fa-plus mr-2"></i> New Task
-          </button>
+          <div class="flex items-center gap-2">
+            <button @click="toggleBulkMode"
+                    :class="bulkMode ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-gray-200 hover:bg-gray-50'"
+                    class="px-3 py-2 rounded-lg text-sm border flex items-center gap-1.5 transition-all">
+              <i class="fas fa-check-square text-xs"></i>
+              {{ bulkMode ? 'Cancel Select' : 'Select' }}
+              <span v-if="bulkMode && selectedTaskIds.length" class="ml-1 bg-white text-indigo-700 text-[10px] font-bold px-1.5 rounded-full">{{ selectedTaskIds.length }}</span>
+            </button>
+            <button @click="openNewTask" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
+              <i class="fas fa-plus mr-2"></i> New Task
+            </button>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -534,11 +573,16 @@
                   'border-amber-400': !task.blocked && task.priority === 'medium',
                   'border-green-500': !task.blocked && task.priority === 'low'
                 }"
-                draggable="true"
-                @dragstart="startDrag($event, task)"
-                @click="handleTaskClick(task)"
-                @contextmenu.prevent="showTaskContextMenu($event, task)"
+                :draggable="!bulkMode"
+                @dragstart="!bulkMode && startDrag($event, task)"
+                @click="bulkMode ? toggleTaskSelect(task.id) : handleTaskClick(task)"
+                @contextmenu.prevent="!bulkMode && showTaskContextMenu($event, task)"
               >
+                <!-- Bulk select checkbox -->
+                <div v-if="bulkMode" class="flex items-center gap-2 mb-2" @click.stop="toggleTaskSelect(task.id)">
+                  <input type="checkbox" :checked="selectedTaskIds.includes(task.id)" class="bulk-checkbox" @click.stop="toggleTaskSelect(task.id)" />
+                  <span class="text-[10px] text-slate-400">{{ selectedTaskIds.includes(task.id) ? 'Selected' : 'Click to select' }}</span>
+                </div>
                 <!-- Blocked banner -->
                 <div v-if="task.blocked" class="flex items-center gap-1 mb-2 px-2 py-1 rounded bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold">
                   <i class="fas fa-ban text-[9px]"></i> BLOCKED
@@ -593,6 +637,32 @@
             </div>
           </div>
         </div>
+
+        <!-- Bulk Action Bar -->
+        <transition name="fade">
+          <div v-if="bulkMode && selectedTaskIds.length"
+               class="fixed bottom-6 left-1/2 z-50 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-2xl"
+               style="transform:translateX(-50%);background:#1e293b;border:1px solid #334155;">
+            <span class="text-xs font-semibold text-slate-300 mr-1">{{ selectedTaskIds.length }} selected</span>
+            <div class="w-px h-4 bg-slate-600"></div>
+            <span class="text-[10px] text-slate-400">Move to:</span>
+            <button v-for="board in boards" :key="board.id"
+                    @click="bulkMoveToBoard(board.id)"
+                    class="px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
+              {{ board.name }}
+            </button>
+            <div class="w-px h-4 bg-slate-600"></div>
+            <button @click="bulkDelete"
+                    class="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-500 text-white transition-colors">
+              <i class="fas fa-trash mr-1"></i> Delete
+            </button>
+            <button @click="selectedTaskIds = []"
+                    class="ml-1 px-2 py-1.5 rounded-lg text-xs text-slate-400 hover:text-white transition-colors">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </transition>
+
       </div>
 
       <!-- Files -->
@@ -1407,6 +1477,9 @@
         highlightedIndex: 0,
         currentTab: "tasks",
 
+        darkMode: false,
+        bulkMode: false,
+        selectedTaskIds: [],
         dragOverBoard: null,
         showTaskModal: false,
         showProjectModal: false,
@@ -1838,6 +1911,11 @@
           this.isDark = true;
           document.body.classList.remove("light-mode");
         }
+        const dm = localStorage.getItem("taskhive_dark_mode");
+        if (dm === "1") {
+          this.darkMode = true;
+          document.body.classList.add("dark");
+        }
       },
 
       toggleTheme() {
@@ -1849,6 +1927,56 @@
           localStorage.setItem("taskhive_theme", "light");
           document.body.classList.add("light-mode");
         }
+      },
+
+      toggleDarkMode() {
+        this.darkMode = !this.darkMode;
+        if (this.darkMode) {
+          document.body.classList.add("dark");
+          localStorage.setItem("taskhive_dark_mode", "1");
+        } else {
+          document.body.classList.remove("dark");
+          localStorage.setItem("taskhive_dark_mode", "0");
+        }
+      },
+
+      toggleBulkMode() {
+        this.bulkMode = !this.bulkMode;
+        if (!this.bulkMode) this.selectedTaskIds = [];
+      },
+
+      toggleTaskSelect(id) {
+        const idx = this.selectedTaskIds.indexOf(id);
+        if (idx === -1) this.selectedTaskIds.push(id);
+        else this.selectedTaskIds.splice(idx, 1);
+      },
+
+      async bulkMoveToBoard(boardId) {
+        if (!this.selectedTaskIds.length) return;
+        const ids = [...this.selectedTaskIds];
+        for (const id of ids) {
+          const task = this.tasks.find(t => t.id === id);
+          if (task && task.boardId !== boardId) {
+            await this._postJson('/api/workspace/task/update/', { id, board_id: boardId });
+            task.boardId = boardId;
+          }
+        }
+        this.selectedTaskIds = [];
+        this.bulkMode = false;
+        this.showToastMessage(`Moved ${ids.length} task${ids.length !== 1 ? 's' : ''}`);
+      },
+
+      async bulkDelete() {
+        if (!this.selectedTaskIds.length) return;
+        if (!confirm(`Delete ${this.selectedTaskIds.length} selected task${this.selectedTaskIds.length !== 1 ? 's' : ''}?`)) return;
+        const ids = [...this.selectedTaskIds];
+        for (const id of ids) {
+          await this._postJson('/api/workspace/task/delete/', { id });
+          this.tasks = this.tasks.filter(t => t.id !== id);
+        }
+        this.selectedTaskIds = [];
+        this.bulkMode = false;
+        this.showToastMessage(`Deleted ${ids.length} task${ids.length !== 1 ? 's' : ''}`);
       },
 
       logout() {

@@ -2667,6 +2667,11 @@ def api_analytics_enhanced(request):
     all_tasks = list(tasks_qs)
     today = date.today()
 
+    try:
+        days = max(1, min(365, int(request.GET.get("days", 14))))
+    except (ValueError, TypeError):
+        days = 14
+
     # Column distribution
     col_data = []
     for col in columns:
@@ -2681,9 +2686,9 @@ def api_analytics_enhanced(request):
     # Overdue tasks
     overdue = sum(1 for t in all_tasks if t.due_date and t.due_date < today)
 
-    # Tasks created per day (last 14 days)
+    # Tasks created per day (last N days)
     creation_trend = {}
-    for i in range(13, -1, -1):
+    for i in range(days - 1, -1, -1):
         d = today - timedelta(days=i)
         creation_trend[d.isoformat()] = 0
     for t in all_tasks:
@@ -2691,10 +2696,10 @@ def api_analytics_enhanced(request):
         if d in creation_trend:
             creation_trend[d] += 1
 
-    # Completion trend: tasks in last column per day (last 14 days)
+    # Completion trend: tasks in last column per day (last N days)
     done_col = columns[-1] if columns else None
     completion_trend = {}
-    for i in range(13, -1, -1):
+    for i in range(days - 1, -1, -1):
         d = today - timedelta(days=i)
         completion_trend[d.isoformat()] = 0
     if done_col:
@@ -2879,3 +2884,11 @@ def api_export_pdf(request):
     response = DjangoHttpResponse(html, content_type="text/html")
     response["Content-Disposition"] = f'attachment; filename="taskhive_report_{team.name}.html"'
     return response
+
+
+def error_404(request, exception=None):
+    return render(request, "core/404.html", status=404)
+
+
+def error_500(request):
+    return render(request, "core/500.html", status=500)
