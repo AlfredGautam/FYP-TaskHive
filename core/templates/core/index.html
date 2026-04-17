@@ -322,7 +322,9 @@
         <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
       </a>
 
-      <div class="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+      <img v-if="currentUserPhoto" :src="currentUserPhoto" :alt="currentUserName"
+           class="w-8 h-8 rounded-full object-cover border border-gray-200 bg-white" />
+      <div v-else class="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
         {{ currentUserInitials }}
       </div>
     </div>
@@ -467,10 +469,14 @@
                 </span>
               </div>
               <div class="flex -space-x-1.5">
-                <div v-for="member in project.members.slice(0, 3)" :key="member"
-                     class="w-6 h-6 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center border-2 border-white" :title="member">
-                  {{ getInitials(member) }}
-                </div>
+                <template v-for="member in project.members.slice(0, 3)">
+                  <img v-if="memberPhoto(member)" :key="'img-'+member" :src="memberPhoto(member)" :title="member"
+                       class="w-6 h-6 rounded-full object-cover border-2 border-white bg-gray-100" />
+                  <div v-else :key="'ini-'+member"
+                       class="w-6 h-6 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center border-2 border-white" :title="member">
+                    {{ getInitials(member) }}
+                  </div>
+                </template>
                 <div v-if="project.members.length > 3"
                      class="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-[10px] flex items-center justify-center border-2 border-white"
                      :title="project.members.slice(3).join(', ')">
@@ -635,10 +641,15 @@
                     <div
                       v-for="assignee in task.assignees"
                       :key="assignee"
-                      class="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center border-2 border-white -ml-1"
                       :title="assignee"
+                      class="w-5 h-5 -ml-1"
                     >
-                      {{ getInitials(assignee) }}
+                      <img v-if="memberPhoto(assignee)" :src="memberPhoto(assignee)"
+                           class="w-5 h-5 rounded-full object-cover border-2 border-white bg-gray-100" />
+                      <div v-else
+                           class="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center border-2 border-white">
+                        {{ getInitials(assignee) }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1513,6 +1524,7 @@
         currentTab: "tasks",
 
         isLoading: true,
+        currentUserPhoto: "",
         taskFilter: { priority: 'all', dueFilter: 'all' },
         previewFile: null,
         activityPage: 1,
@@ -1823,8 +1835,13 @@
           this.teamMembers = members.map(m => ({
             email: m.email,
             name: m.name,
-            role: m.role
+            role: m.role,
+            photoUrl: m.photo_url || ""
           }));
+
+          // Resolve current user's photo from team members (by email match)
+          const mine = members.find(m => (m.email || "").toLowerCase() === this.currentUserEmail);
+          if (mine && mine.photo_url) this.currentUserPhoto = mine.photo_url;
 
           this.loadNotifications();
         } catch (e) {}
@@ -2011,9 +2028,16 @@
         return ext === 'pdf';
       },
 
-      logout() {
+      async logout() {
+        try {
+          await fetch('/api/logout/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRFToken': this._getCsrf() }
+          });
+        } catch (e) { /* ignore network errors — still clear client */ }
         localStorage.removeItem("taskhive_current_user");
-        window.location.href = "/login/";
+        window.location.href = "/";
       },
 
       _getCsrf() {
@@ -2693,6 +2717,16 @@
         return status.charAt(0).toUpperCase() + status.slice(1);
       },
       getInitials(name) { return (name || "").substring(0, 1).toUpperCase(); },
+
+      memberPhoto(emailOrName) {
+        if (!emailOrName) return "";
+        const key = String(emailOrName).toLowerCase();
+        const m = (this.teamMembers || []).find(tm =>
+          (tm.email || "").toLowerCase() === key ||
+          (tm.name  || "").toLowerCase() === key
+        );
+        return (m && m.photoUrl) ? m.photoUrl : "";
+      },
 
       showToastMessage(message, isError = false) {
         this.toastMessage = message;

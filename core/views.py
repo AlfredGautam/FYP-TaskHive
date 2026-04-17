@@ -358,13 +358,22 @@ def api_team_pending_invitations(request, team_id):
     if not membership or membership.role != TeamMembership.ROLE_HEAD:
         return JsonResponse({"ok": False, "error": "Only admin can view invitations"}, status=403)
 
-    invitations = TeamInvitation.objects.filter(team_id=team_id).select_related("invited_user", "invited_by").order_by("-created_at")[:50]
+    invitations = TeamInvitation.objects.filter(team_id=team_id).select_related("invited_user", "invited_user__profile", "invited_by").order_by("-created_at")[:50]
+
+    def _photo(u):
+        prof = getattr(u, "profile", None)
+        if prof and prof.photo:
+            try: return prof.photo.url
+            except Exception: return ""
+        return ""
+
     result = []
     for inv in invitations:
         result.append({
             "id": inv.id,
             "invitedUser": inv.invited_user.get_full_name() or inv.invited_user.username,
             "invitedEmail": inv.invited_user.email or inv.invited_user.username,
+            "invitedUserPhoto": _photo(inv.invited_user),
             "invitedBy": inv.invited_by.get_full_name() or inv.invited_by.username,
             "status": inv.status,
             "createdAt": inv.created_at.isoformat(),
@@ -667,10 +676,17 @@ def api_team_members(request, team_id: int):
 
     memberships = (
         TeamMembership.objects
-        .select_related("user")
+        .select_related("user", "user__profile")
         .filter(team_id=team_id)
         .order_by("role", "joined_at")
     )
+
+    def _photo(u):
+        prof = getattr(u, "profile", None)
+        if prof and prof.photo:
+            try: return prof.photo.url
+            except Exception: return ""
+        return ""
 
     return JsonResponse({
         "ok": True,
@@ -681,6 +697,7 @@ def api_team_members(request, team_id: int):
                 "username": m.user.username,
                 "role": m.role,
                 "is_owner": (m.user_id == owner_id),
+                "photo_url": _photo(m.user),
             }
             for m in memberships
         ],

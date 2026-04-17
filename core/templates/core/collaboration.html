@@ -475,9 +475,17 @@
             },
             methods: {
                 // ✅ FIX 3: proper logout (remove, don't set "Guest")
-                logout() {
+                async logout() {
+                    try {
+                      const m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+                      await fetch('/api/logout/', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'X-CSRFToken': m ? m[1] : '' }
+                      });
+                    } catch (e) { /* ignore */ }
                     localStorage.removeItem("taskhive_current_user");
-                    window.location.href = "/login/";
+                    window.location.href = "/";
                 },
 
                 loadCurrentUser() {

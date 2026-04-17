@@ -147,28 +147,21 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
-            <label class="block text-gray-700 mb-1 font-medium">Display Name</label>
-            <input v-model="user.displayName"
-              class="w-full px-3 py-2 form-input" />
-          </div>
-
-          <div>
-            <label class="block text-gray-700 mb-1 font-medium">Username</label>
-            <input v-model="user.username"
-              class="w-full px-3 py-2 form-input"
-              placeholder="taskhiveDev" />
-          </div>
-
-          <div>
             <label class="block text-gray-700 mb-1 font-medium">Full Name</label>
             <input v-model="user.name"
               class="w-full px-3 py-2 form-input" />
           </div>
 
           <div>
-            <label class="block text-gray-700 mb-1 font-medium">Email</label>
-            <input v-model="user.email" type="email"
+            <label class="block text-gray-700 mb-1 font-medium">Display Name</label>
+            <input v-model="user.displayName"
               class="w-full px-3 py-2 form-input" />
+          </div>
+
+          <div class="sm:col-span-2">
+            <label class="block text-gray-700 mb-1 font-medium">Email <span class="text-[10px] text-slate-400 font-normal ml-1">(cannot be changed)</span></label>
+            <input :value="user.email" type="email" readonly
+              class="w-full px-3 py-2 form-input bg-gray-50 text-slate-500 cursor-not-allowed" />
           </div>
 
           <div class="sm:col-span-2">
@@ -548,7 +541,6 @@ new Vue({
           display_name: this.user.displayName || '',
           username_public: this.user.username || '',
           name: this.user.name || '',
-          email: this.user.email || '',
           tagline: this.user.tagline || '',
           bio: this.user.bio || '',
           github: this.socials.github || '',

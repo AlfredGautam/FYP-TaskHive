@@ -105,7 +105,12 @@
       </a>
       <div class="flex items-center gap-4">
         <nav class="hidden sm:flex items-center gap-4 text-sm text-slate-500">
-          <a class="hover:text-indigo-600 transition-colors flex items-center gap-1.5" href="/profile/"><i class="fas fa-user text-xs"></i>Profile</a>
+          <a class="hover:text-indigo-600 transition-colors flex items-center gap-1.5" href="/profile/">
+            <img v-if="myPhoto" :src="myPhoto" alt="Profile"
+                 class="w-6 h-6 rounded-full object-cover border border-gray-200 bg-gray-100" />
+            <i v-else class="fas fa-user text-xs"></i>
+            Profile
+          </a>
         </nav>
         <button @click="doLogout" class="px-4 py-1.5 rounded-lg bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 text-gray-600 hover:text-red-600 text-sm font-medium transition-all"><i class="fas fa-sign-out-alt mr-1.5"></i>Logout</button>
       </div>
@@ -241,7 +246,9 @@
         <div class="divide-y divide-gray-100">
           <div v-for="inv in teamInvitations" :key="inv.id" class="px-5 py-3 flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 flex-1 min-w-0">
-              <div class="w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold shrink-0" :class="avatarColor(inv.invitedUser)">
+              <img v-if="inv.invitedUserPhoto" :src="inv.invitedUserPhoto" :alt="inv.invitedUser"
+                   class="w-8 h-8 rounded-full object-cover border border-gray-200 bg-gray-100 shrink-0" />
+              <div v-else class="w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold shrink-0" :class="avatarColor(inv.invitedUser)">
                 {{ (inv.invitedUser || '?').charAt(0).toUpperCase() }}
               </div>
               <div class="min-w-0">
@@ -287,7 +294,9 @@
         <div v-else class="divide-y divide-gray-100">
           <div v-for="m in filteredMembers" :key="m.email" class="member-row px-5 py-3 flex items-center justify-between gap-3">
             <a :href="'/profile/' + encodeURIComponent(m.username || '') + '/'" class="flex items-center gap-3 flex-1 min-w-0 no-underline group">
-              <div class="w-9 h-9 rounded-full border flex items-center justify-center text-sm font-bold shrink-0" :class="avatarColor(m.name || m.email)">
+              <img v-if="m.photo_url" :src="m.photo_url" :alt="m.name || m.email"
+                   class="w-9 h-9 rounded-full object-cover border border-gray-200 bg-gray-100 shrink-0" />
+              <div v-else class="w-9 h-9 rounded-full border flex items-center justify-center text-sm font-bold shrink-0" :class="avatarColor(m.name || m.email)">
                 {{ (m.name || m.email || '?').charAt(0).toUpperCase() }}
               </div>
               <div class="min-w-0">
@@ -403,6 +412,7 @@ new Vue({
       teamInvitations: [],
       memberSearch: '',
       pendingInvitations: [],
+      myPhoto: '',
     };
   },
   computed: {
@@ -423,6 +433,7 @@ new Vue({
     } catch (e) { /* keep default */ }
     this.loadTeams();
     this.loadPendingInvitations();
+    this.loadMyPhoto();
     const urlCode = new URLSearchParams(window.location.search).get('code');
     if (urlCode) { this.joinCode = urlCode; }
   },
@@ -756,6 +767,16 @@ new Vue({
       } catch(e) { alert('Network error. Try again.'); }
     },
 
+    // ---- Load current user's profile photo ----
+    async loadMyPhoto() {
+      try {
+        const { data } = await this.fetchJson('/api/profile/');
+        if (data && data.profile && data.profile.photo_url) {
+          this.myPhoto = data.profile.photo_url;
+        }
+      } catch (e) { /* silent */ }
+    },
+
     // ---- Load pending invitations for current user ----
     async loadPendingInvitations() {
       try {
@@ -786,9 +807,17 @@ new Vue({
     },
 
     // ---- Logout ----
-    doLogout() {
+    async doLogout() {
+      try {
+        const csrf = this.getCookie('csrftoken');
+        await fetch('/api/logout/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'X-CSRFToken': csrf }
+        });
+      } catch (e) { /* ignore */ }
       localStorage.removeItem('taskhive_current_user');
-      window.location.href = '/login/';
+      window.location.href = '/';
     },
   },
 });
