@@ -2180,6 +2180,13 @@ def api_workspace_approval_resolve(request):
 @login_required
 def api_notifications_list(request):
     from django.db.models import Q
+    from django.utils import timezone
+    from datetime import timedelta
+
+    seven_days_ago = timezone.now() - timedelta(days=7)
+
+    # Auto-delete notifications older than 7 days for this recipient
+    Notification.objects.filter(recipient=request.user, created_at__lt=seven_days_ago).delete()
 
     team, membership = _get_user_team(request.user)
 
@@ -2193,6 +2200,9 @@ def api_notifications_list(request):
         qs = Notification.objects.filter(
             recipient=request.user
         ).select_related("actor")
+
+    # Only last 7 days, latest first
+    qs = qs.filter(created_at__gte=seven_days_ago).order_by("-created_at")
 
     unread_count = qs.filter(is_read=False).count()
     notifications = [_serialize_notification(n) for n in qs[:50]]

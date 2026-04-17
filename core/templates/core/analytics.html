@@ -74,7 +74,7 @@
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <a href="/workspace/" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-white hover:bg-slate-50 text-slate-600 hover:text-indigo-600 border border-slate-200 font-medium transition-colors">
-                    <i class="fas fa-arrow-left text-xs"></i> Board
+                    <i class="fas fa-arrow-left text-xs"></i> Back to Board
                 </a>
                 <div class="flex items-center gap-1.5">
                   <span style="font-size:11px;color:#94a3b8;font-weight:500;">Range:</span>
@@ -180,6 +180,23 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Burndown Chart -->
+            <section>
+                <div class="chart-card">
+                    <div class="flex items-center justify-between mb-1">
+                      <h3 style="margin-bottom:0;"><i class="fas fa-arrow-trend-down mr-1.5 text-rose-500"></i>Burndown Chart <span style="font-size:10px;color:#94a3b8;font-weight:400;">({{ days }} days)</span></h3>
+                      <div class="flex items-center gap-3 text-[10px] text-slate-500">
+                        <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 bg-rose-500 rounded"></span> Remaining</span>
+                        <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 bg-indigo-500 rounded"></span> Scope</span>
+                        <span class="flex items-center gap-1"><span class="inline-block w-3 h-0.5 bg-green-500 rounded"></span> Done</span>
+                      </div>
+                    </div>
+                    <div class="chart-wrap" style="height:180px;">
+                        <canvas id="burndownChart"></canvas>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -257,6 +274,7 @@
                     this.renderCreationChart();
                     this.renderCompletionChart();
                     this.renderWorkloadChart();
+                    this.renderBurndownChart();
                 },
 
                 renderColumnChart() {
@@ -314,6 +332,40 @@
                         type: 'bar',
                         data: { labels, datasets: [{ label: 'Tasks assigned', data, backgroundColor: chartColors.purple, borderRadius: 5, maxBarThickness: 28 }] },
                         options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } } }
+                    });
+                },
+
+                renderBurndownChart() {
+                    this._destroy('burndown');
+                    const labels = Object.keys(this.d.creationTrend).map(d => d.slice(5));
+                    const createdVals = Object.values(this.d.creationTrend);
+                    const doneVals = Object.values(this.d.completionTrend);
+
+                    let cumCreated = 0, cumDone = 0;
+                    const scopeData = createdVals.map(v => { cumCreated += v; return cumCreated; });
+                    const doneData = doneVals.map(v => { cumDone += v; return cumDone; });
+                    const remainData = scopeData.map((s, i) => Math.max(0, s - doneData[i]));
+
+                    this.charts.burndown = new Chart(document.getElementById('burndownChart'), {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [
+                                { label: 'Remaining', data: remainData, borderColor: 'rgba(244,63,94,0.9)', backgroundColor: 'rgba(244,63,94,0.08)', fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2.5 },
+                                { label: 'Scope',     data: scopeData,  borderColor: 'rgba(79,70,229,0.6)',  backgroundColor: 'transparent', fill: false, tension: 0.4, pointRadius: 0, borderWidth: 1.5, borderDash: [4,4] },
+                                { label: 'Done',      data: doneData,   borderColor: 'rgba(22,163,74,0.8)', backgroundColor: 'rgba(22,163,74,0.06)', fill: true, tension: 0.4, pointRadius: 2, borderWidth: 2 },
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } } },
+                                x: { ticks: { font: { size: 9 }, maxTicksLimit: 8 } }
+                            }
+                        }
                     });
                 },
 
