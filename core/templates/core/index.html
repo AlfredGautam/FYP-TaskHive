@@ -369,56 +369,99 @@
       </div>
 
       <!-- Projects -->
-      <div v-if="currentTab === 'projects'" class="space-y-6">
-        <div class="flex justify-between items-center">
+      <div v-if="currentTab === 'projects'" class="space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-2xl font-bold text-slate-900">Projects</h2>
-          <button @click="openNewProject" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
-            <i class="fas fa-plus mr-2"></i> New Project
-          </button>
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Filter tabs -->
+            <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button v-for="f in [{v:'all',l:'All'},{v:'active',l:'Active'},{v:'completed',l:'Completed'},{v:'archived',l:'Archived'}]"
+                      :key="f.v" @click="projectFilter = f.v"
+                      class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
+                      :class="projectFilter === f.v ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
+                {{ f.l }}
+                <span v-if="f.v !== 'all'" class="ml-1 opacity-60">({{ projects.filter(p => p.status === f.v).length }})</span>
+              </button>
+            </div>
+            <button @click="openNewProject" class="neon-button text-white px-4 py-2 rounded-lg flex items-center text-sm">
+              <i class="fas fa-plus mr-2"></i> New Project
+            </button>
+          </div>
         </div>
 
-        <div v-if="projects.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div v-if="filteredProjects.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           <div
-            v-for="project in projects"
+            v-for="project in filteredProjects"
             :key="project.id"
             class="project-card p-5 cursor-pointer relative group"
             @click="viewProject(project)"
           >
-            <button @click.stop="confirmDeleteProject(project)"
-                    class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity">
-              <i class="fas fa-trash"></i>
-            </button>
-            <div class="flex justify-between items-start mb-4">
-              <div class="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
-                <i class="fas fa-project-diagram"></i>
+            <!-- Hover action buttons -->
+            <div class="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button @click.stop="viewProject(project)"
+                      class="w-6 h-6 flex items-center justify-center rounded text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">
+                <i class="fas fa-pen text-[10px]"></i>
+              </button>
+              <button @click.stop="confirmDeleteProject(project)"
+                      class="w-6 h-6 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50">
+                <i class="fas fa-trash text-[10px]"></i>
+              </button>
+            </div>
+
+            <!-- Header: icon + name + health badge -->
+            <div class="flex items-start justify-between mb-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 flex-shrink-0">
+                  <i class="fas fa-folder-open"></i>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-sm text-slate-900 leading-tight">{{ project.name }}</h3>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium" :class="{
+                    'bg-green-50 text-green-700': project.status === 'active',
+                    'bg-gray-100 text-gray-500': project.status === 'completed',
+                    'bg-amber-50 text-amber-700': project.status === 'archived'
+                  }">{{ formatStatus(project.status) }}</span>
+                </div>
               </div>
-              <div class="text-xs px-2 py-1 rounded-full font-medium" :class="{
-                  'bg-green-50 text-green-700 border border-green-200': project.status === 'active',
-                  'bg-gray-100 text-gray-600 border border-gray-200': project.status === 'completed',
-                  'bg-amber-50 text-amber-700 border border-amber-200': project.status === 'archived'
-                }">
-                {{ formatStatus(project.status) }}
+              <!-- Health badge -->
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold border flex items-center gap-1 flex-shrink-0"
+                    :class="projectHealth(project.id).cls">
+                <span class="w-1.5 h-1.5 rounded-full inline-block" :class="projectHealth(project.id).dot"></span>
+                {{ projectHealth(project.id).label }}
+              </span>
+            </div>
+
+            <p class="text-slate-400 text-xs mb-3 line-clamp-2">{{ project.description || 'No description added.' }}</p>
+
+            <!-- Progress bar -->
+            <div v-if="getProjectTaskCount(project.id) > 0" class="mb-3">
+              <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                <span>Progress</span>
+                <span>{{ getProjectDoneCount(project.id) }}/{{ getProjectTaskCount(project.id) }} done</span>
+              </div>
+              <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-500"
+                     :class="getProjectDoneCount(project.id) === getProjectTaskCount(project.id) ? 'bg-green-500' : 'bg-indigo-500'"
+                     :style="'width:' + Math.round(getProjectDoneCount(project.id) / getProjectTaskCount(project.id) * 100) + '%'"></div>
               </div>
             </div>
-            <h3 class="font-semibold text-base mb-1.5 text-slate-900">{{ project.name }}</h3>
-            <p class="text-slate-500 text-sm mb-4 line-clamp-2">{{ project.description }}</p>
+            <div v-else class="mb-3 text-[10px] text-slate-300 italic">No tasks linked yet</div>
 
-            <div class="flex justify-between items-center text-sm text-slate-400">
-              <div class="flex items-center">
-                <i class="fas fa-tasks mr-1"></i>
-                <span>{{ getProjectTaskCount(project.id) }} tasks</span>
+            <!-- Bottom row -->
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-2 text-[11px]">
+                <span class="text-slate-400"><i class="fas fa-tasks mr-1"></i>{{ getProjectTaskCount(project.id) }} tasks</span>
+                <span v-if="getProjectOverdueCount(project.id) > 0" class="text-red-500 font-semibold">
+                  <i class="fas fa-clock mr-0.5"></i>{{ getProjectOverdueCount(project.id) }} overdue
+                </span>
               </div>
-              <div class="flex -space-x-2">
-                <div
-                  v-for="member in project.members.slice(0, 3)"
-                  :key="member"
-                  class="w-6 h-6 rounded-full bg-indigo-500 text-white text-xs flex items-center justify-center border-2 border-white"
-                  :title="member"
-                >
+              <div class="flex -space-x-1.5">
+                <div v-for="member in project.members.slice(0, 3)" :key="member"
+                     class="w-6 h-6 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center border-2 border-white" :title="member">
                   {{ getInitials(member) }}
                 </div>
                 <div v-if="project.members.length > 3"
-                     class="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs flex items-center justify-center border-2 border-white"
+                     class="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-[10px] flex items-center justify-center border-2 border-white"
                      :title="project.members.slice(3).join(', ')">
                   +{{ project.members.length - 3 }}
                 </div>
@@ -429,13 +472,19 @@
 
         <div v-else class="empty-state p-8 text-center">
           <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-400">
-            <i class="fas fa-project-diagram text-2xl"></i>
+            <i class="fas fa-folder-open text-2xl"></i>
           </div>
-          <h3 class="text-lg font-medium text-slate-900 mb-2">No projects yet</h3>
-          <p class="text-slate-500 mb-4">Get started by creating your first project</p>
-          <button @click="openNewProject"
+          <h3 class="text-lg font-medium text-slate-900 mb-2">
+            {{ projectFilter === 'all' ? 'No projects yet' : 'No ' + projectFilter + ' projects' }}
+          </h3>
+          <p class="text-slate-500 mb-4">{{ projectFilter === 'all' ? 'Get started by creating your first project' : 'Try a different filter' }}</p>
+          <button v-if="projectFilter === 'all'" @click="openNewProject"
                   class="neon-button text-white px-4 py-2 rounded-lg inline-flex items-center">
             <i class="fas fa-plus mr-2"></i> New Project
+          </button>
+          <button v-else @click="projectFilter = 'all'"
+                  class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm hover:bg-gray-50 transition-colors">
+            Show all projects
           </button>
         </div>
       </div>
@@ -463,9 +512,15 @@
             <div class="flex justify-between items-center mb-4">
               <h3 class="font-semibold text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
                   @click.stop="openBoardRedirect(board)">{{ board.name }}</h3>
-              <span class="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2 py-1 rounded-full border border-indigo-100">
-                {{ visibleTasksForBoard(board.id).length }}
-              </span>
+              <div class="flex items-center gap-1.5">
+                <span class="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2 py-1 rounded-full border border-indigo-100">
+                  {{ visibleTasksForBoard(board.id).length }}
+                </span>
+                <span v-if="columnOverdueCount(board.id) > 0"
+                      class="bg-red-50 text-red-600 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-red-100">
+                  {{ columnOverdueCount(board.id) }} overdue
+                </span>
+              </div>
             </div>
 
             <div class="space-y-3">
@@ -474,15 +529,21 @@
                 :key="task.id"
                 class="task-card bg-white shadow-sm p-3.5 cursor-move border-l-4"
                 :class="{
-                  'border-red-500': task.priority === 'high',
-                  'border-amber-400': task.priority === 'medium',
-                  'border-green-500': task.priority === 'low'
+                  'border-red-600 ring-1 ring-red-200': task.blocked,
+                  'border-red-500': !task.blocked && task.priority === 'high',
+                  'border-amber-400': !task.blocked && task.priority === 'medium',
+                  'border-green-500': !task.blocked && task.priority === 'low'
                 }"
                 draggable="true"
                 @dragstart="startDrag($event, task)"
                 @click="handleTaskClick(task)"
                 @contextmenu.prevent="showTaskContextMenu($event, task)"
               >
+                <!-- Blocked banner -->
+                <div v-if="task.blocked" class="flex items-center gap-1 mb-2 px-2 py-1 rounded bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold">
+                  <i class="fas fa-ban text-[9px]"></i> BLOCKED
+                </div>
+
                 <div class="flex justify-between items-start mb-1.5">
                   <div class="flex items-center flex-1 min-w-0">
                     <h4 class="font-medium text-slate-900 text-sm truncate">{{ task.name }}</h4>
@@ -511,8 +572,11 @@
                   <span class="text-slate-400">· {{ (task.codeMeta && task.codeMeta.language) ? task.codeMeta.language : 'code' }}</span>
                 </div>
 
-                <div class="flex justify-between items-center text-xs text-slate-400 mt-1">
-                  <span><i class="far fa-clock mr-1"></i> {{ formatDate(task.dueDate) }}</span>
+                <div class="flex justify-between items-center text-xs mt-1">
+                  <span :class="task.dueDate ? smartDueDate(task.dueDate).cls : 'text-slate-400'">
+                    <i class="far fa-clock mr-1"></i>
+                    {{ task.dueDate ? smartDueDate(task.dueDate).label : 'No date' }}
+                  </span>
                   <div class="flex">
                     <div
                       v-for="assignee in task.assignees"
@@ -532,77 +596,143 @@
       </div>
 
       <!-- Files -->
-      <div v-if="currentTab === 'files'" class="space-y-6">
-        <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-slate-900">Files</h2>
+      <div v-if="currentTab === 'files'" class="space-y-4">
+
+        <!-- Header -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
+            <h2 class="text-2xl font-bold text-slate-900">Files</h2>
+            <p class="text-xs text-slate-400 mt-0.5">{{ files.length }} file{{ files.length !== 1 ? 's' : '' }} stored</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <select v-model="fileSort" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none cursor-pointer">
+              <option value="date">Newest first</option>
+              <option value="name">Name A–Z</option>
+            </select>
+            <div class="flex items-center bg-gray-100 rounded-lg p-1">
+              <button @click="fileView = 'grid'" class="px-2.5 py-1 rounded-md transition-colors"
+                      :class="fileView === 'grid' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-400 hover:text-slate-600'">
+                <i class="fas fa-th text-xs"></i>
+              </button>
+              <button @click="fileView = 'list'" class="px-2.5 py-1 rounded-md transition-colors"
+                      :class="fileView === 'list' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-400 hover:text-slate-600'">
+                <i class="fas fa-list text-xs"></i>
+              </button>
+            </div>
             <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden">
-            <button @click="$refs.fileInput.click()"
-                    class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
-              <i class="fas fa-plus mr-2"></i> Upload File
+            <button @click="$refs.fileInput.click()" class="neon-button text-white px-4 py-2 rounded-lg flex items-center text-sm">
+              <i class="fas fa-plus mr-2"></i> Upload
             </button>
           </div>
         </div>
 
-        <div v-if="uploadProgress > 0 && uploadProgress < 100"
-             class="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <!-- File type filter tabs -->
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button v-for="ft in [{v:'all',l:'All',i:'fas fa-layer-group'},{v:'docs',l:'Docs',i:'fas fa-file-alt'},{v:'images',l:'Images',i:'fas fa-image'},{v:'sheets',l:'Sheets',i:'fas fa-table'},{v:'archives',l:'Archives',i:'fas fa-file-archive'},{v:'other',l:'Other',i:'fas fa-file'}]"
+                  :key="ft.v" @click="fileTypeFilter = ft.v"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border"
+                  :class="fileTypeFilter === ft.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-gray-50'">
+            <i :class="ft.i + ' text-[10px]'"></i> {{ ft.l }}
+            <span class="opacity-70">({{ ft.v === 'all' ? files.length : files.filter(f => getFileCategory(f.type) === ft.v).length }})</span>
+          </button>
+        </div>
+
+        <!-- Drag & Drop Zone -->
+        <div class="border-2 border-dashed rounded-xl py-5 text-center transition-all cursor-pointer"
+             :class="fileDragOver ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-gray-50/60 hover:border-indigo-300 hover:bg-indigo-50/30'"
+             @click="$refs.fileInput.click()"
+             @dragover.prevent="fileDragOver = true"
+             @dragleave="fileDragOver = false"
+             @drop.prevent="handleFileDrop">
+          <i class="fas fa-cloud-upload-alt text-2xl mb-1.5" :class="fileDragOver ? 'text-indigo-500' : 'text-slate-300'"></i>
+          <p class="text-sm font-medium" :class="fileDragOver ? 'text-indigo-600' : 'text-slate-400'">
+            {{ fileDragOver ? 'Release to upload' : 'Drop files here or click to browse' }}
+          </p>
+        </div>
+
+        <!-- Upload progress -->
+        <div v-if="uploadProgress > 0 && uploadProgress < 100" class="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div class="flex justify-between items-center mb-2">
-            <span class="font-medium text-slate-900 text-sm">Uploading file...</span>
+            <span class="font-medium text-slate-900 text-sm">Uploading...</span>
             <span class="text-sm text-slate-500">{{ uploadProgress }}%</span>
           </div>
           <div class="w-full bg-gray-200 rounded-full h-1.5">
-            <div class="h-1.5 rounded-full file-progress"
-                 :style="{ width: uploadProgress + '%' }"></div>
+            <div class="h-1.5 rounded-full file-progress" :style="{ width: uploadProgress + '%' }"></div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div
-            v-for="file in files"
-            :key="file.id"
-            class="project-card p-5 relative group"
-            @contextmenu.prevent="showFileContextMenu($event, file)"
-          >
+        <!-- GRID VIEW -->
+        <div v-if="fileView === 'grid'" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div v-for="file in filteredFiles" :key="file.id"
+               class="project-card p-4 relative group cursor-default"
+               @contextmenu.prevent="showFileContextMenu($event, file)">
+            <span v-if="isNewFile(file.uploaded)"
+                  class="absolute top-2 left-2 text-[9px] px-1.5 py-0.5 rounded bg-green-500 text-white font-bold">NEW</span>
             <button @click="confirmDeleteFile(file)"
-                    class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity">
-              <i class="fas fa-times"></i>
+                    class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-opacity">
+              <i class="fas fa-times text-[10px]"></i>
             </button>
-            <div class="flex justify-center mb-4">
-              <div class="w-12 h-12 rounded-lg flex items-center justify-center text-xl"
-                   :class="{
-                     'bg-blue-50 text-blue-600': file.type === 'doc' || file.type === 'docx',
-                     'bg-red-50 text-red-600': file.type === 'pdf',
-                     'bg-green-50 text-green-600': file.type === 'xls' || file.type === 'xlsx',
-                     'bg-amber-50 text-amber-600': file.type === 'zip',
-                     'bg-purple-50 text-purple-600': file.type === 'png' || file.type === 'jpg' || file.type === 'jpeg',
-                     'bg-gray-100 text-gray-500': file.type === 'txt' || file.type === 'other'
-                   }">
-                <i class="fas" :class="{
-                  'fa-file-word': file.type === 'doc' || file.type === 'docx',
-                  'fa-file-pdf': file.type === 'pdf',
-                  'fa-file-excel': file.type === 'xls' || file.type === 'xlsx',
-                  'fa-file-archive': file.type === 'zip',
-                  'fa-file-image': file.type === 'png' || file.type === 'jpg' || file.type === 'jpeg',
-                  'fa-file-alt': file.type === 'txt' || file.type === 'other'
-                }"></i>
+            <div class="flex justify-center mb-3">
+              <div class="w-11 h-11 rounded-lg flex items-center justify-center" :class="fileIconBg(file.type)">
+                <i class="fas text-xl" :class="fileIconClass(file.type)"></i>
               </div>
             </div>
-            <h3 class="font-semibold text-center mb-1 truncate text-slate-900 text-sm">{{ file.name }}</h3>
-            <p class="text-slate-400 text-xs text-center mb-3">{{ file.size }}</p>
-
-            <div class="flex justify-between items-center text-xs text-slate-400">
-              <span>{{ formatDate(file.uploaded) }}</span>
-              <div class="flex space-x-2">
-                <button @click="downloadFile(file)" class="text-indigo-500 hover:text-indigo-700 transition-colors">
-                  <i class="fas fa-download"></i>
-                </button>
-                <button @click="openFile(file)" class="text-green-500 hover:text-green-700 transition-colors">
-                  <i class="fas fa-external-link-alt"></i>
-                </button>
-              </div>
+            <h3 class="font-medium text-center truncate text-slate-900 text-xs mb-0.5" :title="file.name">{{ file.name }}</h3>
+            <p class="text-slate-400 text-[10px] text-center mb-3">{{ file.size }}</p>
+            <div class="flex justify-center items-center gap-3">
+              <button @click="downloadFile(file)" class="text-slate-400 hover:text-indigo-600 transition-colors" title="Download"><i class="fas fa-download text-xs"></i></button>
+              <button @click="openFile(file)" class="text-slate-400 hover:text-green-600 transition-colors" title="Open"><i class="fas fa-external-link-alt text-xs"></i></button>
             </div>
           </div>
+          <div v-if="!filteredFiles.length" class="col-span-5 py-10 text-center text-slate-400">
+            <i class="fas fa-folder-open text-3xl mb-2 block"></i>
+            <p class="text-sm">No files match this filter</p>
+          </div>
         </div>
+
+        <!-- LIST VIEW -->
+        <div v-if="fileView === 'list'" class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div v-if="!filteredFiles.length" class="py-10 text-center text-slate-400">
+            <i class="fas fa-folder-open text-3xl mb-2 block"></i><p class="text-sm">No files match this filter</p>
+          </div>
+          <table v-else class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Name</th>
+                <th class="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Type</th>
+                <th class="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Size</th>
+                <th class="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Uploaded</th>
+                <th class="px-4 py-2.5"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="file in filteredFiles" :key="file.id"
+                  class="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors"
+                  @contextmenu.prevent="showFileContextMenu($event, file)">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" :class="fileIconBg(file.type)">
+                      <i class="fas text-sm" :class="fileIconClass(file.type)"></i>
+                    </div>
+                    <span class="font-medium text-slate-800 truncate max-w-[200px]" :title="file.name">{{ file.name }}</span>
+                    <span v-if="isNewFile(file.uploaded)" class="text-[9px] px-1.5 py-0.5 rounded bg-green-500 text-white font-bold flex-shrink-0">NEW</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-slate-400 text-xs uppercase">{{ file.type }}</td>
+                <td class="px-4 py-3 text-slate-400 text-xs">{{ file.size }}</td>
+                <td class="px-4 py-3 text-slate-400 text-xs">{{ formatDate(file.uploaded) }}</td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2 justify-end">
+                    <button @click="downloadFile(file)" class="text-slate-400 hover:text-indigo-600 transition-colors" title="Download"><i class="fas fa-download text-xs"></i></button>
+                    <button @click="openFile(file)" class="text-slate-400 hover:text-green-600 transition-colors" title="Open"><i class="fas fa-external-link-alt text-xs"></i></button>
+                    <button @click="confirmDeleteFile(file)" class="text-slate-400 hover:text-red-500 transition-colors" title="Delete"><i class="fas fa-trash text-xs"></i></button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
 
       <!-- Activity Log -->
@@ -785,12 +915,17 @@
         </div>
 
         <div class="flex items-center gap-2 mb-5 text-xs flex-wrap">
+          <span v-if="detailTask.blocked" class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-200 font-bold">
+            <i class="fas fa-ban text-[9px]"></i> BLOCKED
+          </span>
           <span class="px-2 py-1 rounded-full font-medium" :class="{
             'bg-red-50 text-red-700 border border-red-200': detailTask.priority === 'high',
             'bg-amber-50 text-amber-700 border border-amber-200': detailTask.priority === 'medium',
             'bg-green-50 text-green-700 border border-green-200': detailTask.priority === 'low'
           }">{{ detailTask.priority }}</span>
-          <span class="text-slate-500"><i class="far fa-clock mr-1"></i>{{ formatDate(detailTask.dueDate) }}</span>
+          <span :class="detailTask.dueDate ? smartDueDate(detailTask.dueDate).cls : 'text-slate-400'">
+            <i class="far fa-clock mr-1"></i>{{ detailTask.dueDate ? smartDueDate(detailTask.dueDate).label : 'No date' }}
+          </span>
           <span class="text-slate-500"><i class="fas fa-columns mr-1"></i>{{ getBoardName(detailTask.boardId) }}</span>
         </div>
 
@@ -936,6 +1071,24 @@
               <input type="date" v-model="currentTask.dueDate" class="modal-input">
             </div>
           </div>
+
+          <!-- Blocked toggle -->
+          <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors"
+                 :class="currentTask.blocked ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'">
+            <div class="relative flex-shrink-0">
+              <input type="checkbox" v-model="currentTask.blocked" class="sr-only">
+              <div class="w-9 h-5 rounded-full transition-colors" :class="currentTask.blocked ? 'bg-red-500' : 'bg-gray-300'"></div>
+              <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform" :class="currentTask.blocked ? 'translate-x-4' : ''"></div>
+            </div>
+            <div>
+              <span class="text-sm font-medium" :class="currentTask.blocked ? 'text-red-700' : 'text-slate-600'">
+                <i class="fas fa-ban mr-1"></i> Mark as Blocked
+              </span>
+              <p class="text-[10px] mt-0.5" :class="currentTask.blocked ? 'text-red-500' : 'text-slate-400'">
+                {{ currentTask.blocked ? 'Task is waiting on something to proceed' : 'Toggle if this task is blocked' }}
+              </p>
+            </div>
+          </label>
 
           <!-- Assignees (Team Head only) -->
           <div v-if="currentUserRole === 'head'" class="bg-gray-50 p-3 rounded-lg border border-gray-200">
@@ -1272,6 +1425,8 @@
         itemToDelete: { type: "", name: "", id: null },
         contextMenu: { visible: false, type: null, item: null, x: 0, y: 0 },
 
+        projectFilter: 'all',
+
         currentTask: {
           id: null,
           name: "",
@@ -1281,7 +1436,7 @@
           assignees: [],
           boardId: 1,
           projectId: null,
-
+          blocked: false,
           taskType: "normal",
           codeMeta: {
             codeName: "",          // ✅ required for super
@@ -1313,6 +1468,10 @@
         tasks: [],
         projects: [],
         files: [],
+        fileView: 'grid',
+        fileTypeFilter: 'all',
+        fileDragOver: false,
+        fileSort: 'date',
 
         approvalRequests: [],
 
@@ -1389,6 +1548,19 @@
 
       calendarMonthLabel() {
         return new Date(this.calendarYear, this.calendarMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+      },
+
+      filteredProjects() {
+        if (this.projectFilter === 'all') return this.projects;
+        return this.projects.filter(p => p.status === this.projectFilter);
+      },
+
+      filteredFiles() {
+        let result = this.fileTypeFilter === 'all' ? this.files : this.files.filter(f => this.getFileCategory(f.type) === this.fileTypeFilter);
+        const sorted = [...result];
+        if (this.fileSort === 'name') sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        else sorted.sort((a, b) => (b.uploaded || '').localeCompare(a.uploaded || ''));
+        return sorted;
       },
 
       calendarMonthStats() {
@@ -1710,6 +1882,7 @@
 
         if (task.projectId === undefined) task.projectId = null;
         if (!task.taskType) task.taskType = "normal";
+        if (task.blocked === undefined) task.blocked = false;
 
         if (!task.codeMeta || typeof task.codeMeta !== "object") task.codeMeta = {};
         task.codeMeta.codeName = task.codeMeta.codeName || "";
@@ -2037,6 +2210,7 @@
           assignees: [],
           boardId: 1,
           projectId: null,
+          blocked: false,
           taskType: "normal",
           codeMeta: {
             codeName: "",
@@ -2163,6 +2337,65 @@
       },
 
       getProjectTaskCount(projectId) { return this.tasks.filter(t => t.projectId === projectId).length; },
+
+      getProjectDoneCount(projectId) {
+        return this.tasks.filter(t => t.projectId === projectId && t.boardId === 3).length;
+      },
+
+      getProjectOverdueCount(projectId) {
+        const today = new Date().toISOString().slice(0, 10);
+        return this.tasks.filter(t => t.projectId === projectId && t.boardId !== 3 && t.dueDate && t.dueDate < today).length;
+      },
+
+      projectHealth(projectId) {
+        const overdue = this.getProjectOverdueCount(projectId);
+        const total = this.getProjectTaskCount(projectId);
+        if (total === 0 || overdue === 0) return { label: 'Healthy', cls: 'bg-green-50 text-green-700 border-green-200', dot: 'bg-green-500' };
+        if (overdue <= 2 || overdue / total < 0.35) return { label: 'At Risk', cls: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-400' };
+        return { label: 'Critical', cls: 'bg-red-50 text-red-700 border-red-200', dot: 'bg-red-500' };
+      },
+
+      getFileCategory(type) {
+        if (['doc','docx','pdf','txt'].includes(type)) return 'docs';
+        if (['png','jpg','jpeg','gif','svg','webp'].includes(type)) return 'images';
+        if (['xls','xlsx','csv'].includes(type)) return 'sheets';
+        if (['zip','rar','7z','tar'].includes(type)) return 'archives';
+        return 'other';
+      },
+
+      isNewFile(uploaded) {
+        if (!uploaded) return false;
+        return (Date.now() - new Date(uploaded).getTime()) < 86400000;
+      },
+
+      fileIconBg(type) {
+        if (type === 'doc' || type === 'docx') return 'bg-blue-50 text-blue-600';
+        if (type === 'pdf') return 'bg-red-50 text-red-600';
+        if (['xls','xlsx','csv'].includes(type)) return 'bg-green-50 text-green-600';
+        if (['zip','rar','7z','tar'].includes(type)) return 'bg-amber-50 text-amber-600';
+        if (['png','jpg','jpeg','gif','svg','webp'].includes(type)) return 'bg-purple-50 text-purple-600';
+        return 'bg-gray-100 text-gray-500';
+      },
+
+      fileIconClass(type) {
+        if (type === 'doc' || type === 'docx') return 'fa-file-word';
+        if (type === 'pdf') return 'fa-file-pdf';
+        if (['xls','xlsx','csv'].includes(type)) return 'fa-file-excel';
+        if (['zip','rar','7z','tar'].includes(type)) return 'fa-file-archive';
+        if (['png','jpg','jpeg','gif','svg','webp'].includes(type)) return 'fa-file-image';
+        return 'fa-file-alt';
+      },
+
+      handleFileDrop(event) {
+        this.fileDragOver = false;
+        const file = event.dataTransfer.files[0];
+        if (!file) return;
+        this.uploadProgress = 0;
+        const interval = setInterval(() => {
+          this.uploadProgress += 10;
+          if (this.uploadProgress >= 100) { clearInterval(interval); this.addFile(file); }
+        }, 100);
+      },
 
       handleFileUpload(event) {
         const file = event.target.files[0];
@@ -2467,6 +2700,23 @@
         if (count === 2) return 'background:#e0e7ff;';
         if (count === 3) return 'background:#c7d2fe;';
         return 'background:#a5b4fc;';
+      },
+
+      columnOverdueCount(boardId) {
+        const today = new Date().toISOString().slice(0, 10);
+        return this.visibleTasksForBoard(boardId).filter(t => t.dueDate && t.dueDate < today).length;
+      },
+
+      smartDueDate(dueDate) {
+        if (!dueDate) return null;
+        const today = new Date().toISOString().slice(0, 10);
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        const diff = Math.round((new Date(dueDate) - new Date(today)) / 86400000);
+        if (dueDate < today) return { label: `Overdue ${Math.abs(diff)}d`, cls: 'text-red-600 font-semibold' };
+        if (dueDate === today) return { label: 'Due Today', cls: 'text-red-500 font-semibold' };
+        if (dueDate === tomorrow) return { label: 'Tomorrow', cls: 'text-amber-600 font-semibold' };
+        if (diff <= 3) return { label: `${diff} days left`, cls: 'text-amber-500 font-medium' };
+        return { label: this.formatDate(dueDate), cls: 'text-slate-400' };
       },
 
       calendarEventColor(ev) {

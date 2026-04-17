@@ -176,6 +176,8 @@ class Task(models.Model):
 
     assignees = models.ManyToManyField(User, related_name="tasks_assigned", blank=True)
 
+    is_blocked = models.BooleanField(default=False)
+
     position = models.PositiveIntegerField(default=0)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="tasks_created")
     created_at = models.DateTimeField(auto_now_add=True)

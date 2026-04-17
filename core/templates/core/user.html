@@ -83,6 +83,10 @@
     .badge-head { background: rgba(79, 70, 229, 0.08); color: #4f46e5; border: 1px solid rgba(79, 70, 229, 0.2); }
     .badge-member { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
     .badge-you { background: rgba(22, 163, 74, 0.08); color: #16a34a; border: 1px solid rgba(22, 163, 74, 0.2); }
+    .search-field { background:#f8fafc; border:1px solid #e2e8f0; color:#0f172a; border-radius:8px; padding:6px 10px 6px 30px; font-size:12px; width:100%; transition:all .2s; }
+    .search-field:focus { outline:none; border-color:#6366f1; box-shadow:0 0 0 3px rgba(79,70,229,.12); background:#fff; }
+    .danger-btn { background:#fff; border:1px solid #fecaca; color:#dc2626; transition:all .15s; }
+    .danger-btn:hover { background:#fef2f2; border-color:#f87171; }
   </style>
 </head>
 
@@ -107,6 +111,18 @@
       </div>
     </div>
   </header>
+
+  <!-- Pending Invitations Banner -->
+  <div v-if="pendingInvitations.length" class="bg-amber-50 border-b border-amber-200 px-6 lg:px-10 py-3">
+    <div class="max-w-5xl mx-auto flex items-center justify-between gap-4 flex-wrap">
+      <div class="flex items-center gap-2 text-sm text-amber-800">
+        <i class="fas fa-envelope-open-text text-amber-500"></i>
+        <span>You have <strong>{{ pendingInvitations.length }}</strong> pending team invitation{{ pendingInvitations.length !== 1 ? 's' : '' }}</span>
+        <span class="text-amber-600 text-xs hidden sm:inline">— {{ pendingInvitations.map(function(i){ return i.team_name || i.teamName || 'a team'; }).join(', ') }}</span>
+      </div>
+      <button @click="pendingInvitations = []" class="text-amber-400 hover:text-amber-700 text-xs p-1 rounded"><i class="fas fa-times"></i></button>
+    </div>
+  </div>
 
   <!-- ========== MAIN ========== -->
   <main class="w-full mx-auto px-6 lg:px-10 py-8 space-y-8 max-w-5xl">
@@ -174,17 +190,25 @@
                 <span class="badge" :class="selectedTeam.role === 'head' ? 'badge-head' : 'badge-member'">{{ selectedTeam.role === 'head' ? 'Admin' : 'Member' }}</span>
                 <span v-if="copyMsg" class="text-xs text-green-600 animate-pulse">{{ copyMsg }}</span>
               </div>
+              <div class="flex items-center gap-2 mt-2 flex-wrap">
+                <span class="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded-full"><i class="fas fa-users mr-1"></i>{{ members.length }} member{{ members.length !== 1 ? 's' : '' }}</span>
+                <span class="text-[10px] bg-green-50 text-green-600 border border-green-100 px-2 py-0.5 rounded-full"><i class="fas fa-circle mr-1 text-[7px]"></i>Active</span>
+                <span v-if="selectedTeam.role === 'head'" class="text-[10px] bg-amber-50 text-amber-600 border border-amber-100 px-2 py-0.5 rounded-full"><i class="fas fa-crown mr-1"></i>Admin</span>
+              </div>
             </div>
           </div>
           <div class="flex items-center gap-2 flex-wrap">
             <a :href="'/workspace/' + selectedTeam.id + '/'" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg neon-button text-white font-semibold text-sm">
               <i class="fas fa-rocket"></i> Go to Workspace
             </a>
-            <a href="/profile/" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 text-sm text-slate-700 transition-all">
+            <!-- <a href="/profile/" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 text-sm text-slate-700 transition-all">
               <i class="fas fa-user-edit"></i> Edit Profile
-            </a>
+            </a> -->
             <button @click="leaveTeam" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 text-slate-600 hover:text-red-600 text-sm transition-all">
               <i class="fas fa-sign-out-alt"></i> Leave Team
+            </button>
+            <button v-if="selectedTeam.role === 'head'" @click="deleteTeam" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg danger-btn text-sm font-medium">
+              <i class="fas fa-trash-alt"></i> Delete Team
             </button>
           </div>
         </div>
@@ -216,7 +240,7 @@
         <div class="divide-y divide-gray-100">
           <div v-for="inv in teamInvitations" :key="inv.id" class="px-5 py-3 flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 flex-1 min-w-0">
-              <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600 shrink-0">
+              <div class="w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold shrink-0" :class="avatarColor(inv.invitedUser)">
                 {{ (inv.invitedUser || '?').charAt(0).toUpperCase() }}
               </div>
               <div class="min-w-0">
@@ -243,9 +267,15 @@
 
       <!-- Members -->
       <section class="panel glow p-0 overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-slate-700"><i class="fas fa-users mr-2 text-indigo-600"></i>Team Members</h3>
-          <span class="text-xs text-slate-400">{{ members.length }} member{{ members.length !== 1 ? 's' : '' }}</span>
+        <div class="px-5 py-4 border-b border-gray-100 space-y-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-700"><i class="fas fa-users mr-2 text-indigo-600"></i>Team Members</h3>
+            <span class="text-xs text-slate-400">{{ filteredMembers.length }}/{{ members.length }} member{{ members.length !== 1 ? 's' : '' }}</span>
+          </div>
+          <div class="relative">
+            <i class="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] pointer-events-none"></i>
+            <input v-model="memberSearch" placeholder="Search members..." class="search-field" />
+          </div>
         </div>
 
         <div v-if="detailLoading" class="px-5 py-6 flex items-center gap-3">
@@ -254,9 +284,9 @@
         </div>
 
         <div v-else class="divide-y divide-gray-100">
-          <div v-for="m in members" :key="m.email" class="member-row px-5 py-3 flex items-center justify-between gap-3">
+          <div v-for="m in filteredMembers" :key="m.email" class="member-row px-5 py-3 flex items-center justify-between gap-3">
             <a :href="'/profile/' + encodeURIComponent(m.username || '') + '/'" class="flex items-center gap-3 flex-1 min-w-0 no-underline group">
-              <div class="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-600 shrink-0">
+              <div class="w-9 h-9 rounded-full border flex items-center justify-center text-sm font-bold shrink-0" :class="avatarColor(m.name || m.email)">
                 {{ (m.name || m.email || '?').charAt(0).toUpperCase() }}
               </div>
               <div class="min-w-0">
@@ -264,19 +294,31 @@
                   <span class="text-sm text-slate-900 group-hover:text-indigo-600 transition-colors truncate font-medium">{{ m.name || m.email || 'Unknown' }}</span>
                   <span v-if="isMe(m.email)" class="badge badge-you">You</span>
                   <span class="badge" :class="(m.role || '').toLowerCase() === 'head' ? 'badge-head' : 'badge-member'">{{ (m.role || '').toLowerCase() === 'head' ? 'Admin' : 'Member' }}</span>
+                  <span v-if="m.is_owner" class="text-[10px] bg-yellow-50 text-yellow-700 border border-yellow-200 px-1.5 py-0.5 rounded-full font-semibold"><i class="fas fa-shield-alt mr-0.5"></i>Owner</span>
                 </div>
                 <div class="text-xs text-slate-400 truncate">{{ m.email }}</div>
               </div>
             </a>
-            <button v-if="canRemove(m)" @click.stop="removeMember(m.email)" class="px-3 py-1 text-xs rounded-lg bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 text-slate-500 hover:text-red-600 transition-all shrink-0">
-              <i class="fas fa-user-minus mr-1"></i> Remove
-            </button>
+            <div class="flex items-center gap-1 shrink-0">
+              <button v-if="canPromote(m)" @click.stop="promoteMember(m.email)" class="px-3 py-1 text-xs rounded-lg bg-white hover:bg-indigo-50 border border-gray-200 hover:border-indigo-200 text-slate-500 hover:text-indigo-600 transition-all" title="Make Admin">
+                <i class="fas fa-crown mr-1"></i> Promote
+              </button>
+              <button v-if="canDemote(m)" @click.stop="demoteMember(m.email)" class="px-3 py-1 text-xs rounded-lg bg-white hover:bg-amber-50 border border-gray-200 hover:border-amber-200 text-slate-500 hover:text-amber-600 transition-all" title="Remove Admin">
+                <i class="fas fa-crown mr-1"></i> Demote
+              </button>
+              <button v-if="canRemove(m)" @click.stop="removeMember(m.email)" class="px-3 py-1 text-xs rounded-lg bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 text-slate-500 hover:text-red-600 transition-all">
+                <i class="fas fa-user-minus mr-1"></i> Remove
+              </button>
+            </div>
           </div>
         </div>
 
         <div v-if="!detailLoading && !members.length" class="px-5 py-6 flex items-center gap-3 text-sm text-slate-400">
           <i class="fas fa-user-friends text-slate-300"></i>
           <span>No team members yet.</span>
+        </div>
+        <div v-if="!detailLoading && members.length && !filteredMembers.length" class="px-5 py-4 text-center text-sm text-slate-400">
+          <i class="fas fa-search mr-1"></i> No members match "{{ memberSearch }}"
         </div>
       </section>
 
@@ -358,7 +400,19 @@ new Vue({
       inviteError: false,
 
       teamInvitations: [],
+      memberSearch: '',
+      pendingInvitations: [],
     };
+  },
+  computed: {
+    filteredMembers() {
+      if (!this.memberSearch.trim()) return this.members;
+      const q = this.memberSearch.toLowerCase();
+      return this.members.filter(m =>
+        (m.name || '').toLowerCase().includes(q) ||
+        (m.email || '').toLowerCase().includes(q)
+      );
+    },
   },
   mounted() {
     const raw = localStorage.getItem('taskhive_current_user');
@@ -367,6 +421,7 @@ new Vue({
       this.displayName = (u && (u.name || u.email || u.username)) || 'User';
     } catch (e) { /* keep default */ }
     this.loadTeams();
+    this.loadPendingInvitations();
   },
   methods: {
     getCookie(name) {
@@ -400,8 +455,38 @@ new Vue({
     canRemove(m) {
       if (!this.selectedTeam || this.selectedTeam.role !== 'head') return false;
       if (this.isMe(m.email)) return false;
+      if (m.is_owner) return false;
+      if ((m.role || '').toLowerCase() === 'head' && !this.selectedTeam.is_owner) return false;
+      return true;
+    },
+    canPromote(m) {
+      if (!this.selectedTeam || this.selectedTeam.role !== 'head') return false;
+      if (this.isMe(m.email)) return false;
       if ((m.role || '').toLowerCase() === 'head') return false;
       return true;
+    },
+    canDemote(m) {
+      if (!this.selectedTeam || this.selectedTeam.role !== 'head') return false;
+      if (this.isMe(m.email)) return false;
+      if (m.is_owner) return false;
+      if ((m.role || '').toLowerCase() !== 'head') return false;
+      if (!this.selectedTeam.is_owner) return false;
+      return true;
+    },
+    avatarColor(name) {
+      const p = [
+        'bg-red-100 text-red-600 border-red-200',
+        'bg-green-100 text-green-600 border-green-200',
+        'bg-blue-100 text-blue-600 border-blue-200',
+        'bg-purple-100 text-purple-600 border-purple-200',
+        'bg-amber-100 text-amber-700 border-amber-200',
+        'bg-teal-100 text-teal-600 border-teal-200',
+        'bg-pink-100 text-pink-600 border-pink-200',
+        'bg-orange-100 text-orange-600 border-orange-200',
+      ];
+      let h = 0; const s = String(name || '?');
+      for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+      return p[Math.abs(h) % p.length];
     },
     copyCode(code) {
       navigator.clipboard.writeText(code).then(() => {
@@ -432,6 +517,7 @@ new Vue({
       this.inviteEmail = '';
       this.inviteMsg = '';
       this.inviteError = false;
+      this.memberSearch = '';
       this.detailLoading = true;
       try {
         const { data } = await this.fetchJson(`/api/team/${t.id}/members/`);
@@ -607,6 +693,63 @@ new Vue({
       } catch (e) {
         this.teamInvitations = [];
       }
+    },
+
+    // ---- Promote member to admin ----
+    async promoteMember(email) {
+      if (!this.selectedTeam) return;
+      if (!confirm(`Make ${email} an admin of this team?`)) return;
+      try {
+        const { res, data } = await this.fetchJson('/api/team/member/promote/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ team_id: this.selectedTeam.id, member_email: email }),
+        });
+        if (!res.ok || !data.ok) { alert(data.error || 'Promote failed.'); return; }
+        this.inviteMsg = `${email} is now an admin.`;
+        this.inviteError = false;
+        await this.selectTeam(this.selectedTeam);
+      } catch(e) { alert('Network error. Try again.'); }
+    },
+
+    // ---- Demote admin to member ----
+    async demoteMember(email) {
+      if (!this.selectedTeam) return;
+      if (!confirm(`Remove admin rights from ${email}?`)) return;
+      try {
+        const { res, data } = await this.fetchJson('/api/team/member/demote/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ team_id: this.selectedTeam.id, member_email: email }),
+        });
+        if (!res.ok || !data.ok) { alert(data.error || 'Demote failed.'); return; }
+        this.inviteMsg = `${email} is now a member.`;
+        this.inviteError = false;
+        await this.selectTeam(this.selectedTeam);
+      } catch(e) { alert('Network error. Try again.'); }
+    },
+
+    // ---- Delete team (admin only) ----
+    async deleteTeam() {
+      if (!this.selectedTeam) return;
+      if (!confirm(`Permanently delete "${this.selectedTeam.name}"? This cannot be undone.`)) return;
+      try {
+        const { res, data } = await this.fetchJson('/api/team/delete/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ team_id: this.selectedTeam.id }),
+        });
+        if (!res.ok || !data.ok) { alert(data.error || 'Delete failed.'); return; }
+        this.goHome();
+      } catch(e) { alert('Network error. Try again.'); }
+    },
+
+    // ---- Load pending invitations for current user ----
+    async loadPendingInvitations() {
+      try {
+        const { data } = await this.fetchJson('/api/invitations/pending/');
+        if (data && data.ok) this.pendingInvitations = data.invitations || [];
+      } catch(e) { /* silent fail */ }
     },
 
     // ---- Re-send invitation email ----

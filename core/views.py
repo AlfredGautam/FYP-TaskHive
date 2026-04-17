@@ -629,6 +629,7 @@ def api_my_teams(request):
             "name": m.team.name,
             "code": m.team.code,
             "role": m.role,
+            "is_owner": (m.user_id == m.team.created_by_id),
             "joined_at": m.joined_at.isoformat(),
         })
     return JsonResponse({"ok": True, "teams": teams})
@@ -661,6 +662,9 @@ def api_team_members(request, team_id: int):
     if not is_member:
         return JsonResponse({"ok": False, "error": "Not a team member"}, status=403)
 
+    team_obj = Team.objects.filter(id=team_id).first()
+    owner_id = team_obj.created_by_id if team_obj else None
+
     memberships = (
         TeamMembership.objects
         .select_related("user")
@@ -676,6 +680,7 @@ def api_team_members(request, team_id: int):
                 "name": (m.user.get_full_name() or m.user.username),
                 "username": m.user.username,
                 "role": m.role,
+                "is_owner": (m.user_id == owner_id),
             }
             for m in memberships
         ],
@@ -1378,6 +1383,7 @@ def api_workspace_load(request):
             "projectId": project_id,
             "taskType": t.task_type,
             "codeMeta": code_meta,
+            "blocked": t.is_blocked,
         })
 
     projects_qs = Project.objects.filter(team=team)
@@ -1488,6 +1494,7 @@ def api_workspace_task_save(request):
         task.task_type = data.get("taskType", "normal")
         task.column = column
         task.labels = code_meta
+        task.is_blocked = bool(data.get("blocked", False))
         task.save()
     else:
         task = Task.objects.create(
@@ -1499,6 +1506,7 @@ def api_workspace_task_save(request):
             due_date=due_date,
             task_type=data.get("taskType", "normal"),
             labels=code_meta,
+            is_blocked=bool(data.get("blocked", False)),
             created_by=request.user,
         )
 
@@ -1579,6 +1587,7 @@ def api_workspace_task_save(request):
             "projectId": project_id,
             "taskType": task.task_type,
             "codeMeta": code_meta,
+            "blocked": task.is_blocked,
         }
     })
 
@@ -1836,8 +1845,13 @@ def api_team_member_remove(request):
     target_membership = TeamMembership.objects.filter(team_id=team_id, user=target_user).first()
     if not target_membership:
         return JsonResponse({"ok": False, "error": "User is not in this team"}, status=404)
-    if target_membership.role == TeamMembership.ROLE_HEAD:
-        return JsonResponse({"ok": False, "error": "Cannot remove team head"}, status=400)
+
+    team_obj = Team.objects.filter(id=team_id).first()
+    owner_id = team_obj.created_by_id if team_obj else None
+    if target_user.id == owner_id:
+        return JsonResponse({"ok": False, "error": "The team owner cannot be removed"}, status=403)
+    if target_membership.role == TeamMembership.ROLE_HEAD and request.user.id != owner_id:
+        return JsonResponse({"ok": False, "error": "Only the team owner can remove admins"}, status=403)
 
     target_membership.delete()
 
@@ -1864,6 +1878,117 @@ def api_team_member_remove(request):
         target_type="member",
         target_id=target_user.id,
         extra={"teamId": admin_membership.team_id, "memberEmail": target_email},
+    )
+
+    return JsonResponse({"ok": True})
+
+
+@require_POST
+@login_required
+def api_team_member_promote(request):
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    team_id = data.get("team_id")
+    member_email = (data.get("member_email") or "").strip().lower()
+    if not team_id or not member_email:
+        return JsonResponse({"ok": False, "error": "team_id and member_email required"}, status=400)
+
+    admin_membership = TeamMembership.objects.filter(team_id=team_id, user=request.user).first()
+    if not admin_membership:
+        return JsonResponse({"ok": False, "error": "Not a team member"}, status=403)
+    if admin_membership.role != TeamMembership.ROLE_HEAD:
+        return JsonResponse({"ok": False, "error": "Only admin can promote members"}, status=403)
+
+    from django.db.models import Q
+    target_membership = (
+        TeamMembership.objects
+        .select_related("user")
+        .filter(team_id=team_id)
+        .filter(Q(user__email__iexact=member_email) | Q(user__username__iexact=member_email))
+        .first()
+    )
+    if not target_membership:
+        return JsonResponse({"ok": False, "error": "User is not in this team"}, status=404)
+
+    target_user = target_membership.user
+    if target_user.id == request.user.id:
+        return JsonResponse({"ok": False, "error": "You are already an admin"}, status=400)
+    if target_membership.role == TeamMembership.ROLE_HEAD:
+        return JsonResponse({"ok": False, "error": "User is already an admin"}, status=400)
+
+    target_membership.role = TeamMembership.ROLE_HEAD
+    target_membership.save(update_fields=["role"])
+
+    _notify_team(
+        admin_membership.team,
+        request.user,
+        f"{_actor_name(request.user)} promoted {target_user.get_full_name() or target_user.username} to admin.",
+        event_type="team_member_promoted",
+        target_tab="team",
+        target_type="member",
+        target_id=target_user.id,
+        extra={"teamId": admin_membership.team_id},
+    )
+
+    return JsonResponse({"ok": True})
+
+
+@require_POST
+@login_required
+def api_team_member_demote(request):
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    team_id = data.get("team_id")
+    member_email = (data.get("member_email") or "").strip().lower()
+    if not team_id or not member_email:
+        return JsonResponse({"ok": False, "error": "team_id and member_email required"}, status=400)
+
+    admin_membership = TeamMembership.objects.filter(team_id=team_id, user=request.user).first()
+    if not admin_membership:
+        return JsonResponse({"ok": False, "error": "Not a team member"}, status=403)
+    if admin_membership.role != TeamMembership.ROLE_HEAD:
+        return JsonResponse({"ok": False, "error": "Only admin can demote members"}, status=403)
+
+    from django.db.models import Q
+    target_membership = (
+        TeamMembership.objects
+        .select_related("user")
+        .filter(team_id=team_id)
+        .filter(Q(user__email__iexact=member_email) | Q(user__username__iexact=member_email))
+        .first()
+    )
+    if not target_membership:
+        return JsonResponse({"ok": False, "error": "User is not in this team"}, status=404)
+
+    target_user = target_membership.user
+    if target_user.id == request.user.id:
+        return JsonResponse({"ok": False, "error": "You cannot demote yourself"}, status=400)
+
+    team_obj = Team.objects.filter(id=team_id).first()
+    if team_obj and target_user.id == team_obj.created_by_id:
+        return JsonResponse({"ok": False, "error": "The team owner cannot be demoted"}, status=403)
+
+    if target_membership.role == TeamMembership.ROLE_MEMBER:
+        return JsonResponse({"ok": False, "error": "User is already a member"}, status=400)
+
+    target_membership.role = TeamMembership.ROLE_MEMBER
+    target_membership.save(update_fields=["role"])
+
+    _notify_team(
+        admin_membership.team,
+        request.user,
+        f"{_actor_name(request.user)} demoted {target_user.get_full_name() or target_user.username} to member.",
+        event_type="team_member_demoted",
+        target_tab="team",
+        target_type="member",
+        target_id=target_user.id,
+        extra={"teamId": admin_membership.team_id},
     )
 
     return JsonResponse({"ok": True})

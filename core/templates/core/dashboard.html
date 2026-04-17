@@ -430,6 +430,88 @@
     .feature:nth-child(3) { animation: fadeInUp 0.7s 0.6s backwards; }
     .feature:nth-child(4) { animation: fadeInUp 0.7s 0.75s backwards; }
 
+    /* ---- STATS STRIP ---- */
+    .stats-strip {
+      background: var(--bg-subtle);
+      border-top: 1px solid var(--border-light);
+      border-bottom: 1px solid var(--border-light);
+      padding: 40px;
+    }
+    .stats-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+    }
+    .stat-item {
+      text-align: center;
+      padding: 20px 24px;
+      position: relative;
+    }
+    .stat-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      right: 0; top: 20%; bottom: 20%;
+      width: 1px;
+      background: var(--border);
+    }
+    .stat-num {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .stat-num span {
+      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+    /* ---- HOW IT WORKS ---- */
+    .how-section {
+      padding: 100px 40px;
+      background: var(--bg-subtle);
+      border-top: 1px solid var(--border-light);
+      border-bottom: 1px solid var(--border-light);
+    }
+    .how-steps {
+      max-width: 900px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 40px;
+      position: relative;
+    }
+    .how-steps::before {
+      content: '';
+      position: absolute;
+      top: 28px; left: calc(16.67% + 28px); right: calc(16.67% + 28px);
+      height: 2px;
+      background: linear-gradient(90deg, var(--primary), #7c3aed);
+      opacity: 0.2;
+    }
+    .how-step { text-align: center; position: relative; z-index: 1; }
+    .how-step:nth-child(1) { animation: fadeInUp 0.7s 0.2s backwards; }
+    .how-step:nth-child(2) { animation: fadeInUp 0.7s 0.35s backwards; }
+    .how-step:nth-child(3) { animation: fadeInUp 0.7s 0.5s backwards; }
+    .step-num {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      color: #fff;
+      font-size: 20px;
+      font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+      box-shadow: 0 4px 16px rgba(79,70,229,0.3);
+    }
+    .how-step h4 { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+    .how-step p { font-size: 14px; color: var(--muted); line-height: 1.6; max-width: 220px; margin: 0 auto; }
+
     /* ═══════════════════════════════
        CTA BANNER
     ═══════════════════════════════ */
@@ -583,9 +665,27 @@
     /* ═══════════════════════════════
        RESPONSIVE
     ═══════════════════════════════ */
+    /* update features to 3-col by default for 6 cards */
+    .features { grid-template-columns: repeat(3, 1fr) !important; }
+    .feature:nth-child(1) .feature-icon { background: #eef2ff; color: #4f46e5; }
+    .feature:nth-child(2) .feature-icon { background: #fef3c7; color: #d97706; }
+    .feature:nth-child(3) .feature-icon { background: #dbeafe; color: #2563eb; }
+    .feature:nth-child(4) .feature-icon { background: #d1fae5; color: #059669; }
+    .feature:nth-child(5) .feature-icon { background: #fce7f3; color: #db2777; }
+    .feature:nth-child(6) .feature-icon { background: #ede9fe; color: #7c3aed; }
+    .feature:nth-child(5) { animation: fadeInUp 0.7s 0.9s backwards; }
+    .feature:nth-child(6) { animation: fadeInUp 0.7s 1.05s backwards; }
+
+    .footer-nav { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+    .footer-nav a { font-size: 13px; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+    .footer-nav a:hover { color: var(--primary); }
+
     @media (max-width: 1024px) {
-      .features { grid-template-columns: repeat(2, 1fr); }
+      .features { grid-template-columns: repeat(2, 1fr) !important; }
       .introText h2 { font-size: 44px; }
+      .stats-inner { grid-template-columns: repeat(2, 1fr); }
+      .how-steps { grid-template-columns: 1fr; gap: 32px; }
+      .how-steps::before { display: none; }
     }
 
     @media (max-width: 768px) {
@@ -593,20 +693,23 @@
       .hero { padding: 40px 20px 60px; }
       .introText h2 { font-size: 36px; }
       .introText p { font-size: 16px; }
-      .features-section { padding: 10px 20px; }
+      .features-section { padding: 60px 20px; }
       .section-title { font-size: 28px; }
       .cta-banner { padding: 0 20px; margin-bottom: 72px; }
       .cta-inner { padding: 48px 24px; }
       .cta-inner h3 { font-size: 24px; }
+      .how-section { padding: 60px 20px; }
+      .stats-strip { padding: 32px 20px; }
       footer { padding: 36px 20px 28px; }
     }
 
     @media (max-width: 640px) {
-      .features { grid-template-columns: 1fr; }
+      .features { grid-template-columns: 1fr !important; }
       .introText h2 { font-size: 32px; }
       .trust-row { gap: 16px; }
       .trust-item { font-size: 12px; }
       .navlinks .nav-login { display: none; }
+      .stats-inner { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
@@ -626,7 +729,7 @@
 
       <div class="navlinks">
         <a href="/login/" class="nav-login">Log in</a>
-        <a href="/login/" class="nav-cta"><i class="fas fa-arrow-right" style="font-size:11px;"></i> Get Started</a>
+        <a href="/login/" class="nav-cta"><i class="fas fa-user-plus" style="font-size:11px;"></i> Sign Up</a>
       </div>
     </div>
   </header>
@@ -646,13 +749,34 @@
 
       <div class="ctaRow">
         <a href="/login/" class="btn btnPrimary"><i class="fas fa-bolt" style="font-size:14px;"></i> Get Started Free</a>
-        <a href="/workspace/" class="btn btnSecondary"><i class="fas fa-compass" style="font-size:14px;"></i> Explore Workspace</a>
       </div>
 
       <div class="trust-row">
         <div class="trust-item"><i class="fas fa-check-circle"></i> Free to use</div>
         <div class="trust-item"><i class="fas fa-check-circle"></i> No credit card required</div>
         <div class="trust-item"><i class="fas fa-check-circle"></i> Team-ready in seconds</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS STRIP -->
+  <section class="stats-strip">
+    <div class="stats-inner">
+      <div class="stat-item">
+        <div class="stat-num"><span>Kanban</span></div>
+        <div class="stat-label">Visual task boards</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num"><span>Real-time</span></div>
+        <div class="stat-label">Live collaboration</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num"><span>CodeSpace</span></div>
+        <div class="stat-label">Built-in IDE</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num"><span>Analytics</span></div>
+        <div class="stat-label">Team insights</div>
       </div>
     </div>
   </section>
@@ -667,34 +791,70 @@
 
     <div class="features">
       <div class="feature">
-        <div class="feature-icon"><i class="fas fa-users"></i></div>
-        <h3>Team Sync</h3>
-        <p>Invite team members, assign roles, and collaborate in real-time.</p>
+        <div class="feature-icon"><i class="fas fa-columns"></i></div>
+        <h3>Kanban Boards</h3>
+        <p>Drag-and-drop task cards across To Do, In Progress, and Done columns in real time.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon"><i class="fas fa-user-friends"></i></div>
-        <h3>Group Collaboration</h3>
-        <p>Manage multiple teams and subgroups for focused project work.</p>
+        <div class="feature-icon"><i class="fas fa-users-cog"></i></div>
+        <h3>Team Management</h3>
+        <p>Create teams, invite members via email, assign roles, and manage access with one click.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon"><i class="fas fa-share-alt"></i></div>
-        <h3>Instant Sharing</h3>
-        <p>Share files, updates, and feedback instantly across your team.</p>
+        <div class="feature-icon"><i class="fas fa-code"></i></div>
+        <h3>CodeSpace IDE</h3>
+        <p>Write, run, and share code directly in the browser — Python, Java, C, HTML, CSS & JS.</p>
       </div>
       <div class="feature">
-        <div class="feature-icon"><i class="fas fa-sync-alt"></i></div>
-        <h3>Real-time Sync</h3>
-        <p>Instant synchronization ensures everyone stays on the same page.</p>
+        <div class="feature-icon"><i class="fas fa-chart-bar"></i></div>
+        <h3>Analytics</h3>
+        <p>Track task completion trends, team productivity, and project health with visual charts.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"><i class="fas fa-paperclip"></i></div>
+        <h3>File Sharing</h3>
+        <p>Upload and share files within your workspace — accessible to your whole team instantly.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon"><i class="fas fa-bell"></i></div>
+        <h3>Notifications</h3>
+        <p>Stay informed with real-time notifications for task updates, invites, and team activity.</p>
       </div>
     </div>
   </main>
 
+  <!-- HOW IT WORKS -->
+  <section class="how-section">
+    <div class="section-header" style="max-width:1280px;margin:0 auto 60px;">
+      <div class="section-label">How It Works</div>
+      <h3 class="section-title">Up and running in 3 steps</h3>
+      <p class="section-desc">No setup headaches. Just sign up, create your team, and start collaborating.</p>
+    </div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="step-num">1</div>
+        <h4>Create Your Account</h4>
+        <p>Sign up for free in seconds. No credit card or setup required.</p>
+      </div>
+      <div class="how-step">
+        <div class="step-num">2</div>
+        <h4>Build Your Team</h4>
+        <p>Create a team and invite members via email. They join with one click.</p>
+      </div>
+      <div class="how-step">
+        <div class="step-num">3</div>
+        <h4>Start Collaborating</h4>
+        <p>Use Kanban boards, CodeSpace, file sharing, and analytics — all in one place.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- CTA BANNER -->
-  <section class="cta-banner">
+  <section class="cta-banner" style="margin-top:100px;">
     <div class="cta-inner">
       <h3>Ready to boost your team's productivity?</h3>
-      <p>Join thousands of teams already using TaskHive to ship faster and collaborate better.</p>
-      <a href="/login/" class="btn-cta-white"><i class="fas fa-arrow-right"></i> Start for Free</a>
+      <p>Join TaskHive today and ship faster with real-time collaboration and smart task management.</p>
+      <p style="font-size:14px;color:rgba(255,255,255,0.6);margin-top:-16px;">Use the <strong style="color:#fff;">Get Started Free</strong> button above &mdash; it takes 10 seconds.</p>
     </div>
   </section>
 
@@ -705,14 +865,19 @@
         <div class="footer-brand-icon"><i class="fas fa-cubes"></i></div>
         TaskHive
       </div>
+      <nav class="footer-nav">
+        <a href="/login/">Log In</a>
+        <a href="/login/">Sign Up</a>
+        <a href="/workspace/">Workspace</a>
+        <a href="/user/">Teams</a>
+        <a href="/analytics/">Analytics</a>
+      </nav>
       <div class="social-links">
         <a href="https://www.facebook.com/ujjwal.gautama.9" aria-label="Facebook"><i class="fab fa-facebook-f"></i></a>
         <a href="https://www.instagram.com/ujwalgtm10/" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
         <a href="https://wa.me/9814088682" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
       </div>
-      <div class="copyright">
-        &copy; 2026 TaskHive. All rights reserved.
-      </div>
+      <div class="copyright">&copy; 2026 TaskHive. All rights reserved.</div>
     </div>
   </footer>
 

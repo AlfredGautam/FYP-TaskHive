@@ -974,9 +974,36 @@ int main(void) {
       let html = '';
       if (ext === 'html' || ext === 'htm') { html = code; }
       else if (ext === 'css') { html = `<!DOCTYPE html><html><head><style>${code}</style></head><body><div class="card"><div class="card__title">Preview Card</div><div class="card__text">This is a sample card to preview your CSS styles.</div></div></body></html>`; }
-      else if (ext === 'js') { html = `<!DOCTYPE html><html><head><style>body{background:#1e1e1e;color:#d4d4d4;font-family:monospace;padding:12px;font-size:13px;}pre{white-space:pre-wrap;}</style></head><body><pre id="out"></pre><script>const _logs=[];const _origLog=console.log;console.log=(...a)=>{_logs.push(a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' '));document.getElementById('out').textContent=_logs.join('\\n');};try{${code}}catch(e){document.getElementById('out').textContent='Error: '+e.message;}<\/script></body></html>`; }
+      else if (ext === 'js') {
+        html = `<!DOCTYPE html><html><head><style>body{background:#1e1e1e;color:#d4d4d4;font-family:monospace;padding:12px;font-size:13px;}pre{white-space:pre-wrap;word-break:break-all;}</style></head><body><pre id="out"></pre><script>
+const _logs=[];
+console.log=(...a)=>{
+  const msg=a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' ');
+  _logs.push(msg);
+  document.getElementById('out').textContent=_logs.join('\n');
+  window.parent.postMessage({type:'cs_log',msg},'*');
+};
+console.error=console.warn=(...a)=>{
+  const msg='[ERR] '+a.map(x=>String(x)).join(' ');
+  _logs.push(msg);
+  document.getElementById('out').textContent=_logs.join('\n');
+  window.parent.postMessage({type:'cs_error',msg},'*');
+};
+try{${code}}catch(e){
+  const msg='\u274c '+e.name+': '+e.message;
+  document.getElementById('out').textContent=msg;
+  window.parent.postMessage({type:'cs_error',msg},'*');
+}
+<\/script></body></html>`;
+      }
       frame.srcdoc = html;
     }
+
+    window.addEventListener('message', e => {
+      if (!e.data) return;
+      if (e.data.type === 'cs_log')   appendOutput(e.data.msg, 'text-gray-200');
+      if (e.data.type === 'cs_error') appendOutput(e.data.msg, 'text-red-400');
+    });
 
     /* ═══════════════════════════════════════════
        RUN CODE (simulated for Python/Java/C)
@@ -989,15 +1016,30 @@ int main(void) {
       outputArea.scrollTop = outputArea.scrollHeight;
     }
 
-    $("runCodeBtn").addEventListener("click", () => {
-      if (!ensureEditorReady() || !currentFileName) return;
+    $('runCodeBtn').addEventListener('click', () => {
+      if (!ensureEditorReady()) return;
+      if (!currentFileName) {
+        appendOutput('⚠ No file open. Create or select a file first.', 'text-yellow-400');
+        if (panelCollapsed) $('togglePanel').click();
+        return;
+      }
       const ext = (currentFileName.split('.').pop()||'').toLowerCase();
 
+      // Always clear output and open the panel
+      outputArea.innerHTML = '';
+      if (panelCollapsed) $('togglePanel').click();
+      // Switch to output tab
+      document.querySelectorAll('.panel-header span[data-tab]').forEach(t => t.classList.remove('active'));
+      document.querySelector('.panel-header span[data-tab="output"]').classList.add('active');
+      ['outputArea','terminalArea','problemsArea'].forEach(id => $(id).classList.add('hidden'));
+      outputArea.classList.remove('hidden');
+
       if (['html','htm','css','js'].includes(ext)) {
+        appendOutput(`▶ Running ${currentFileName}...`, 'text-green-400');
+        if (ext === 'js') appendOutput('(console.log output will appear below)', 'text-gray-500');
         updateLivePreview();
-        $("previewContainer").classList.remove('hidden');
+        $('previewContainer').classList.remove('hidden');
         if (editor) setTimeout(() => editor.layout(), 50);
-        appendOutput(`▶ Running ${currentFileName} in live preview...`, 'text-green-400');
         return;
       }
 
@@ -1028,21 +1070,67 @@ int main(void) {
 
       appendOutput('');
 
-      // Extract print/printf/System.out.println statements for simulation
+      // Extract and evaluate output statements for simulation
       const prints = [];
-      code.split('\n').forEach(line => {
-        let m;
-        if (ext === 'py') {
-          m = line.match(/print\s*\(\s*(?:f?["'](.+?)["']|(.+?))\s*\)/);
-          if (m) prints.push(m[1]||m[2]||'');
-        } else if (ext === 'java') {
-          m = line.match(/System\.out\.println?\s*\(\s*"(.+?)"\s*\)/);
-          if (m) prints.push(m[1]||'');
-        } else if (ext === 'c') {
-          m = line.match(/printf\s*\(\s*"(.+?)"/);
-          if (m) prints.push(m[1].replace(/\\n/g,'\n').replace(/\\t/g,'\t')||'');
-        }
-      });
+      const codeLines = code.split('\n');
+
+      if (ext === 'py') {
+        // Pass 1: evaluate variable assignments
+        const vars = {};
+        codeLines.forEach(ln => {
+          const t = ln.trim();
+          if (!t || t.startsWith('#')) return;
+          const am = t.match(/^([a-zA-Z_]\w*)\s*=\s*(.+)$/);
+          if (am) {
+            let expr = am[2].replace(/#.*/, '').trim();
+            let evExpr = expr;
+            Object.keys(vars).forEach(v => {
+              evExpr = evExpr.replace(new RegExp('\\b' + v + '\\b', 'g'), JSON.stringify(vars[v]));
+            });
+            try { vars[am[1]] = Function('"use strict";return (' + evExpr + ')')(); }
+            catch(e) { const s = expr.match(/^["'](.*)["']$/); vars[am[1]] = s ? s[1] : expr; }
+          }
+        });
+        // Pass 2: evaluate print() calls
+        codeLines.forEach(ln => {
+          const t = ln.trim();
+          if (!t || t.startsWith('#')) return;
+          const pm = t.match(/^print\s*\((.+)\)\s*(?:#.*)?$/);
+          if (!pm) return;
+          // Split args by comma (respects quotes and parens)
+          const parts = []; let cur = '', depth = 0, inStr = false, sc = '';
+          for (let i = 0; i < pm[1].length; i++) {
+            const ch = pm[1][i];
+            if (!inStr && (ch === '"' || ch === "'")) { inStr = true; sc = ch; cur += ch; }
+            else if (inStr && ch === sc && pm[1][i-1] !== '\\') { inStr = false; cur += ch; }
+            else if (!inStr && ch === '(') { depth++; cur += ch; }
+            else if (!inStr && ch === ')') { depth--; cur += ch; }
+            else if (!inStr && depth === 0 && ch === ',') { parts.push(cur.trim()); cur = ''; }
+            else { cur += ch; }
+          }
+          if (cur.trim()) parts.push(cur.trim());
+          const out = parts.map(p => {
+            if (/^f["']/.test(p)) return p.replace(/^f["']|["']$/g,'').replace(/\{(\w+)\}/g,(_,v)=>vars[v]!==undefined?vars[v]:v);
+            const sm = p.match(/^["'](.*)["']$/); if (sm) return sm[1];
+            if (vars[p] !== undefined) return String(vars[p]);
+            let evExpr = p;
+            Object.keys(vars).forEach(v => { evExpr = evExpr.replace(new RegExp('\\b'+v+'\\b','g'), JSON.stringify(vars[v])); });
+            try { return String(Function('"use strict";return ('+evExpr+')')()) ; } catch(e) { return p; }
+          });
+          prints.push(out.join(' '));
+        });
+      } else {
+        codeLines.forEach(line => {
+          let m;
+          if (ext === 'java') {
+            m = line.match(/System\.out\.println?\s*\(\s*"(.+?)"\s*\)/);
+            if (m) prints.push(m[1]||'');
+          } else if (ext === 'c') {
+            m = line.match(/printf\s*\(\s*"(.+?)"/);
+            if (m) prints.push(m[1].replace(/\\n/g,'\n').replace(/\\t/g,'\t')||'');
+          }
+        });
+      }
 
       if (prints.length) {
         prints.forEach(p => appendOutput(p, 'text-gray-200'));
