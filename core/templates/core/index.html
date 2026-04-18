@@ -639,7 +639,7 @@
                   </span>
                   <div class="flex">
                     <div
-                      v-for="assignee in task.assignees"
+                      v-for="assignee in validAssignees(task)"
                       :key="assignee"
                       :title="assignee"
                       class="w-5 h-5 -ml-1"
@@ -2726,6 +2726,17 @@
           (tm.name  || "").toLowerCase() === key
         );
         return (m && m.photoUrl) ? m.photoUrl : "";
+      },
+
+      // Only show assignees that are still active members of the current team.
+      // Hides orphaned assignees from users who have left/been removed.
+      validAssignees(task) {
+        const list = Array.isArray(task && task.assignees) ? task.assignees : [];
+        if (!this.teamMembers || !this.teamMembers.length) return list;
+        const validEmails = new Set(
+          this.teamMembers.map(m => (m.email || "").toLowerCase()).filter(Boolean)
+        );
+        return list.filter(a => validEmails.has(String(a || "").toLowerCase()));
       },
 
       showToastMessage(message, isError = false) {

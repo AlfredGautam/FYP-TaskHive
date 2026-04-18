@@ -712,10 +712,30 @@ def api_team_leave(request):
         return JsonResponse({"ok": True})
 
     team_id = profile.current_team_id
+    team_obj = Team.objects.filter(id=team_id).first()
+
     TeamMembership.objects.filter(team_id=team_id, user=request.user).delete()
 
     profile.current_team = None
     profile.save(update_fields=["current_team"])
+
+    # Clean up leftover references to this user inside the team's tasks and projects
+    if team_obj:
+        board = _get_team_board(team_obj)
+        if board:
+            for task in Task.objects.filter(board=board).prefetch_related("assignees"):
+                task.assignees.remove(request.user)
+
+        user_email = (request.user.email or request.user.username or "").lower()
+        for project in Project.objects.filter(team_id=team_id):
+            members = project.members if isinstance(project.members, list) else []
+            cleaned = [m for m in members if (m or "").lower() != user_email]
+            if cleaned != members:
+                project.members = cleaned
+                project.save(update_fields=["members"])
+
+    # Wipe this user's notifications for this team so a rejoin starts clean
+    Notification.objects.filter(team_id=team_id, recipient=request.user).delete()
 
     if not TeamMembership.objects.filter(team_id=team_id).exists():
         Team.objects.filter(id=team_id).delete()
@@ -1527,17 +1547,26 @@ def api_workspace_task_save(request):
             created_by=request.user,
         )
 
-    task.assignees.clear()
-    assignees = data.get("assignees", [])
+    # Only team admins (head) can assign tasks. Regular members cannot
+    # change assignees; their assignees field in the payload is ignored
+    # and any existing assignees are preserved.
+    is_admin = (membership.role == TeamMembership.ROLE_HEAD)
     new_assignee_users = []
-    if assignees:
-        new_assignee_users = list(User.objects.filter(
-            id__in=TeamMembership.objects.filter(
-                team=team,
-                user__email__in=assignees,
-            ).values_list("user_id", flat=True)
-        ))
-        task.assignees.set(new_assignee_users)
+
+    if is_admin:
+        task.assignees.clear()
+        assignees = data.get("assignees", [])
+        if assignees:
+            new_assignee_users = list(User.objects.filter(
+                id__in=TeamMembership.objects.filter(
+                    team=team,
+                    user__email__in=assignees,
+                ).values_list("user_id", flat=True)
+            ))
+            task.assignees.set(new_assignee_users)
+    else:
+        # Non-admins: keep existing assignees (for updates), no assignees on create
+        new_assignee_users = list(task.assignees.all())
 
     # Determine which assignees are truly new (not previously assigned)
     truly_new_assignee_users = [u for u in new_assignee_users if u.id not in old_assignee_ids]
@@ -1885,6 +1914,9 @@ def api_team_member_remove(request):
         if cleaned != members:
             project.members = cleaned
             project.save(update_fields=["members"])
+
+    # Wipe the removed user's notifications for this team so a rejoin starts clean
+    Notification.objects.filter(team_id=team_id, recipient=target_user).delete()
 
     _notify_team(
         admin_membership.team,
