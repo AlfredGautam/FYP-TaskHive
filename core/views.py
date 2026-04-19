@@ -1511,9 +1511,20 @@ def api_workspace_task_save(request):
         due_date = due_date_raw
 
     code_meta = data.get("codeMeta") or {}
-    project_id = data.get("projectId")
-    if project_id is not None:
-        code_meta["_projectId"] = project_id
+    # Always record projectId from payload (use key presence to decide).
+    # Coerce to int when possible so filtering is consistent across load/save.
+    if "projectId" in data:
+        raw_pid = data.get("projectId")
+        try:
+            project_id = int(raw_pid) if raw_pid not in (None, "", "null") else None
+        except (TypeError, ValueError):
+            project_id = None
+        if project_id is None:
+            code_meta.pop("_projectId", None)
+        else:
+            code_meta["_projectId"] = project_id
+    else:
+        project_id = code_meta.get("_projectId")
 
     is_update = bool(task_id)
     old_assignee_ids = set()
@@ -2731,6 +2742,25 @@ def api_analytics_enhanced(request):
     except (ValueError, TypeError):
         days = 14
 
+    # Optional per-project filter: ?project_id=<id>
+    project_filter_id = None
+    raw_pid = request.GET.get("project_id")
+    if raw_pid not in (None, "", "all", "null"):
+        try:
+            project_filter_id = int(raw_pid)
+        except (TypeError, ValueError):
+            project_filter_id = None
+
+    if project_filter_id is not None:
+        def _task_pid(t):
+            labels = t.labels if isinstance(t.labels, dict) else {}
+            pid = labels.get("_projectId")
+            try:
+                return int(pid) if pid not in (None, "", "null") else None
+            except (TypeError, ValueError):
+                return None
+        all_tasks = [t for t in all_tasks if _task_pid(t) == project_filter_id]
+
     # Column distribution
     col_data = []
     for col in columns:
@@ -2775,7 +2805,7 @@ def api_analytics_enhanced(request):
             name = a.get_full_name() or a.first_name or a.username
             member_workload[name] = member_workload.get(name, 0) + 1
 
-    # Project stats
+    # Project stats (always reflect the whole team, not the filter)
     projects = Project.objects.filter(team=team)
     project_stats = {
         "total": projects.count(),
@@ -2783,6 +2813,7 @@ def api_analytics_enhanced(request):
         "completed": projects.filter(status="completed").count(),
         "archived": projects.filter(status="archived").count(),
     }
+    projects_list = [{"id": p.id, "name": p.name, "status": p.status} for p in projects]
 
     return JsonResponse({"ok": True, "data": {
         "totalTasks": len(all_tasks),
@@ -2793,6 +2824,8 @@ def api_analytics_enhanced(request):
         "completionTrend": completion_trend,
         "memberWorkload": member_workload,
         "projectStats": project_stats,
+        "projects": projects_list,
+        "activeProjectId": project_filter_id,
     }})
 
 

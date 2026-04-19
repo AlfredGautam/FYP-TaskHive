@@ -77,6 +77,14 @@
                     <i class="fas fa-arrow-left text-xs"></i> Back to Board
                 </a>
                 <div class="flex items-center gap-1.5">
+                  <span style="font-size:11px;color:#94a3b8;font-weight:500;">Project:</span>
+                  <select v-model="selectedProjectId" @change="reloadData"
+                          style="font-size:12px;border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;background:#fff;color:#334155;cursor:pointer;outline:none;max-width:180px;">
+                    <option value="all">All projects</option>
+                    <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+                  </select>
+                </div>
+                <div class="flex items-center gap-1.5">
                   <span style="font-size:11px;color:#94a3b8;font-weight:500;">Range:</span>
                   <select v-model="days" @change="reloadData" style="font-size:12px;border:1px solid #e2e8f0;border-radius:8px;padding:5px 10px;background:#fff;color:#334155;cursor:pointer;outline:none;">
                     <option value="7">Last 7 days</option>
@@ -224,6 +232,8 @@
             data() {
                 return {
                     days: '14',
+                    selectedProjectId: 'all',
+                    projects: [],
                     d: {
                         totalTasks: 0,
                         overdue: 0,
@@ -263,9 +273,19 @@
 
                 async loadData() {
                     try {
-                        const res = await fetch(`/api/analytics/enhanced/?days=${this.days}`, { credentials: 'same-origin' });
+                        const params = new URLSearchParams({ days: String(this.days) });
+                        if (this.selectedProjectId && this.selectedProjectId !== 'all') {
+                            params.set('project_id', String(this.selectedProjectId));
+                        }
+                        const res = await fetch(`/api/analytics/enhanced/?${params.toString()}`, { credentials: 'same-origin' });
                         const json = await res.json();
-                        if (json.ok && json.data) Object.assign(this.d, json.data);
+                        if (json.ok && json.data) {
+                            // Keep the projects list separate from the dashboard stats.
+                            if (Array.isArray(json.data.projects)) {
+                                this.projects = json.data.projects;
+                            }
+                            Object.assign(this.d, json.data);
+                        }
                     } catch (e) { console.error('Analytics load failed', e); }
                 },
 

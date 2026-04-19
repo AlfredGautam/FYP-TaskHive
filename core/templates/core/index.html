@@ -407,11 +407,12 @@
             v-for="project in filteredProjects"
             :key="project.id"
             class="project-card p-5 cursor-pointer relative group"
-            @click="viewProject(project)"
+            @click="openProjectBoard(project)"
           >
             <!-- Hover action buttons -->
             <div class="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button @click.stop="viewProject(project)"
+              <button @click.stop="editProject(project)"
+                      title="Edit project"
                       class="w-6 h-6 flex items-center justify-center rounded text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">
                 <i class="fas fa-pen text-[10px]"></i>
               </button>
@@ -509,7 +510,24 @@
       <!-- Tasks -->
       <div v-if="currentTab === 'tasks'" class="space-y-6">
         <div class="flex flex-wrap justify-between items-center gap-3">
-          <h2 class="text-2xl font-bold text-slate-900">Tasks</h2>
+          <div class="flex items-center gap-3 flex-wrap">
+            <button v-if="activeProjectId" @click="clearActiveProject"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-100 transition-colors"
+                    title="Back to all projects">
+              <i class="fas fa-arrow-left"></i> Projects
+            </button>
+            <h2 class="text-2xl font-bold text-slate-900">
+              <template v-if="activeProjectId">
+                <span class="text-indigo-600">{{ activeProjectName }}</span>
+                <span class="text-slate-400 font-normal text-lg ml-1">· Tasks</span>
+              </template>
+              <template v-else>Tasks</template>
+            </h2>
+            <span v-if="activeProjectId"
+                  class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 font-medium">
+              {{ getProjectTaskCount(activeProjectId) }} task{{ getProjectTaskCount(activeProjectId) !== 1 ? 's' : '' }}
+            </span>
+          </div>
           <button @click="openNewTask" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
             <i class="fas fa-plus mr-2"></i> New Task
           </button>
@@ -1127,15 +1145,6 @@
             </p>
           </div>
 
-          <!-- Project -->
-          <div>
-            <label class="block text-slate-600 font-medium mb-1">Project (optional)</label>
-            <select v-model.number="currentTask.projectId" class="modal-input">
-              <option :value="null">No project</option>
-              <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
-            </select>
-          </div>
-
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-slate-600 font-medium mb-1">Priority</label>
@@ -1521,7 +1530,7 @@
         isDark: true,
         searchQuery: "",
         highlightedIndex: 0,
-        currentTab: "tasks",
+        currentTab: "projects",
 
         isLoading: true,
         currentUserPhoto: "",
@@ -1548,6 +1557,11 @@
         contextMenu: { visible: false, type: null, item: null, x: 0, y: 0 },
 
         projectFilter: 'all',
+
+        // Currently opened project board (null = show all tasks).
+        // When set, the Tasks tab only shows tasks belonging to this project,
+        // and new tasks created from that tab are saved under this project.
+        activeProjectId: null,
 
         currentTask: {
           id: null,
@@ -1675,6 +1689,12 @@
       filteredProjects() {
         if (this.projectFilter === 'all') return this.projects;
         return this.projects.filter(p => p.status === this.projectFilter);
+      },
+
+      activeProjectName() {
+        if (!this.activeProjectId) return '';
+        const p = this.projects.find(p => p.id === this.activeProjectId);
+        return p ? p.name : 'Project';
       },
 
       filteredFiles() {
@@ -2088,6 +2108,11 @@
 
       visibleTasksForBoard(boardId) {
         let tasks = this.tasks.filter(t => t.boardId === boardId && this.canViewTask(t));
+        // Hard filter: only tasks belonging to the currently opened project
+        if (this.activeProjectId) {
+          const pid = this.activeProjectId;
+          tasks = tasks.filter(t => Number(t.projectId) === Number(pid));
+        }
         if (this.taskFilter.priority !== 'all') {
           tasks = tasks.filter(t => t.priority === this.taskFilter.priority);
         }
@@ -2340,6 +2365,11 @@
       openNewTask() {
         this.editingTask = false;
         this.resetCurrentTask();
+        // When creating from inside a project board, pre-bind the new task
+        // to that project so it is saved under it by default.
+        if (this.activeProjectId) {
+          this.currentTask.projectId = this.activeProjectId;
+        }
         this.showTaskModal = true;
       },
 
@@ -2457,6 +2487,30 @@
         this.showProjectModal = true;
       },
 
+      // Open a project's task board (NOT the edit modal).
+      openProjectBoard(project) {
+        if (!project || !project.id) return;
+        this.activeProjectId = project.id;
+        this.currentTab = 'tasks';
+        // Reset any task filters that might hide the project's tasks.
+        this.taskFilter = { priority: 'all', dueFilter: 'all' };
+      },
+
+      // Clear the active project filter and go back to the Projects tab.
+      clearActiveProject() {
+        this.activeProjectId = null;
+        this.currentTab = 'projects';
+      },
+
+      // Open the project-edit modal (pencil icon, context menu, etc.).
+      editProject(project) {
+        this.currentProject = { ...project, members: Array.isArray(project.members) ? [...project.members] : [] };
+        this.editingProject = true;
+        this.showProjectModal = true;
+      },
+
+      // Legacy alias kept so existing callers (notifications, search, routing)
+      // still work. Opens the edit modal, same as editProject.
       viewProject(project) {
         this.currentProject = { ...project, members: Array.isArray(project.members) ? [...project.members] : [] };
         this.editingProject = true;
@@ -2533,6 +2587,11 @@
         if (data.ok) {
           this.tasks = this.tasks.map(t => t.projectId === projectId ? { ...t, projectId: null } : t);
           this.projects = this.projects.filter(p => p.id !== projectId);
+          // If the deleted project was the one currently being viewed, exit its board.
+          if (this.activeProjectId === projectId) {
+            this.activeProjectId = null;
+            this.currentTab = 'projects';
+          }
           this.showToastMessage("Project deleted successfully");
         } else {
           this.showToastMessage(data.error || "Failed to delete project", true);
