@@ -85,7 +85,7 @@
     .logoIcon {
       width: 40px;
       height: 40px;
-      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      background: var(--primary);
       border-radius: 12px;
       display: flex;
       align-items: center;
@@ -157,10 +157,7 @@
       overflow: hidden;
       padding: 80px 40px 80px;
       text-align: center;
-      background:
-        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(79,70,229,0.08) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 40% at 80% 20%, rgba(124,58,237,0.05) 0%, transparent 50%),
-        var(--bg);
+      background: var(--bg);
     }
 
     .hero::before {
@@ -186,18 +183,18 @@
     .hero-blob.b1 {
       width: 320px; height: 320px;
       top: -60px; left: -80px;
-      background: radial-gradient(circle, rgba(79,70,229,0.35), transparent 70%);
+      background: var(--primary);
     }
     .hero-blob.b2 {
       width: 260px; height: 260px;
       top: 60px; right: -60px;
-      background: radial-gradient(circle, rgba(124,58,237,0.30), transparent 70%);
+      background: var(--primary);
       animation-delay: -4s; animation-duration: 18s;
     }
     .hero-blob.b3 {
       width: 200px; height: 200px;
       bottom: -40px; left: 40%;
-      background: radial-gradient(circle, rgba(236,72,153,0.22), transparent 70%);
+      background: var(--primary);
       animation-delay: -8s; animation-duration: 22s;
     }
 
@@ -243,12 +240,7 @@
     }
 
     .introText h2 .highlight {
-      background: linear-gradient(135deg, #4f46e5, #7c3aed, #ec4899, #7c3aed, #4f46e5);
-      background-size: 300% 300%;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      animation: gradientShift 8s ease-in-out infinite;
+      color: var(--primary);
     }
 
     .introText p {
@@ -416,10 +408,10 @@
       z-index: 2;
     }
 
-    .feature:nth-child(1) .feature-icon { background: #eef2ff; color: #4f46e5; }
-    .feature:nth-child(2) .feature-icon { background: #fef3c7; color: #d97706; }
-    .feature:nth-child(3) .feature-icon { background: #dbeafe; color: #2563eb; }
-    .feature:nth-child(4) .feature-icon { background: #d1fae5; color: #059669; }
+    .feature:nth-child(1) .feature-icon { background: var(--primary); color: #fff; }
+    .feature:nth-child(2) .feature-icon { background: var(--primary); color: #fff; }
+    .feature:nth-child(3) .feature-icon { background: var(--primary); color: #fff; }
+    .feature:nth-child(4) .feature-icon { background: var(--primary); color: #fff; }
 
     .feature:hover .feature-icon {
       transform: scale(1.1);
@@ -453,7 +445,7 @@
       position: absolute;
       bottom: 0; left: 0; right: 0;
       height: 3px;
-      background: linear-gradient(90deg, var(--primary), #7c3aed);
+      background: var(--primary);
       transform: scaleX(0);
       transition: transform 0.3s ease;
       transform-origin: center;
@@ -500,10 +492,7 @@
       margin-bottom: 6px;
     }
     .stat-num span {
-      background: linear-gradient(135deg, var(--primary), #7c3aed);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: var(--primary);
     }
     .stat-label { font-size: 13px; color: var(--muted); font-weight: 500; }
 
@@ -527,7 +516,7 @@
       position: absolute;
       top: 28px; left: calc(16.67% + 28px); right: calc(16.67% + 28px);
       height: 2px;
-      background: linear-gradient(90deg, var(--primary), #7c3aed);
+      background: var(--primary);
       opacity: 0.2;
     }
     .how-step { text-align: center; position: relative; z-index: 1; }
@@ -537,7 +526,7 @@
     .step-num {
       width: 56px; height: 56px;
       border-radius: 50%;
-      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      background: var(--primary);
       color: #fff;
       font-size: 20px;
       font-weight: 800;
@@ -563,7 +552,7 @@
     }
 
     .cta-inner {
-      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      background: var(--primary);
       border-radius: 24px;
       padding: 64px 48px;
       text-align: center;
@@ -652,7 +641,7 @@
 
     .footer-brand-icon {
       width: 32px; height: 32px;
-      background: linear-gradient(135deg, var(--primary), #7c3aed);
+      background: var(--primary);
       border-radius: 8px;
       display: flex; align-items: center; justify-content: center;
       color: #fff; font-size: 14px;
