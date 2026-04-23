@@ -95,6 +95,34 @@
     }
 
     .comment-bubble { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+    .comment-body { white-space: pre-wrap; word-break: break-word; }
+    .mention {
+      display: inline-block;
+      padding: 0 6px;
+      border-radius: 4px;
+      background: #eef2ff;
+      color: #4338ca;
+      font-weight: 600;
+      font-size: 0.85em;
+    }
+    .mention-dropdown {
+      position: absolute;
+      left: 0;
+      bottom: 100%;
+      margin-bottom: 6px;
+      min-width: 220px;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      z-index: 60;
+    }
+    .mention-item { padding: 6px 10px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .mention-item:hover, .mention-item.active { background: #eef2ff; }
+    .mention-item .m-name { font-weight: 600; color: #1e293b; }
+    .mention-item .m-email { color: #64748b; font-size: 11px; }
     .subtask-row:hover { background: rgba(79, 70, 229, 0.04); }
     .subtask-done { text-decoration: line-through; opacity: 0.50; }
     .activity-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
@@ -622,6 +650,14 @@
                   <i class="fas fa-ban text-[9px]"></i> BLOCKED
                 </div>
 
+                <!-- Dependency badge: open blockers that aren't Done yet -->
+                <div v-if="openBlockerCount(task) > 0"
+                     class="flex items-center gap-1 mb-2 px-2 py-1 rounded bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold"
+                     :title="openBlockerTitles(task)">
+                  <i class="fas fa-lock text-[9px]"></i>
+                  Blocked by {{ openBlockerCount(task) }} task{{ openBlockerCount(task) === 1 ? '' : 's' }}
+                </div>
+
                 <div class="flex justify-between items-start mb-1.5">
                   <div class="flex items-center flex-1 min-w-0">
                     <h4 class="font-medium text-slate-900 text-sm truncate">{{ task.name }}</h4>
@@ -1097,13 +1133,32 @@
                   </button>
                 </div>
               </div>
-              <p class="text-sm text-slate-700 mt-1">{{ c.body }}</p>
+              <p class="text-sm text-slate-700 mt-1 comment-body" v-html="renderCommentBody(c.body)"></p>
             </div>
           </div>
           <div v-else class="text-xs text-slate-400 mb-3">No comments yet. Be the first to comment.</div>
           <div class="flex items-start gap-2">
-            <textarea v-model="newCommentBody" @keydown.ctrl.enter="addComment" rows="2" placeholder="Write a comment... (Ctrl+Enter to send)"
-                      class="flex-1 px-3 py-2 modal-input text-sm resize-none"></textarea>
+            <div class="flex-1 relative">
+              <textarea ref="commentTextarea" v-model="newCommentBody"
+                        @keydown.ctrl.enter="addComment"
+                        @input="onCommentInput"
+                        @keydown.down.prevent="mentionDropdown.show && mentionMoveSelection(1)"
+                        @keydown.up.prevent="mentionDropdown.show && mentionMoveSelection(-1)"
+                        @keydown.enter="mentionDropdown.show ? (mentionPickHighlighted($event)) : null"
+                        @keydown.esc="closeMentionDropdown"
+                        @blur="onCommentBlur"
+                        rows="2" placeholder="Write a comment... Use @ to mention someone. Ctrl+Enter to send."
+                        class="w-full px-3 py-2 modal-input text-sm resize-none"></textarea>
+              <div v-if="mentionDropdown.show && mentionDropdown.matches.length" class="mention-dropdown">
+                <div v-for="(m, i) in mentionDropdown.matches" :key="m.email"
+                     class="mention-item" :class="{ active: i === mentionDropdown.index }"
+                     @mousedown.prevent="insertMention(m)">
+                  <i class="fas fa-user text-indigo-500 text-xs"></i>
+                  <span class="m-name">{{ m.name || m.email }}</span>
+                  <span class="m-email">{{ m.email }}</span>
+                </div>
+              </div>
+            </div>
             <button @click="addComment" class="px-3 py-2 rounded-lg text-xs neon-button text-white self-end">
               <i class="fas fa-paper-plane"></i>
             </button>
@@ -1157,6 +1212,38 @@
             <div>
               <label class="block text-slate-600 font-medium mb-1">Due Date</label>
               <input type="date" v-model="currentTask.dueDate" class="modal-input">
+            </div>
+          </div>
+
+          <!-- Blocked-by (dependencies) picker -->
+          <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-slate-700 text-sm font-medium">
+                <i class="fas fa-link mr-1 text-indigo-500"></i> Blocked by (dependencies)
+              </label>
+              <button type="button" @click="currentTask.blockedBy = []"
+                      class="text-[11px] text-slate-500 hover:text-slate-700">
+                Clear
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mb-2">
+              This task can't be finished until the selected tasks reach <span class="font-semibold">Done</span>.
+            </p>
+            <div v-if="availableBlockerTasks.length" class="max-h-40 overflow-y-auto space-y-1">
+              <label v-for="bt in availableBlockerTasks" :key="bt.id"
+                     class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white cursor-pointer transition-colors">
+                <input type="checkbox" class="accent-indigo-600"
+                       :value="bt.id"
+                       v-model="currentTask.blockedBy" />
+                <span class="text-xs text-slate-900 truncate flex-1">{{ bt.name }}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full"
+                      :class="bt.boardId === 3 ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-600 border border-gray-200'">
+                  {{ getBoardName(bt.boardId) }}
+                </span>
+              </label>
+            </div>
+            <div v-else class="text-xs text-slate-400 italic">
+              No other tasks available to depend on.
             </div>
           </div>
 
@@ -1573,6 +1660,7 @@
           boardId: 1,
           projectId: null,
           blocked: false,
+          blockedBy: [],
           taskType: "normal",
           codeMeta: {
             codeName: "",          // ✅ required for super
@@ -1621,6 +1709,15 @@
         // Activity Log
         activityLogs: [],
 
+        // @mention autocomplete state for the comment textarea
+        mentionDropdown: {
+          show: false,
+          query: '',
+          startIndex: -1,
+          matches: [],
+          index: 0,
+        },
+
         // Task Detail (comments, attachments, subtasks)
         showTaskDetailModal: false,
         detailTask: null,
@@ -1641,6 +1738,18 @@
     },
 
     computed: {
+      // Tasks eligible to be selected as a blocker for the currently-edited task:
+      // exclude self; if currentTask has a project, restrict to same-project tasks.
+      availableBlockerTasks() {
+        const selfId = this.currentTask && this.currentTask.id;
+        const selfProject = this.currentTask && this.currentTask.projectId;
+        return (this.tasks || []).filter(t => {
+          if (!t || t.id === selfId) return false;
+          if (selfProject && t.projectId && Number(t.projectId) !== Number(selfProject)) return false;
+          return true;
+        });
+      },
+
       globalResults() {
         const q = this.searchQuery.toLowerCase();
         return {
@@ -1716,7 +1825,7 @@
       },
 
       calendarUpcoming() {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = this._localDate();
         return this.calendarEvents
           .filter(e => e.date >= today && !e.done)
           .sort((a, b) => a.date.localeCompare(b.date))
@@ -2026,16 +2135,6 @@
         }
       },
 
-      checkDueDateReminders() {
-        const today = new Date().toISOString().slice(0, 10);
-        const dueToday = this.tasks.filter(t => t.dueDate === today);
-        if (dueToday.length === 1) {
-          this.showToastMessage(`⏰ "${dueToday[0].name}" is due today`);
-        } else if (dueToday.length > 1) {
-          this.showToastMessage(`⏰ ${dueToday.length} tasks are due today`);
-        }
-      },
-
       isImageFile(file) {
         if (!file) return false;
         const ext = (file.name || '').split('.').pop().toLowerCase();
@@ -2087,6 +2186,7 @@
         if (task.projectId === undefined) task.projectId = null;
         if (!task.taskType) task.taskType = "normal";
         if (task.blocked === undefined) task.blocked = false;
+        if (!Array.isArray(task.blockedBy)) task.blockedBy = [];
 
         if (!task.codeMeta || typeof task.codeMeta !== "object") task.codeMeta = {};
         task.codeMeta.codeName = task.codeMeta.codeName || "";
@@ -2117,8 +2217,8 @@
           tasks = tasks.filter(t => t.priority === this.taskFilter.priority);
         }
         if (this.taskFilter.dueFilter !== 'all') {
-          const today = new Date().toISOString().slice(0, 10);
-          const endOfWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+          const today = this._localDate();
+          const endOfWeek = this._localDate(7);
           if (this.taskFilter.dueFilter === 'today')   tasks = tasks.filter(t => t.dueDate === today);
           if (this.taskFilter.dueFilter === 'week')    tasks = tasks.filter(t => t.dueDate && t.dueDate >= today && t.dueDate <= endOfWeek);
           if (this.taskFilter.dueFilter === 'overdue') tasks = tasks.filter(t => t.dueDate && t.dueDate < today);
@@ -2159,7 +2259,6 @@
             this.approvalRequests = Array.isArray(data.approvalRequests) ? data.approvalRequests : [];
             this.applyRouteContext();
             this.isLoading = false;
-            this.checkDueDateReminders();
           }
         } catch (e) {
           console.error('loadData failed', e);
@@ -2341,13 +2440,58 @@
       async moveTask(event, boardId) {
         const taskId = parseInt(event.dataTransfer.getData("taskID"));
         const task = this.tasks.find((t) => t.id === taskId);
+
+        // No-op: dropped in the same column it came from.
+        // Skip API call, notifications, activity log, and toast.
+        if (task && task.boardId === boardId) {
+          this.draggedTask = null;
+          this.dragOverBoard = null;
+          return;
+        }
+
         if (task) {
+          // Guard: moving to Done while open blockers remain
+          if (boardId === 3 && this.openBlockerCount(task) > 0) {
+            const titles = this.openBlockerTitles(task);
+            const proceed = window.confirm(
+              `This task is blocked by ${this.openBlockerCount(task)} unfinished task(s):\n\n${titles}\n\nMove to Done anyway?`
+            );
+            if (!proceed) {
+              this.draggedTask = null;
+              this.dragOverBoard = null;
+              return;
+            }
+          }
           task.boardId = boardId;
           await this._postJson('/api/workspace/task/move/', { id: taskId, boardId: boardId });
           this.showToastMessage(`Task moved to ${this.getBoardName(boardId)}`);
         }
         this.draggedTask = null;
         this.dragOverBoard = null;
+      },
+
+      // List of tasks that can be picked as a blocker for the task being edited
+      // (excludes self, same project scope, same team).
+      openBlockerCount(task) {
+        const ids = Array.isArray(task.blockedBy) ? task.blockedBy : [];
+        if (!ids.length) return 0;
+        let n = 0;
+        for (const id of ids) {
+          const bt = this.tasks.find(t => t.id === id);
+          if (bt && bt.boardId !== 3) n++; // 3 = Done
+        }
+        return n;
+      },
+
+      openBlockerTitles(task) {
+        const ids = Array.isArray(task.blockedBy) ? task.blockedBy : [];
+        if (!ids.length) return '';
+        const names = [];
+        for (const id of ids) {
+          const bt = this.tasks.find(t => t.id === id);
+          if (bt && bt.boardId !== 3) names.push('• ' + bt.name);
+        }
+        return names.join('\n');
       },
 
       setDragOver(boardId, isOver) { this.dragOverBoard = isOver ? boardId : null; },
@@ -2444,6 +2588,7 @@
           boardId: 1,
           projectId: null,
           blocked: false,
+          blockedBy: [],
           taskType: "normal",
           codeMeta: {
             codeName: "",
@@ -2605,7 +2750,7 @@
       },
 
       getProjectOverdueCount(projectId) {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = this._localDate();
         return this.tasks.filter(t => t.projectId === projectId && t.boardId !== 3 && t.dueDate && t.dueDate < today).length;
       },
 
@@ -2861,9 +3006,99 @@
         if (data.ok && data.comment) {
           this.taskComments.push(data.comment);
           this.newCommentBody = "";
+          this.closeMentionDropdown();
         } else {
           this.showToastMessage(data.error || "Failed to add comment", true);
         }
+      },
+
+      // Render comment body with HTML escaped + @mentions highlighted
+      renderCommentBody(body) {
+        if (!body) return '';
+        const escape = (s) => String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+        const escaped = escape(body);
+        return escaped.replace(
+          /@([A-Za-z0-9._+\-]+(?:@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})?)/g,
+          '<span class="mention">@$1</span>'
+        );
+      },
+
+      // === @mention autocomplete ===
+      onCommentInput(e) {
+        const el = e && e.target ? e.target : this.$refs.commentTextarea;
+        if (!el) return;
+        const caret = el.selectionStart || 0;
+        const upto = (this.newCommentBody || '').slice(0, caret);
+        const m = upto.match(/@([A-Za-z0-9._+\-]*)$/);
+        if (!m) {
+          this.closeMentionDropdown();
+          return;
+        }
+        const query = m[1].toLowerCase();
+        const matches = (this.teamMembers || [])
+          .filter(tm => {
+            const email = String(tm.email || '').toLowerCase();
+            const name = String(tm.name || '').toLowerCase();
+            const prefix = email.split('@')[0];
+            if (!query) return true;
+            return email.includes(query) || name.includes(query) || prefix.includes(query);
+          })
+          .slice(0, 6);
+        this.mentionDropdown.show = matches.length > 0;
+        this.mentionDropdown.query = query;
+        this.mentionDropdown.startIndex = caret - m[0].length;
+        this.mentionDropdown.matches = matches;
+        this.mentionDropdown.index = 0;
+      },
+
+      mentionMoveSelection(delta) {
+        const n = this.mentionDropdown.matches.length;
+        if (!n) return;
+        this.mentionDropdown.index = (this.mentionDropdown.index + delta + n) % n;
+      },
+
+      mentionPickHighlighted(event) {
+        const m = this.mentionDropdown.matches[this.mentionDropdown.index];
+        if (m) {
+          if (event) event.preventDefault();
+          this.insertMention(m);
+        }
+      },
+
+      insertMention(member) {
+        const el = this.$refs.commentTextarea;
+        const body = this.newCommentBody || '';
+        const caret = el ? (el.selectionStart || body.length) : body.length;
+        const start = this.mentionDropdown.startIndex >= 0 ? this.mentionDropdown.startIndex : caret;
+        const emailPrefix = String(member.email || '').split('@')[0] || member.email || '';
+        const handle = '@' + emailPrefix + ' ';
+        this.newCommentBody = body.slice(0, start) + handle + body.slice(caret);
+        this.closeMentionDropdown();
+        this.$nextTick(() => {
+          if (el) {
+            const pos = start + handle.length;
+            el.focus();
+            el.setSelectionRange(pos, pos);
+          }
+        });
+      },
+
+      closeMentionDropdown() {
+        this.mentionDropdown.show = false;
+        this.mentionDropdown.query = '';
+        this.mentionDropdown.startIndex = -1;
+        this.mentionDropdown.matches = [];
+        this.mentionDropdown.index = 0;
+      },
+
+      onCommentBlur() {
+        // Small delay so mousedown on an autocomplete item can run before we close.
+        setTimeout(() => this.closeMentionDropdown(), 150);
       },
 
       async deleteComment(commentId) {
@@ -2973,7 +3208,7 @@
       },
 
       isToday(iso) {
-        return iso === new Date().toISOString().slice(0, 10);
+        return iso === this._localDate();
       },
 
       calendarHeatmapStyle(count) {
@@ -2985,15 +3220,30 @@
       },
 
       columnOverdueCount(boardId) {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = this._localDate();
         return this.visibleTasksForBoard(boardId).filter(t => t.dueDate && t.dueDate < today).length;
+      },
+
+      // Returns YYYY-MM-DD in the user's LOCAL timezone (not UTC).
+      // Using toISOString() here caused off-by-one-day bugs near midnight in
+      // non-UTC timezones (e.g. Nepal UTC+5:45) where tasks appeared
+      // 'Due Today' on the wrong calendar date.
+      _localDate(offsetDays = 0) {
+        const d = new Date();
+        if (offsetDays) d.setDate(d.getDate() + offsetDays);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
       },
 
       smartDueDate(dueDate) {
         if (!dueDate) return null;
-        const today = new Date().toISOString().slice(0, 10);
-        const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-        const diff = Math.round((new Date(dueDate) - new Date(today)) / 86400000);
+        const today = this._localDate();
+        const tomorrow = this._localDate(1);
+        // Use ms-per-day math on a fixed 'noon' anchor to avoid DST rounding errors.
+        const toNoon = (iso) => new Date(iso + 'T12:00:00');
+        const diff = Math.round((toNoon(dueDate) - toNoon(today)) / 86400000);
         if (dueDate < today) return { label: `Overdue ${Math.abs(diff)}d`, cls: 'text-red-600 font-semibold' };
         if (dueDate === today) return { label: 'Due Today', cls: 'text-red-500 font-semibold' };
         if (dueDate === tomorrow) return { label: 'Tomorrow', cls: 'text-amber-600 font-semibold' };

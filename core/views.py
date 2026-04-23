@@ -3,6 +3,7 @@
 import json
 import logging
 import random
+import re
 import secrets
 from datetime import timedelta, date
 
@@ -1278,6 +1279,46 @@ def _actor_name(user):
     return (user.get_full_name() or user.first_name or user.username or user.email or "Someone")
 
 
+# Matches @alice, @alice.smith, @alice@example.com
+_MENTION_RE = re.compile(r'@([A-Za-z0-9._+\-]+(?:@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})?)')
+
+
+def _parse_mentions(body, team):
+    """Return list of User objects @mentioned in body, restricted to team members.
+
+    Supports matching by:
+      - full email (alice@example.com)
+      - email prefix before @ (alice)
+      - display name without spaces (alicesmith)
+      - public username (from UserProfile.username_public)
+    """
+    if not body or not team:
+        return []
+    tokens = set(m.group(1).lower() for m in _MENTION_RE.finditer(body))
+    if not tokens:
+        return []
+    memberships = TeamMembership.objects.filter(team=team).select_related("user")
+    matched = []
+    seen_ids = set()
+    for mship in memberships:
+        u = mship.user
+        if not u or u.id in seen_ids:
+            continue
+        email = (u.email or u.username or "").lower()
+        email_prefix = email.split("@")[0] if "@" in email else email
+        display_squashed = (u.get_full_name() or "").lower().replace(" ", "")
+        username_public = ""
+        try:
+            username_public = (u.profile.username_public or "").lower()
+        except Exception:
+            pass
+        candidates = {c for c in (email, email_prefix, display_squashed, username_public) if c}
+        if tokens & candidates:
+            matched.append(u)
+            seen_ids.add(u.id)
+    return matched
+
+
 def _notify_team(
     team,
     actor,
@@ -1371,6 +1412,7 @@ def _task_to_dict(task):
         "projectId": None,
         "taskType": task.task_type,
         "codeMeta": code_meta,
+        "blockedBy": list(task.blocked_by.values_list("id", flat=True)),
     }
 
 
@@ -1391,7 +1433,7 @@ def api_workspace_load(request):
     for i, c in enumerate(columns):
         col_id_to_board_id[c.id] = i + 1
 
-    tasks_qs = Task.objects.filter(board=board).select_related("column").prefetch_related("assignees")
+    tasks_qs = Task.objects.filter(board=board).select_related("column").prefetch_related("assignees", "blocked_by")
     tasks_list = []
     for t in tasks_qs:
         assignee_emails = list(t.assignees.values_list("email", flat=True))
@@ -1421,6 +1463,7 @@ def api_workspace_load(request):
             "taskType": t.task_type,
             "codeMeta": code_meta,
             "blocked": t.is_blocked,
+            "blockedBy": [b.id for b in t.blocked_by.all()],
         })
 
     projects_qs = Project.objects.filter(team=team)
@@ -1558,6 +1601,21 @@ def api_workspace_task_save(request):
             created_by=request.user,
         )
 
+    # --- Task dependencies (blocked_by) ---
+    if "blockedBy" in data:
+        raw_ids = data.get("blockedBy") or []
+        try:
+            blocker_ids = [int(x) for x in raw_ids if x is not None]
+        except (TypeError, ValueError):
+            blocker_ids = []
+        # Restrict to tasks on the same board; drop self-reference
+        valid_blocker_ids = list(
+            Task.objects.filter(id__in=blocker_ids, board=board)
+            .exclude(id=task.id)
+            .values_list("id", flat=True)
+        )
+        task.blocked_by.set(valid_blocker_ids)
+
     # Only team admins (head) can assign tasks. Regular members cannot
     # change assignees; their assignees field in the payload is ignored
     # and any existing assignees are preserved.
@@ -1645,6 +1703,7 @@ def api_workspace_task_save(request):
             "taskType": task.task_type,
             "codeMeta": code_meta,
             "blocked": task.is_blocked,
+            "blockedBy": list(task.blocked_by.values_list("id", flat=True)),
         }
     })
 
@@ -1709,7 +1768,12 @@ def api_workspace_task_move(request):
         return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
 
     if isinstance(board_id_fe, int) and 1 <= board_id_fe <= len(columns):
-        task.column = columns[board_id_fe - 1]
+        target_column = columns[board_id_fe - 1]
+        # No-op guard: task already in the target column -> skip write, notification, activity log.
+        if task.column_id == target_column.id:
+            return JsonResponse({"ok": True, "noop": True})
+
+        task.column = target_column
         task.save(update_fields=["column"])
         _notify_team(
             team,
@@ -2499,23 +2563,63 @@ def api_task_comment_add(request, task_id):
 
     comment = TaskComment.objects.create(task=task, author=request.user, body=body)
 
+    actor_name = _actor_name(request.user)
     _log_activity(team, request.user, "commented", "task", task.id, task.title,
-                  f"{_actor_name(request.user)} commented on '{task.title}'")
+                  f"{actor_name} commented on '{task.title}'")
 
-    _notify_team(
-        team, request.user,
-        f"{_actor_name(request.user)} commented on task '{task.title}'.",
-        event_type="task_comment", target_tab="tasks", target_type="task", target_id=task.id,
-        extra={"taskName": task.title},
-    )
+    # Parse @mentions and split recipients: mentioned users get a targeted
+    # "mention" notification, everyone else gets the generic comment notification.
+    mentioned_users = _parse_mentions(body, team)
+    mentioned_ids = {u.id for u in mentioned_users if u.id != request.user.id}
+
+    memberships = TeamMembership.objects.filter(team=team).select_related("user")
+    notifs = []
+    for mship in memberships:
+        u = mship.user
+        if not u or u.id == request.user.id:
+            continue
+        if u.id in mentioned_ids:
+            notifs.append(Notification(
+                team=team, recipient=u, actor=request.user,
+                message=f"{actor_name} mentioned you in a comment on '{task.title}'.",
+                event_type="task_mention",
+                target_tab="tasks", target_type="task", target_id=task.id,
+                extra={"taskName": task.title, "commentId": comment.id},
+            ))
+        else:
+            notifs.append(Notification(
+                team=team, recipient=u, actor=request.user,
+                message=f"{actor_name} commented on task '{task.title}'.",
+                event_type="task_comment",
+                target_tab="tasks", target_type="task", target_id=task.id,
+                extra={"taskName": task.title},
+            ))
+    if notifs:
+        Notification.objects.bulk_create(notifs)
+
+    # Real-time push
+    try:
+        from core.ws_utils import broadcast_notification
+        broadcast_notification(team.id, {
+            "message": f"{actor_name} commented on '{task.title}'",
+            "event_type": "task_comment",
+            "mentionedUserIds": list(mentioned_ids),
+        })
+    except Exception:
+        pass
+
+    mention_emails = [
+        (u.email or u.username or "").lower() for u in mentioned_users if u.id != request.user.id
+    ]
 
     return JsonResponse({
         "ok": True,
         "comment": {
             "id": comment.id,
             "body": comment.body,
-            "author": _actor_name(comment.author),
+            "author": actor_name,
             "createdAt": comment.created_at.isoformat(),
+            "mentions": mention_emails,
         }
     })
 

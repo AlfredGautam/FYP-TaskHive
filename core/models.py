@@ -176,6 +176,15 @@ class Task(models.Model):
 
     assignees = models.ManyToManyField(User, related_name="tasks_assigned", blank=True)
 
+    # Task A.blocked_by = {B, C}  means A cannot be finished until B and C are done.
+    # Reverse accessor: B.blocking.all() -> tasks that B blocks.
+    blocked_by = models.ManyToManyField(
+        "self",
+        symmetrical=False,
+        related_name="blocking",
+        blank=True,
+    )
+
     is_blocked = models.BooleanField(default=False)
 
     position = models.PositiveIntegerField(default=0)
