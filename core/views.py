@@ -7,6 +7,9 @@ import re
 import secrets
 from datetime import timedelta, date
 
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
+
 logger = logging.getLogger(__name__)
 
 from django.conf import settings
@@ -15,7 +18,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.models import User
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -85,7 +88,9 @@ def dashboard_page(request):
 
 @ensure_csrf_cookie
 def login_page(request):
-    return render(request, "core/login_new.html")
+    return render(request, "core/login_new.html", {
+        "google_client_id": settings.GOOGLE_CLIENT_ID,
+    })
 
 
 @login_required
@@ -197,6 +202,124 @@ def api_login(request):
 
     login(request, user)
     return JsonResponse({"ok": True, "redirect": "/user/"})
+
+
+def google_auth_start(request):
+    """Step 1: Redirect the user to Google's OAuth2 consent screen."""
+    import urllib.parse
+    client_id = settings.GOOGLE_CLIENT_ID
+    if not client_id:
+        return redirect("/login/")
+
+    state = secrets.token_hex(16)
+
+    redirect_uri = "http://127.0.0.1:8000/auth/google/callback/"
+    params = urllib.parse.urlencode({
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "online",
+        "prompt": "select_account",
+    })
+    response = redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
+    response.set_cookie("google_oauth_state", state, max_age=600, httponly=True, samesite="Lax")
+    return response
+
+
+def google_auth_callback(request):
+    """Step 2: Google redirects here with an authorization code. Exchange it
+    for an ID-token, find/create the user, and log them in."""
+    import requests as http_requests
+
+    error = request.GET.get("error")
+    if error:
+        return HttpResponse(f"Google OAuth error: {error}", status=400)
+
+    code = request.GET.get("code", "")
+    state = request.GET.get("state", "")
+    saved_state = request.COOKIES.get("google_oauth_state", "")
+
+    if not code:
+        return HttpResponse("Missing authorization code", status=400)
+
+    client_id = settings.GOOGLE_CLIENT_ID
+    client_secret = settings.GOOGLE_CLIENT_SECRET
+    redirect_uri = "http://127.0.0.1:8000/auth/google/callback/"
+
+    # Exchange the authorization code for tokens
+    token_resp = http_requests.post("https://oauth2.googleapis.com/token", data={
+        "code": code,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code",
+    }, timeout=10)
+
+    if token_resp.status_code != 200:
+        return HttpResponse(
+            f"Token exchange failed ({token_resp.status_code}): {token_resp.text}",
+            status=400,
+        )
+
+    token_data = token_resp.json()
+    access_token = token_data.get("access_token", "")
+
+    if not access_token:
+        return HttpResponse("Google token response missing access_token", status=400)
+
+    # Use the userinfo endpoint instead of JWT verification (avoids clock skew issues)
+    userinfo_resp = http_requests.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=10,
+    )
+    if userinfo_resp.status_code != 200:
+        return HttpResponse(f"Failed to get user info: {userinfo_resp.text}", status=400)
+
+    idinfo = userinfo_resp.json()
+    email = (idinfo.get("email") or "").strip().lower()
+    name = idinfo.get("name") or email.split("@")[0]
+
+    if not email:
+        return HttpResponse("Google account has no email", status=400)
+
+    # Find or create user
+    user = User.objects.filter(email__iexact=email).first()
+    if user is None:
+        user = User.objects.filter(username=email).first()
+    if user is None:
+        user = User.objects.create_user(username=email, email=email, first_name=name)
+        user.set_unusable_password()
+        user.save()
+        try:
+            from .email_utils import send_welcome_email
+            send_welcome_email(user_name=name, user_email=email)
+        except Exception:
+            pass
+
+    try:
+        login(request, user, backend="core.backends.EmailBackend")
+    except Exception as e:
+        return HttpResponse(f"Login failed: {e}", status=500)
+
+    # The /user/ page checks localStorage for "taskhive_current_user" on the client side.
+    # We must set it via a small redirect page so the dashboard doesn't bounce to /login/.
+    display_name = user.get_full_name() or user.first_name or user.username
+    html = (
+        '<!DOCTYPE html><html><head><script>'
+        'localStorage.setItem("taskhive_current_user", JSON.stringify({'
+        f'"name": "{display_name}",'
+        f'"email": "{email}",'
+        '"lastLogin": new Date().toISOString()'
+        '}));'
+        'window.location.href = "/user/";'
+        '</script></head><body>Redirecting...</body></html>'
+    )
+    response = HttpResponse(html, content_type="text/html")
+    response.delete_cookie("google_oauth_state")
+    return response
 
 
 def _gen_team_code() -> str:

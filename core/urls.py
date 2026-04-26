@@ -77,6 +77,8 @@ urlpatterns = [
     path("api/login/", views.api_login, name="api_login"),
     path("api/register/", views.api_register, name="api_register"),
     path("api/register/verify/", views.api_register_verify, name="api_register_verify"),
+    path("auth/google/start/", views.google_auth_start, name="google_auth_start"),
+    path("auth/google/callback/", views.google_auth_callback, name="google_auth_callback"),
     path("api/logout/", views.api_logout, name="api_logout"),
     path("api/me/", views.api_me, name="api_me"),
 
