@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TaskHive Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;
+  --text:#1e293b;--muted:#64748b;--light:#94a3b8;
+  --primary:#4f46e5;--primary-hover:#4338ca;
+  --green:#10b981;--amber:#f59e0b;--red:#ef4444;--cyan:#06b6d4;
+  --radius:12px;--shadow:0 2px 8px rgba(0,0,0,.04);
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh}
+a{color:var(--primary);text-decoration:none}
+
+/* ── Layout ── */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:250px;background:linear-gradient(160deg,#312e81 0%,#4f46e5 100%);color:#fff;padding:28px 0;flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.sidebar .logo{padding:0 24px 28px;font-size:1.35rem;font-weight:800;letter-spacing:-.3px;border-bottom:1px solid rgba(255,255,255,.12)}
+.sidebar .logo span{opacity:.7;font-weight:500;font-size:.85rem;display:block;margin-top:2px}
+.sidebar nav{flex:1;padding:20px 12px}
+.sidebar nav a{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:rgba(255,255,255,.75);font-weight:500;font-size:.88rem;transition:all .15s}
+.sidebar nav a:hover,.sidebar nav a.active{background:rgba(255,255,255,.12);color:#fff}
+.sidebar nav a svg{width:18px;height:18px;flex-shrink:0}
+.sidebar .user-box{padding:16px 20px;border-top:1px solid rgba(255,255,255,.12);font-size:.82rem;color:rgba(255,255,255,.65)}
+.sidebar .user-box strong{color:#fff;display:block}
+
+.main{flex:1;padding:28px 36px;overflow-x:auto}
+.page-title{font-size:1.6rem;font-weight:800;margin-bottom:24px;color:var(--text)}
+
+/* ── Stats ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:28px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+.stat-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(79,70,229,.10)}
+.stat-card .stat-value{font-size:2rem;font-weight:800;line-height:1.1}
+.stat-card .stat-label{font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+.stat-card.c1 .stat-value{color:var(--primary)}
+.stat-card.c2 .stat-value{color:var(--cyan)}
+.stat-card.c3 .stat-value{color:var(--green)}
+.stat-card.c4 .stat-value{color:var(--amber)}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+.toolbar .search-box{flex:1;min-width:200px;position:relative}
+.toolbar .search-box input{width:100%;padding:10px 14px 10px 38px;border:1px solid var(--border);border-radius:8px;font-size:.88rem;font-family:inherit;outline:none;transition:border .2s}
+.toolbar .search-box input:focus{border-color:var(--primary)}
+.toolbar .search-box svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--light)}
+.toolbar select{padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:inherit;background:var(--card);color:var(--text);cursor:pointer;outline:none}
+.toolbar select:focus{border-color:var(--primary)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 2px 6px rgba(79,70,229,.25)}
+.btn-primary:hover{background:var(--primary-hover);transform:translateY(-1px)}
+.btn-sm{padding:6px 12px;font-size:.78rem;border-radius:6px}
+.btn-green{background:var(--green);color:#fff}
+.btn-amber{background:var(--amber);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-red:hover{background:#dc2626}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg);color:var(--text)}
+
+/* ── Table ── */
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse}
+thead th{background:#f8fafc;font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:12px 16px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:12px 16px;font-size:.88rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+tbody tr{transition:background .12s}
+tbody tr:hover{background:#eef2ff}
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.badge-admin{background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe}
+.badge-member{background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd}
+.badge-active{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0}
+.badge-inactive{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+.actions{display:flex;gap:6px}
+
+/* ── Pagination ── */
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-top:1px solid var(--border);font-size:.82rem;color:var(--muted)}
+.pagination .page-btns{display:flex;gap:4px}
+.pagination .page-btns button{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:var(--card);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;color:var(--text)}
+.pagination .page-btns button:hover{border-color:var(--primary);color:var(--primary)}
+.pagination .page-btns button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.pagination .page-btns button:disabled{opacity:.4;cursor:default}
+
+/* ── Modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:16px;width:100%;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,.15);animation:modalIn .2s ease}
+@keyframes modalIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border)}
+.modal-header h3{font-size:1.1rem;font-weight:700}
+.modal-close{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:var(--bg);border-radius:8px;cursor:pointer;font-size:1rem;color:var(--muted);transition:all .15s}
+.modal-close:hover{background:var(--border);color:var(--text)}
+.modal-body{padding:20px 24px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
+.form-group input,.form-group select{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:.88rem;font-family:inherit;outline:none;transition:border .2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--primary)}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--border)}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:10px;font-size:.85rem;font-weight:600;color:#fff;background:var(--green);box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:2000;opacity:0;transform:translateY(8px);transition:all .25s}
+.toast.show{opacity:1;transform:none}
+.toast.error{background:var(--red)}
+
+/* ── Loading ── */
+.loading{text-align:center;padding:40px;color:var(--light)}
+
+/* ── Responsive ── */
+@media(max-width:1024px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:768px){
+  .sidebar{display:none}
+  .main{padding:20px 16px}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .toolbar{flex-direction:column}
+  .toolbar .search-box{width:100%}
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">🧊 TaskHive<span>Admin Panel</span></div>
+    <nav>
+      <a href="/admin/" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a href="/admin/" onclick="document.getElementById('searchInput').focus();return false;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        Team Members
+      </a>
+    </nav>
+    <div class="user-box">
+      <strong>{{ user.get_full_name|default:user.username }}</strong>
+      {{ user.email }}
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <h1 class="page-title">Team Management</h1>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card c1"><div class="stat-value" id="statUsers">–</div><div class="stat-label">Total Users</div></div>
+      <div class="stat-card c2"><div class="stat-value" id="statTeams">–</div><div class="stat-label">Total Teams</div></div>
+      <div class="stat-card c3"><div class="stat-value" id="statActive">–</div><div class="stat-label">Active Members</div></div>
+      <div class="stat-card c4"><div class="stat-value" id="statAdmins">–</div><div class="stat-label">Admin Count</div></div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Search by name, email, or team...">
+      </div>
+      <select id="filterRole">
+        <option value="">All Roles</option>
+        <option value="head">Admin / Head</option>
+        <option value="member">Member</option>
+      </select>
+      <select id="filterStatus">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+      <select id="sortBy">
+        <option value="date_desc">Newest First</option>
+        <option value="date_asc">Oldest First</option>
+        <option value="name_asc">Name A–Z</option>
+        <option value="name_desc">Name Z–A</option>
+      </select>
+      <button class="btn btn-primary" onclick="openAddModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add New User
+      </button>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>User Name</th>
+            <th>Role</th>
+            <th>Team Name</th>
+            <th>Team Created</th>
+            <th>Status</th>
+            <th>Email</th>
+            <th>Last Login</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="8" class="loading">Loading...</td></tr>
+        </tbody>
+      </table>
+      <div class="pagination">
+        <span id="pageInfo">–</span>
+        <div class="page-btns" id="pageBtns"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Add New User</h3>
+      <button class="modal-close" onclick="closeModal('addModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-group"><label>User Name</label><input type="text" id="fName" placeholder="John Doe"></div>
+      <div class="form-group"><label>Email</label><input type="email" id="fEmail" placeholder="john@example.com"></div>
+      <div class="form-group"><label>Team</label><select id="fTeam"><option value="">Loading teams...</option></select></div>
+      <div class="form-group"><label>Role</label>
+        <select id="fRole"><option value="member">Member</option><option value="head">Admin / Head</option></select>
+      </div>
+      <div class="form-group" id="fStatusGroup" style="display:none"><label>Status</label>
+        <select id="fStatus"><option value="active">Active</option><option value="inactive">Inactive</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('addModal')">Cancel</button>
+      <button class="btn btn-primary" id="modalSubmit" onclick="submitForm()">Add User</button>
+    </div>
+  </div>
+</div>
+
+<!-- View Modal -->
+<div class="modal-overlay" id="viewModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Member Details</h3>
+      <button class="modal-close" onclick="closeModal('viewModal')">&times;</button>
+    </div>
+    <div class="modal-body" id="viewBody" style="line-height:2;font-size:.92rem">
+      Loading...
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('viewModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+let currentPage = 1;
+
+/* ── Fetch & render ── */
+async function load(page){
+  currentPage = page || 1;
+  const p = new URLSearchParams({
+    page: currentPage,
+    q: document.getElementById('searchInput').value,
+    role: document.getElementById('filterRole').value,
+    status: document.getElementById('filterStatus').value,
+    sort: document.getElementById('sortBy').value,
+  });
+  const r = await fetch('/admin/api/members/?' + p);
+  const d = await r.json();
+
+  // stats
+  document.getElementById('statUsers').textContent = d.stats.total_users;
+  document.getElementById('statTeams').textContent = d.stats.total_teams;
+  document.getElementById('statActive').textContent = d.stats.active_members;
+  document.getElementById('statAdmins').textContent = d.stats.admin_count;
+
+  // table
+  const tb = document.getElementById('tableBody');
+  if(!d.rows.length){
+    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8;">No members found</td></tr>';
+  } else {
+    tb.innerHTML = d.rows.map(r => `
+      <tr>
+        <td style="font-weight:600">${esc(r.username)}</td>
+        <td><span class="badge ${r.role==='head'?'badge-admin':'badge-member'}">${esc(r.role_display)}</span></td>
+        <td>${esc(r.team_name)}</td>
+        <td style="color:var(--muted);font-size:.82rem">${r.team_created}</td>
+        <td><span class="badge ${r.status==='active'?'badge-active':'badge-inactive'}">${r.status}</span></td>
+        <td style="color:var(--muted)">${esc(r.email)}</td>
+        <td style="color:var(--muted);font-size:.82rem">${r.last_login}</td>
+        <td class="actions">
+          <button class="btn btn-sm btn-ghost" onclick="viewMember(${r.id})" title="View">👁</button>
+          <button class="btn btn-sm btn-amber" onclick="editMember(${r.id})" title="Edit">✏️</button>
+          <button class="btn btn-sm btn-red" onclick="deleteMember(${r.id})" title="Delete">🗑</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // pagination
+  const from = d.total ? (d.page-1)*10+1 : 0;
+  const to = Math.min(d.page*10, d.total);
+  document.getElementById('pageInfo').textContent = `Showing ${from}–${to} of ${d.total}`;
+  const pb = document.getElementById('pageBtns');
+  let btns = `<button ${d.page<=1?'disabled':''} onclick="load(${d.page-1})">&laquo;</button>`;
+  for(let i=1;i<=d.num_pages;i++){
+    btns += `<button class="${i===d.page?'active':''}" onclick="load(${i})">${i}</button>`;
+  }
+  btns += `<button ${d.page>=d.num_pages?'disabled':''} onclick="load(${d.page+1})">&raquo;</button>`;
+  pb.innerHTML = btns;
+}
+
+/* ── Debounced search ── */
+let timer;
+document.getElementById('searchInput').addEventListener('input', ()=>{
+  clearTimeout(timer);
+  timer = setTimeout(()=>load(1), 300);
+});
+document.getElementById('filterRole').addEventListener('change', ()=>load(1));
+document.getElementById('filterStatus').addEventListener('change', ()=>load(1));
+document.getElementById('sortBy').addEventListener('change', ()=>load(1));
+
+/* ── Modal helpers ── */
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function toast(msg, err){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (err?' error':'');
+  setTimeout(()=>t.className='toast', 3000);
+}
+function esc(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+
+/* ── Add modal ── */
+async function openAddModal(){
+  document.getElementById('modalTitle').textContent = 'Add New User';
+  document.getElementById('modalSubmit').textContent = 'Add User';
+  document.getElementById('modalSubmit').onclick = submitAdd;
+  document.getElementById('editId').value = '';
+  document.getElementById('fName').value = '';
+  document.getElementById('fEmail').value = '';
+  document.getElementById('fRole').value = 'member';
+  document.getElementById('fStatusGroup').style.display = 'none';
+  document.getElementById('fName').disabled = false;
+  document.getElementById('fEmail').disabled = false;
+  document.getElementById('fTeam').disabled = false;
+  await loadTeams();
+  openModal('addModal');
+}
+
+/* ── Edit modal ── */
+async function editMember(id){
+  const r = await fetch(`/admin/api/member/${id}/`);
+  const d = await r.json();
+  document.getElementById('modalTitle').textContent = 'Edit Member';
+  document.getElementById('modalSubmit').textContent = 'Save Changes';
+  document.getElementById('modalSubmit').onclick = ()=>submitEdit(id);
+  document.getElementById('editId').value = id;
+  document.getElementById('fName').value = d.full_name || d.username;
+  document.getElementById('fName').disabled = true;
+  document.getElementById('fEmail').value = d.email;
+  document.getElementById('fEmail').disabled = true;
+  await loadTeams();
+  document.getElementById('fTeam').value = d.team_id;
+  document.getElementById('fTeam').disabled = true;
+  document.getElementById('fRole').value = d.role;
+  document.getElementById('fStatusGroup').style.display = '';
+  document.getElementById('fStatus').value = d.status;
+  openModal('addModal');
+}
+
+async function submitAdd(){
+  const body = {
+    username: document.getElementById('fName').value,
+    email: document.getElementById('fEmail').value,
+    team_id: parseInt(document.getElementById('fTeam').value),
+    role: document.getElementById('fRole').value,
+  };
+  const r = await fetch('/admin/api/member/add/', {method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(body)});
+  const d = await r.json();
+  if(d.ok){ closeModal('addModal'); toast('Member added!'); load(currentPage); }
+  else toast(d.error||'Error', true);
+}
+
+async function submitEdit(id){
+  const body = {
+    role: document.getElementById('fRole').value,
+    status: document.getElementById('fStatus').value,
+  };
+  const r = await fetch(`/admin/api/member/${id}/update/`, {method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(body)});
+  const d = await r.json();
+  if(d.ok){ closeModal('addModal'); toast('Updated!'); load(currentPage); }
+  else toast(d.error||'Error', true);
+}
+
+/* ── View modal ── */
+async function viewMember(id){
+  document.getElementById('viewBody').innerHTML = 'Loading...';
+  openModal('viewModal');
+  const r = await fetch(`/admin/api/member/${id}/`);
+  const d = await r.json();
+  document.getElementById('viewBody').innerHTML = `
+    <p><strong>Name:</strong> ${esc(d.full_name||d.username)}</p>
+    <p><strong>Username:</strong> ${esc(d.username)}</p>
+    <p><strong>Email:</strong> ${esc(d.email)}</p>
+    <p><strong>Role:</strong> <span class="badge ${d.role==='head'?'badge-admin':'badge-member'}">${d.role==='head'?'Admin / Head':'Member'}</span></p>
+    <p><strong>Status:</strong> <span class="badge ${d.status==='active'?'badge-active':'badge-inactive'}">${d.status}</span></p>
+    <p><strong>Team:</strong> ${esc(d.team_name)}</p>
+    <p><strong>Last Login:</strong> ${d.last_login}</p>
+    <p><strong>Date Joined:</strong> ${d.date_joined}</p>
+  `;
+}
+
+/* ── Delete ── */
+async function deleteMember(id){
+  if(!confirm('Remove this member from the team?')) return;
+  const r = await fetch(`/admin/api/member/${id}/delete/`, {method:'POST',headers:{'X-CSRFToken':CSRF}});
+  const d = await r.json();
+  if(d.ok){ toast('Member removed'); load(currentPage); }
+  else toast(d.error||'Error', true);
+}
+
+/* ── Load teams for dropdown ── */
+async function loadTeams(){
+  const sel = document.getElementById('fTeam');
+  sel.innerHTML = '<option value="">Loading...</option>';
+  const r = await fetch('/admin/api/teams/');
+  const d = await r.json();
+  sel.innerHTML = '<option value="">Select team...</option>';
+  d.teams.forEach(t=>{
+    sel.innerHTML += `<option value="${t.id}">${esc(t.name)}</option>`;
+  });
+}
+
+/* ── Init ── */
+load(1);
+</script>
+</body>
+</html>

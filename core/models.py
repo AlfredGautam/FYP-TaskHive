@@ -398,6 +398,24 @@ class UserProfile(models.Model):
     Stores profile page fields + images in DB.
     This makes profile persist after logout/login.
     """
+    ROLE_ADMIN = "admin"
+    ROLE_USER = "user"
+    ROLE_TEAM_LEAD = "team_lead"
+    ROLE_CHOICES = [
+        (ROLE_ADMIN, "Admin"),
+        (ROLE_USER, "User"),
+        (ROLE_TEAM_LEAD, "Team Lead"),
+    ]
+
+    STATUS_ACTIVE = "active"
+    STATUS_BANNED = "banned"
+    STATUS_SUSPENDED = "suspended"
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_BANNED, "Banned"),
+        (STATUS_SUSPENDED, "Suspended"),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
 
     current_team = models.ForeignKey(
@@ -407,6 +425,9 @@ class UserProfile(models.Model):
         on_delete=models.SET_NULL,
         related_name="current_for_profiles",
     )
+
+    role = models.CharField(max_length=15, choices=ROLE_CHOICES, default=ROLE_USER)
+    account_status = models.CharField(max_length=15, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
 
     display_name = models.CharField(max_length=120, blank=True, default="")
     username_public = models.CharField(max_length=60, blank=True, default="")
@@ -433,6 +454,42 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"Profile: {self.user.username}"
+
+
+class LoginHistory(models.Model):
+    """Tracks successful login events per user."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="login_history")
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True, default="")
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+        verbose_name_plural = "Login history"
+        indexes = [
+            models.Index(fields=["user", "-timestamp"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} @ {self.timestamp:%Y-%m-%d %H:%M}"
+
+
+class FailedLoginAttempt(models.Model):
+    """Tracks failed login attempts for security monitoring."""
+    username_attempted = models.CharField(max_length=150)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True, default="")
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=["username_attempted", "-timestamp"]),
+            models.Index(fields=["ip_address", "-timestamp"]),
+        ]
+
+    def __str__(self):
+        return f"FAIL {self.username_attempted} from {self.ip_address} @ {self.timestamp:%Y-%m-%d %H:%M}"
 
 
 # ✅ Auto-create profile when a new User is created
