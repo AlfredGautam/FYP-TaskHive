@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TaskHive - Workspace</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><text y='.9em' font-size='65' x='14'>🧊</text></svg>">
 
   <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -68,6 +69,22 @@
       background: #4338ca;
     }
 
+    @keyframes today-ring-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(79,70,229,0.5); }
+      50% { box-shadow: 0 0 0 5px rgba(79,70,229,0); }
+    }
+    .today-ring {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff; font-size: 11px; font-weight: 700;
+      animation: today-ring-pulse 2s ease-in-out infinite;
+    }
+    .cal-event-chip {
+      cursor: pointer; transition: opacity 0.15s, transform 0.15s;
+    }
+    .cal-event-chip:hover { opacity: 0.85; transform: scale(1.02); }
+
     .search-input { background: #f8fafc; border-color: #e2e8f0; color: #0f172a; }
     .search-input::placeholder { color: #94a3b8; }
     .search-input:focus { box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12); border-color: #6366f1; background: #fff; }
@@ -78,6 +95,34 @@
     }
 
     .comment-bubble { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+    .comment-body { white-space: pre-wrap; word-break: break-word; }
+    .mention {
+      display: inline-block;
+      padding: 0 6px;
+      border-radius: 4px;
+      background: #eef2ff;
+      color: #4338ca;
+      font-weight: 600;
+      font-size: 0.85em;
+    }
+    .mention-dropdown {
+      position: absolute;
+      left: 0;
+      bottom: 100%;
+      margin-bottom: 6px;
+      min-width: 220px;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      z-index: 60;
+    }
+    .mention-item { padding: 6px 10px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .mention-item:hover, .mention-item.active { background: #eef2ff; }
+    .mention-item .m-name { font-weight: 600; color: #1e293b; }
+    .mention-item .m-email { color: #64748b; font-size: 11px; }
     .subtask-row:hover { background: rgba(79, 70, 229, 0.04); }
     .subtask-done { text-decoration: line-through; opacity: 0.50; }
     .activity-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
@@ -95,6 +140,14 @@
       outline: none;
       background: #fff;
     }
+
+    /* ── Skeleton loader ── */
+    .skeleton-box { background: linear-gradient(90deg,#f0f2f5 25%,#e4e7ec 50%,#f0f2f5 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.4s infinite; border-radius:6px; }
+    @keyframes skeleton-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* ── File preview modal ── */
+    .preview-backdrop { position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;display:flex;align-items:center;justify-content:center; }
+    .preview-box { background:#fff;border-radius:16px;overflow:hidden;max-width:90vw;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 25px 60px rgba(0,0,0,0.4); }
   </style>
 
   <!-- ✅ SINGLE SAFE AUTH GUARD -->
@@ -116,11 +169,11 @@
   </script>
 </head>
 
-<body class="bg-slate-50 text-slate-900 min-h-screen">
-<div id="app" class="flex flex-col min-h-screen" @click="closeContextMenu">
+<body class="bg-slate-50 text-slate-900" style="height:100vh;overflow:hidden;">
+<div id="app" class="flex flex-col" style="height:100vh;overflow:hidden;" @click="closeContextMenu">
 
   <!-- Header -->
-  <header class="bg-white border-b border-gray-200 py-3 px-6 flex justify-between items-center shadow-sm">
+  <header class="bg-white border-b border-gray-200 px-6 flex justify-between items-center shadow-sm flex-shrink-0" style="height:60px;min-height:60px;max-height:60px;">
     <div class="flex items-center">
       <div class="text-indigo-600 text-xl mr-3">
         <i class="fas fa-cubes"></i>
@@ -236,7 +289,7 @@
 
     <!-- Right nav -->
     <div class="flex items-center space-x-2">
-      <a href="/" class="hidden sm:inline text-slate-600 text-sm hover:text-indigo-600 transition-colors px-2 py-1 rounded hover:bg-gray-100">
+      <a href="/workspace/" class="hidden sm:inline text-slate-600 text-sm hover:text-indigo-600 transition-colors px-2 py-1 rounded hover:bg-gray-100">
         <i class="fas fa-grid-2 mr-1"></i> Board
       </a>
       <a href="/analytics/" class="hidden sm:inline text-slate-500 text-sm hover:text-indigo-600 transition-colors px-2 py-1 rounded hover:bg-gray-100">
@@ -274,9 +327,12 @@
             <button @click="markAllNotificationsRead" class="text-[11px] text-indigo-600 hover:text-indigo-700">Mark all read</button>
           </div>
 
-          <div v-if="!notifications.length" class="px-3 py-4 text-sm text-slate-400">No notifications yet.</div>
+          <div v-if="!recentNotifications.length" class="px-3 py-6 text-sm text-slate-400 text-center">
+            <i class="fas fa-bell-slash text-slate-300 text-xl mb-2 block"></i>
+            No recent notifications
+          </div>
 
-          <button v-for="n in notifications.slice(0, 8)" :key="n.id"
+          <button v-for="n in recentNotifications" :key="n.id"
                   @click="openNotification(n)"
                   class="w-full text-left px-3 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors">
             <div class="flex items-start justify-between gap-3">
@@ -289,21 +345,23 @@
         </div>
       </div>
 
-      <button @click="logout"
-              class="hidden md:inline px-3 py-1 rounded-lg text-xs bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 text-slate-600 hover:text-red-600 transition-all">
-        <i class="fas fa-right-from-bracket mr-1"></i> Logout
-      </button>
+      <a href="/user/"
+         class="hidden md:inline-flex items-center px-3 py-1 rounded-lg text-xs bg-white hover:bg-indigo-50 border border-gray-200 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 transition-all">
+        <i class="fas fa-arrow-left mr-1"></i> Back to Dashboard
+      </a>
 
-      <div class="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+      <img v-if="currentUserPhoto" :src="currentUserPhoto" :alt="currentUserName"
+           class="w-8 h-8 rounded-full object-cover border border-gray-200 bg-white" />
+      <div v-else class="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
         {{ currentUserInitials }}
       </div>
     </div>
   </header>
 
   <!-- Main -->
-  <main class="flex flex-1 overflow-hidden">
+  <main class="flex overflow-hidden" style="height:calc(100vh - 60px);min-height:0;">
     <!-- Sidebar -->
-    <aside class="w-64 bg-white border-r border-gray-200 py-5 px-3 flex flex-col shadow-sm">
+    <aside class="w-64 bg-white border-r border-gray-200 py-5 px-3 flex flex-col shadow-sm flex-shrink-0" style="height:100%;overflow-y:auto;">
       <nav class="space-y-0.5 flex-1">
         <button
           v-for="tab in tabs"
@@ -320,61 +378,6 @@
         </button>
       </nav>
 
-      <!-- Teams -->
-      <div class="pt-4 border-t border-gray-100">
-        <h3 class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Label Groups</h3>
-        <div class="space-y-0.5 max-h-48 overflow-y-auto pr-1">
-          <div
-            v-for="team in teams"
-            :key="team.id"
-            class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
-          >
-            <div class="flex items-center">
-              <span class="w-2 h-2 rounded-full mr-2.5" :style="{ backgroundColor: team.color }"></span>
-              <span class="text-sm truncate">{{ team.name }}</span>
-            </div>
-            <div class="flex items-center space-x-1.5 text-xs">
-              <button @click.stop="startEditTeam(team)" class="text-slate-400 hover:text-indigo-600 transition-colors">
-                <i class="fas fa-edit"></i>
-              </button>
-              <button @click.stop="confirmDeleteTeam(team)" class="text-slate-400 hover:text-red-500 transition-colors">
-                <i class="fas fa-trash"></i>
-              </button>
-            </div>
-          </div>
-          <div v-if="teams.length === 0" class="px-3 py-2 text-xs text-slate-400">
-            No groups yet.
-          </div>
-        </div>
-
-        <!-- Add / Edit team form -->
-        <div class="mt-2 bg-gray-50 rounded-lg p-3 border border-gray-100">
-          <p class="text-[11px] text-slate-500 mb-2 font-medium">
-            {{ editingTeamId ? 'Edit group' : 'Add group' }}
-          </p>
-          <input
-            v-model="newTeamName"
-            placeholder="Group name"
-            class="w-full mb-2 px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-          />
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center space-x-2">
-              <label class="text-[11px] text-slate-500">Color:</label>
-              <input type="color" v-model="newTeamColor" class="w-7 h-5 border-0 p-0 bg-transparent rounded cursor-pointer" />
-            </div>
-            <button v-if="editingTeamId" @click="resetTeamForm" class="text-[11px] text-slate-500 hover:text-slate-700">
-              Cancel
-            </button>
-          </div>
-          <button
-            @click="createOrUpdateTeam"
-            class="w-full py-1.5 rounded-lg text-xs text-white neon-button flex items-center justify-center"
-          >
-            <i class="fas" :class="editingTeamId ? 'fa-save mr-1.5' : 'fa-plus mr-1.5'"></i>
-            {{ editingTeamId ? 'Update' : 'Add Group' }}
-          </button>
-        </div>
-      </div>
     </aside>
 
     <!-- Content -->
@@ -407,56 +410,104 @@
       </div>
 
       <!-- Projects -->
-      <div v-if="currentTab === 'projects'" class="space-y-6">
-        <div class="flex justify-between items-center">
+      <div v-if="currentTab === 'projects'" class="space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 class="text-2xl font-bold text-slate-900">Projects</h2>
-          <button @click="openNewProject" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
-            <i class="fas fa-plus mr-2"></i> New Project
-          </button>
+          <div class="flex items-center gap-2 flex-wrap">
+            <!-- Filter tabs -->
+            <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button v-for="f in [{v:'all',l:'All'},{v:'active',l:'Active'},{v:'completed',l:'Completed'},{v:'archived',l:'Archived'}]"
+                      :key="f.v" @click="projectFilter = f.v"
+                      class="px-3 py-1 rounded-md text-xs font-medium transition-colors"
+                      :class="projectFilter === f.v ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'">
+                {{ f.l }}
+                <span v-if="f.v !== 'all'" class="ml-1 opacity-60">({{ projects.filter(p => p.status === f.v).length }})</span>
+              </button>
+            </div>
+            <button @click="openNewProject" class="neon-button text-white px-4 py-2 rounded-lg flex items-center text-sm">
+              <i class="fas fa-plus mr-2"></i> New Project
+            </button>
+          </div>
         </div>
 
-        <div v-if="projects.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div v-if="filteredProjects.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           <div
-            v-for="project in projects"
+            v-for="project in filteredProjects"
             :key="project.id"
             class="project-card p-5 cursor-pointer relative group"
-            @click="viewProject(project)"
+            @click="openProjectBoard(project)"
           >
-            <button @click.stop="confirmDeleteProject(project)"
-                    class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity">
-              <i class="fas fa-trash"></i>
-            </button>
-            <div class="flex justify-between items-start mb-4">
-              <div class="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
-                <i class="fas fa-project-diagram"></i>
+            <!-- Hover action buttons -->
+            <div class="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button @click.stop="editProject(project)"
+                      title="Edit project"
+                      class="w-6 h-6 flex items-center justify-center rounded text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50">
+                <i class="fas fa-pen text-[10px]"></i>
+              </button>
+              <button @click.stop="confirmDeleteProject(project)"
+                      class="w-6 h-6 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50">
+                <i class="fas fa-trash text-[10px]"></i>
+              </button>
+            </div>
+
+            <!-- Header: icon + name + health badge -->
+            <div class="flex items-start justify-between mb-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 flex-shrink-0">
+                  <i class="fas fa-folder-open"></i>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-sm text-slate-900 leading-tight">{{ project.name }}</h3>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium" :class="{
+                    'bg-green-50 text-green-700': project.status === 'active',
+                    'bg-gray-100 text-gray-500': project.status === 'completed',
+                    'bg-amber-50 text-amber-700': project.status === 'archived'
+                  }">{{ formatStatus(project.status) }}</span>
+                </div>
               </div>
-              <div class="text-xs px-2 py-1 rounded-full font-medium" :class="{
-                  'bg-green-50 text-green-700 border border-green-200': project.status === 'active',
-                  'bg-gray-100 text-gray-600 border border-gray-200': project.status === 'completed',
-                  'bg-amber-50 text-amber-700 border border-amber-200': project.status === 'archived'
-                }">
-                {{ formatStatus(project.status) }}
+              <!-- Health badge -->
+              <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold border flex items-center gap-1 flex-shrink-0"
+                    :class="projectHealth(project.id).cls">
+                <span class="w-1.5 h-1.5 rounded-full inline-block" :class="projectHealth(project.id).dot"></span>
+                {{ projectHealth(project.id).label }}
+              </span>
+            </div>
+
+            <p class="text-slate-400 text-xs mb-3 line-clamp-2">{{ project.description || 'No description added.' }}</p>
+
+            <!-- Progress bar -->
+            <div v-if="getProjectTaskCount(project.id) > 0" class="mb-3">
+              <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                <span>Progress</span>
+                <span>{{ getProjectDoneCount(project.id) }}/{{ getProjectTaskCount(project.id) }} done</span>
+              </div>
+              <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-500"
+                     :class="getProjectDoneCount(project.id) === getProjectTaskCount(project.id) ? 'bg-green-500' : 'bg-indigo-500'"
+                     :style="'width:' + Math.round(getProjectDoneCount(project.id) / getProjectTaskCount(project.id) * 100) + '%'"></div>
               </div>
             </div>
-            <h3 class="font-semibold text-base mb-1.5 text-slate-900">{{ project.name }}</h3>
-            <p class="text-slate-500 text-sm mb-4 line-clamp-2">{{ project.description }}</p>
+            <div v-else class="mb-3 text-[10px] text-slate-300 italic">No tasks linked yet</div>
 
-            <div class="flex justify-between items-center text-sm text-slate-400">
-              <div class="flex items-center">
-                <i class="fas fa-tasks mr-1"></i>
-                <span>{{ getProjectTaskCount(project.id) }} tasks</span>
+            <!-- Bottom row -->
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-2 text-[11px]">
+                <span class="text-slate-400"><i class="fas fa-tasks mr-1"></i>{{ getProjectTaskCount(project.id) }} tasks</span>
+                <span v-if="getProjectOverdueCount(project.id) > 0" class="text-red-500 font-semibold">
+                  <i class="fas fa-clock mr-0.5"></i>{{ getProjectOverdueCount(project.id) }} overdue
+                </span>
               </div>
-              <div class="flex -space-x-2">
-                <div
-                  v-for="member in project.members.slice(0, 3)"
-                  :key="member"
-                  class="w-6 h-6 rounded-full bg-indigo-500 text-white text-xs flex items-center justify-center border-2 border-white"
-                  :title="member"
-                >
-                  {{ getInitials(member) }}
-                </div>
+              <div class="flex -space-x-1.5">
+                <template v-for="member in project.members.slice(0, 3)">
+                  <img v-if="memberPhoto(member)" :key="'img-'+member" :src="memberPhoto(member)" :title="member"
+                       class="w-6 h-6 rounded-full object-cover border-2 border-white bg-gray-100" />
+                  <div v-else :key="'ini-'+member"
+                       class="w-6 h-6 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center border-2 border-white" :title="member">
+                    {{ getInitials(member) }}
+                  </div>
+                </template>
                 <div v-if="project.members.length > 3"
-                     class="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs flex items-center justify-center border-2 border-white"
+                     class="w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-[10px] flex items-center justify-center border-2 border-white"
                      :title="project.members.slice(3).join(', ')">
                   +{{ project.members.length - 3 }}
                 </div>
@@ -467,23 +518,77 @@
 
         <div v-else class="empty-state p-8 text-center">
           <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-400">
-            <i class="fas fa-project-diagram text-2xl"></i>
+            <i class="fas fa-folder-open text-2xl"></i>
           </div>
-          <h3 class="text-lg font-medium text-slate-900 mb-2">No projects yet</h3>
-          <p class="text-slate-500 mb-4">Get started by creating your first project</p>
-          <button @click="openNewProject"
+          <h3 class="text-lg font-medium text-slate-900 mb-2">
+            {{ projectFilter === 'all' ? 'No projects yet' : 'No ' + projectFilter + ' projects' }}
+          </h3>
+          <p class="text-slate-500 mb-4">{{ projectFilter === 'all' ? 'Get started by creating your first project' : 'Try a different filter' }}</p>
+          <button v-if="projectFilter === 'all'" @click="openNewProject"
                   class="neon-button text-white px-4 py-2 rounded-lg inline-flex items-center">
             <i class="fas fa-plus mr-2"></i> New Project
+          </button>
+          <button v-else @click="projectFilter = 'all'"
+                  class="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm hover:bg-gray-50 transition-colors">
+            Show all projects
           </button>
         </div>
       </div>
 
       <!-- Tasks -->
       <div v-if="currentTab === 'tasks'" class="space-y-6">
-        <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-slate-900">Tasks</h2>
+        <div class="flex flex-wrap justify-between items-center gap-3">
+          <div class="flex items-center gap-3 flex-wrap">
+            <button v-if="activeProjectId" @click="clearActiveProject"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-100 transition-colors"
+                    title="Back to all projects">
+              <i class="fas fa-arrow-left"></i> Projects
+            </button>
+            <h2 class="text-2xl font-bold text-slate-900">
+              <template v-if="activeProjectId">
+                <span class="text-indigo-600">{{ activeProjectName }}</span>
+                <span class="text-slate-400 font-normal text-lg ml-1">· Tasks</span>
+              </template>
+              <template v-else>Tasks</template>
+            </h2>
+            <span v-if="activeProjectId"
+                  class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 font-medium">
+              {{ getProjectTaskCount(activeProjectId) }} task{{ getProjectTaskCount(activeProjectId) !== 1 ? 's' : '' }}
+            </span>
+          </div>
           <button @click="openNewTask" class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
             <i class="fas fa-plus mr-2"></i> New Task
+          </button>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="flex flex-wrap items-center gap-2 px-3 py-2 bg-white rounded-xl border border-gray-200 shadow-sm">
+          <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mr-1">Filter</span>
+          <div class="flex items-center gap-1">
+            <button v-for="p in [{v:'all',l:'All'},{v:'high',l:'High'},{v:'medium',l:'Medium'},{v:'low',l:'Low'}]"
+                    :key="p.v" @click="taskFilter.priority = p.v"
+                    class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                    :class="taskFilter.priority === p.v ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-gray-100'">
+              <span v-if="p.v==='high'" class="w-2 h-2 inline-block rounded-full bg-red-500 mr-1"></span>
+              <span v-if="p.v==='medium'" class="w-2 h-2 inline-block rounded-full bg-amber-400 mr-1"></span>
+              <span v-if="p.v==='low'" class="w-2 h-2 inline-block rounded-full bg-green-500 mr-1"></span>
+              {{ p.l }}
+            </button>
+          </div>
+          <div class="w-px h-4 bg-gray-200 mx-1"></div>
+          <div class="flex items-center gap-1">
+            <button v-for="d in [{v:'all',l:'Any date'},{v:'today',l:'Today'},{v:'week',l:'This week'},{v:'overdue',l:'Overdue'}]"
+                    :key="d.v" @click="taskFilter.dueFilter = d.v"
+                    class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
+                    :class="taskFilter.dueFilter === d.v ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-gray-100'">
+              <i v-if="d.v==='overdue'" class="fas fa-exclamation-circle text-red-500 mr-0.5 text-[10px]"></i>
+              {{ d.l }}
+            </button>
+          </div>
+          <button v-if="taskFilter.priority !== 'all' || taskFilter.dueFilter !== 'all'"
+                  @click="taskFilter = {priority:'all', dueFilter:'all'}"
+                  class="ml-auto text-[11px] text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors">
+            <i class="fas fa-times"></i> Clear
           </button>
         </div>
 
@@ -501,26 +606,58 @@
             <div class="flex justify-between items-center mb-4">
               <h3 class="font-semibold text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
                   @click.stop="openBoardRedirect(board)">{{ board.name }}</h3>
-              <span class="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2 py-1 rounded-full border border-indigo-100">
-                {{ visibleTasksForBoard(board.id).length }}
-              </span>
+              <div class="flex items-center gap-1.5">
+                <span class="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2 py-1 rounded-full border border-indigo-100">
+                  {{ visibleTasksForBoard(board.id).length }}
+                </span>
+                <span v-if="columnOverdueCount(board.id) > 0"
+                      class="bg-red-50 text-red-600 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-red-100">
+                  {{ columnOverdueCount(board.id) }} overdue
+                </span>
+              </div>
             </div>
 
             <div class="space-y-3">
+              <!-- Skeleton loaders -->
+              <template v-if="isLoading">
+                <div v-for="n in 3" :key="'sk-'+n" class="p-3.5 rounded-lg border border-gray-100">
+                  <div class="skeleton-box h-3 w-3/4 mb-2"></div>
+                  <div class="skeleton-box h-2.5 w-full mb-1.5"></div>
+                  <div class="skeleton-box h-2.5 w-2/3 mb-3"></div>
+                  <div class="flex justify-between items-center">
+                    <div class="skeleton-box h-2.5 w-16"></div>
+                    <div class="flex gap-1"><div class="skeleton-box w-5 h-5 rounded-full"></div><div class="skeleton-box w-5 h-5 rounded-full"></div></div>
+                  </div>
+                </div>
+              </template>
               <div
                 v-for="task in visibleTasksForBoard(board.id)"
                 :key="task.id"
                 class="task-card bg-white shadow-sm p-3.5 cursor-move border-l-4"
                 :class="{
-                  'border-red-500': task.priority === 'high',
-                  'border-amber-400': task.priority === 'medium',
-                  'border-green-500': task.priority === 'low'
+                  'border-red-600 ring-1 ring-red-200': task.blocked,
+                  'border-red-500': !task.blocked && task.priority === 'high',
+                  'border-amber-400': !task.blocked && task.priority === 'medium',
+                  'border-green-500': !task.blocked && task.priority === 'low'
                 }"
                 draggable="true"
                 @dragstart="startDrag($event, task)"
                 @click="handleTaskClick(task)"
                 @contextmenu.prevent="showTaskContextMenu($event, task)"
               >
+                <!-- Blocked banner -->
+                <div v-if="task.blocked" class="flex items-center gap-1 mb-2 px-2 py-1 rounded bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold">
+                  <i class="fas fa-ban text-[9px]"></i> BLOCKED
+                </div>
+
+                <!-- Dependency badge: open blockers that aren't Done yet -->
+                <div v-if="openBlockerCount(task) > 0"
+                     class="flex items-center gap-1 mb-2 px-2 py-1 rounded bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold"
+                     :title="openBlockerTitles(task)">
+                  <i class="fas fa-lock text-[9px]"></i>
+                  Blocked by {{ openBlockerCount(task) }} task{{ openBlockerCount(task) === 1 ? '' : 's' }}
+                </div>
+
                 <div class="flex justify-between items-start mb-1.5">
                   <div class="flex items-center flex-1 min-w-0">
                     <h4 class="font-medium text-slate-900 text-sm truncate">{{ task.name }}</h4>
@@ -549,16 +686,24 @@
                   <span class="text-slate-400">· {{ (task.codeMeta && task.codeMeta.language) ? task.codeMeta.language : 'code' }}</span>
                 </div>
 
-                <div class="flex justify-between items-center text-xs text-slate-400 mt-1">
-                  <span><i class="far fa-clock mr-1"></i> {{ formatDate(task.dueDate) }}</span>
+                <div class="flex justify-between items-center text-xs mt-1">
+                  <span :class="task.dueDate ? smartDueDate(task.dueDate).cls : 'text-slate-400'">
+                    <i class="far fa-clock mr-1"></i>
+                    {{ task.dueDate ? smartDueDate(task.dueDate).label : 'No date' }}
+                  </span>
                   <div class="flex">
                     <div
-                      v-for="assignee in task.assignees"
+                      v-for="assignee in validAssignees(task)"
                       :key="assignee"
-                      class="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center border-2 border-white -ml-1"
                       :title="assignee"
+                      class="w-5 h-5 -ml-1"
                     >
-                      {{ getInitials(assignee) }}
+                      <img v-if="memberPhoto(assignee)" :src="memberPhoto(assignee)"
+                           class="w-5 h-5 rounded-full object-cover border-2 border-white bg-gray-100" />
+                      <div v-else
+                           class="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center border-2 border-white">
+                        {{ getInitials(assignee) }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -567,80 +712,147 @@
             </div>
           </div>
         </div>
+
       </div>
 
       <!-- Files -->
-      <div v-if="currentTab === 'files'" class="space-y-6">
-        <div class="flex justify-between items-center">
-          <h2 class="text-2xl font-bold text-slate-900">Files</h2>
+      <div v-if="currentTab === 'files'" class="space-y-4">
+
+        <!-- Header -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
+            <h2 class="text-2xl font-bold text-slate-900">Files</h2>
+            <p class="text-xs text-slate-400 mt-0.5">{{ files.length }} file{{ files.length !== 1 ? 's' : '' }} stored</p>
+          </div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <select v-model="fileSort" class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none cursor-pointer">
+              <option value="date">Newest first</option>
+              <option value="name">Name A–Z</option>
+            </select>
+            <div class="flex items-center bg-gray-100 rounded-lg p-1">
+              <button @click="fileView = 'grid'" class="px-2.5 py-1 rounded-md transition-colors"
+                      :class="fileView === 'grid' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-400 hover:text-slate-600'">
+                <i class="fas fa-th text-xs"></i>
+              </button>
+              <button @click="fileView = 'list'" class="px-2.5 py-1 rounded-md transition-colors"
+                      :class="fileView === 'list' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-400 hover:text-slate-600'">
+                <i class="fas fa-list text-xs"></i>
+              </button>
+            </div>
             <input type="file" ref="fileInput" @change="handleFileUpload" class="hidden">
-            <button @click="$refs.fileInput.click()"
-                    class="neon-button text-white px-4 py-2 rounded-lg flex items-center">
-              <i class="fas fa-plus mr-2"></i> Upload File
+            <button @click="$refs.fileInput.click()" class="neon-button text-white px-4 py-2 rounded-lg flex items-center text-sm">
+              <i class="fas fa-plus mr-2"></i> Upload
             </button>
           </div>
         </div>
 
-        <div v-if="uploadProgress > 0 && uploadProgress < 100"
-             class="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+        <!-- File type filter tabs -->
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button v-for="ft in [{v:'all',l:'All',i:'fas fa-layer-group'},{v:'docs',l:'Docs',i:'fas fa-file-alt'},{v:'images',l:'Images',i:'fas fa-image'},{v:'sheets',l:'Sheets',i:'fas fa-table'},{v:'archives',l:'Archives',i:'fas fa-file-archive'},{v:'other',l:'Other',i:'fas fa-file'}]"
+                  :key="ft.v" @click="fileTypeFilter = ft.v"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border"
+                  :class="fileTypeFilter === ft.v ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-gray-50'">
+            <i :class="ft.i + ' text-[10px]'"></i> {{ ft.l }}
+            <span class="opacity-70">({{ ft.v === 'all' ? files.length : files.filter(f => getFileCategory(f.type) === ft.v).length }})</span>
+          </button>
+        </div>
+
+        <!-- Drag & Drop Zone -->
+        <div class="border-2 border-dashed rounded-xl py-5 text-center transition-all cursor-pointer"
+             :class="fileDragOver ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 bg-gray-50/60 hover:border-indigo-300 hover:bg-indigo-50/30'"
+             @click="$refs.fileInput.click()"
+             @dragover.prevent="fileDragOver = true"
+             @dragleave="fileDragOver = false"
+             @drop.prevent="handleFileDrop">
+          <i class="fas fa-cloud-upload-alt text-2xl mb-1.5" :class="fileDragOver ? 'text-indigo-500' : 'text-slate-300'"></i>
+          <p class="text-sm font-medium" :class="fileDragOver ? 'text-indigo-600' : 'text-slate-400'">
+            {{ fileDragOver ? 'Release to upload' : 'Drop files here or click to browse' }}
+          </p>
+        </div>
+
+        <!-- Upload progress -->
+        <div v-if="uploadProgress > 0 && uploadProgress < 100" class="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
           <div class="flex justify-between items-center mb-2">
-            <span class="font-medium text-slate-900 text-sm">Uploading file...</span>
+            <span class="font-medium text-slate-900 text-sm">Uploading...</span>
             <span class="text-sm text-slate-500">{{ uploadProgress }}%</span>
           </div>
           <div class="w-full bg-gray-200 rounded-full h-1.5">
-            <div class="h-1.5 rounded-full file-progress"
-                 :style="{ width: uploadProgress + '%' }"></div>
+            <div class="h-1.5 rounded-full file-progress" :style="{ width: uploadProgress + '%' }"></div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div
-            v-for="file in files"
-            :key="file.id"
-            class="project-card p-5 relative group"
-            @contextmenu.prevent="showFileContextMenu($event, file)"
-          >
+        <!-- GRID VIEW -->
+        <div v-if="fileView === 'grid'" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div v-for="file in filteredFiles" :key="file.id"
+               class="project-card p-4 relative group cursor-default"
+               @contextmenu.prevent="showFileContextMenu($event, file)">
+            <span v-if="isNewFile(file.uploaded)"
+                  class="absolute top-2 left-2 text-[9px] px-1.5 py-0.5 rounded bg-green-500 text-white font-bold">NEW</span>
             <button @click="confirmDeleteFile(file)"
-                    class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity">
-              <i class="fas fa-times"></i>
+                    class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-opacity">
+              <i class="fas fa-times text-[10px]"></i>
             </button>
-            <div class="flex justify-center mb-4">
-              <div class="w-12 h-12 rounded-lg flex items-center justify-center text-xl"
-                   :class="{
-                     'bg-blue-50 text-blue-600': file.type === 'doc' || file.type === 'docx',
-                     'bg-red-50 text-red-600': file.type === 'pdf',
-                     'bg-green-50 text-green-600': file.type === 'xls' || file.type === 'xlsx',
-                     'bg-amber-50 text-amber-600': file.type === 'zip',
-                     'bg-purple-50 text-purple-600': file.type === 'png' || file.type === 'jpg' || file.type === 'jpeg',
-                     'bg-gray-100 text-gray-500': file.type === 'txt' || file.type === 'other'
-                   }">
-                <i class="fas" :class="{
-                  'fa-file-word': file.type === 'doc' || file.type === 'docx',
-                  'fa-file-pdf': file.type === 'pdf',
-                  'fa-file-excel': file.type === 'xls' || file.type === 'xlsx',
-                  'fa-file-archive': file.type === 'zip',
-                  'fa-file-image': file.type === 'png' || file.type === 'jpg' || file.type === 'jpeg',
-                  'fa-file-alt': file.type === 'txt' || file.type === 'other'
-                }"></i>
+            <div class="flex justify-center mb-3">
+              <div class="w-11 h-11 rounded-lg flex items-center justify-center" :class="fileIconBg(file.type)">
+                <i class="fas text-xl" :class="fileIconClass(file.type)"></i>
               </div>
             </div>
-            <h3 class="font-semibold text-center mb-1 truncate text-slate-900 text-sm">{{ file.name }}</h3>
-            <p class="text-slate-400 text-xs text-center mb-3">{{ file.size }}</p>
-
-            <div class="flex justify-between items-center text-xs text-slate-400">
-              <span>{{ formatDate(file.uploaded) }}</span>
-              <div class="flex space-x-2">
-                <button @click="downloadFile(file)" class="text-indigo-500 hover:text-indigo-700 transition-colors">
-                  <i class="fas fa-download"></i>
-                </button>
-                <button @click="openFile(file)" class="text-green-500 hover:text-green-700 transition-colors">
-                  <i class="fas fa-external-link-alt"></i>
-                </button>
-              </div>
+            <h3 class="font-medium text-center truncate text-slate-900 text-xs mb-0.5" :title="file.name">{{ file.name }}</h3>
+            <p class="text-slate-400 text-[10px] text-center mb-3">{{ file.size }}</p>
+            <div class="flex justify-center items-center gap-3">
+              <button @click="downloadFile(file)" class="text-slate-400 hover:text-indigo-600 transition-colors" title="Download"><i class="fas fa-download text-xs"></i></button>
+              <button @click="openFile(file)" class="text-slate-400 hover:text-green-600 transition-colors" title="Open"><i class="fas fa-external-link-alt text-xs"></i></button>
             </div>
           </div>
+          <div v-if="!filteredFiles.length" class="col-span-5 py-10 text-center text-slate-400">
+            <i class="fas fa-folder-open text-3xl mb-2 block"></i>
+            <p class="text-sm">No files match this filter</p>
+          </div>
         </div>
+
+        <!-- LIST VIEW -->
+        <div v-if="fileView === 'list'" class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div v-if="!filteredFiles.length" class="py-10 text-center text-slate-400">
+            <i class="fas fa-folder-open text-3xl mb-2 block"></i><p class="text-sm">No files match this filter</p>
+          </div>
+          <table v-else class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Name</th>
+                <th class="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Type</th>
+                <th class="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Size</th>
+                <th class="text-left px-4 py-2.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Uploaded</th>
+                <th class="px-4 py-2.5"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="file in filteredFiles" :key="file.id"
+                  class="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors"
+                  @contextmenu.prevent="showFileContextMenu($event, file)">
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" :class="fileIconBg(file.type)">
+                      <i class="fas text-sm" :class="fileIconClass(file.type)"></i>
+                    </div>
+                    <span class="font-medium text-slate-800 truncate max-w-[200px]" :title="file.name">{{ file.name }}</span>
+                    <span v-if="isNewFile(file.uploaded)" class="text-[9px] px-1.5 py-0.5 rounded bg-green-500 text-white font-bold flex-shrink-0">NEW</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3 text-slate-400 text-xs uppercase">{{ file.type }}</td>
+                <td class="px-4 py-3 text-slate-400 text-xs">{{ file.size }}</td>
+                <td class="px-4 py-3 text-slate-400 text-xs">{{ formatDate(file.uploaded) }}</td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2 justify-end">
+                    <button @click="downloadFile(file)" class="text-slate-400 hover:text-indigo-600 transition-colors" title="Download"><i class="fas fa-download text-xs"></i></button>
+                    <button @click="openFile(file)" class="text-slate-400 hover:text-green-600 transition-colors" title="Open"><i class="fas fa-external-link-alt text-xs"></i></button>
+                    <button @click="confirmDeleteFile(file)" class="text-slate-400 hover:text-red-500 transition-colors" title="Delete"><i class="fas fa-trash text-xs"></i></button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
 
       <!-- Activity Log -->
@@ -661,7 +873,7 @@
         </div>
 
         <div v-else class="space-y-2">
-          <div v-for="log in activityLogs" :key="log.id"
+          <div v-for="log in pagedActivityLogs" :key="log.id"
                class="flex items-start gap-3 p-3 rounded-lg bg-white border border-gray-200 hover:border-indigo-200 transition-colors shadow-sm">
             <div class="activity-icon"
                  :class="{
@@ -690,14 +902,32 @@
             </div>
             <span class="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-slate-500 border border-gray-200 flex-shrink-0">{{ log.targetType }}</span>
           </div>
+
+          <!-- Pagination -->
+          <div v-if="activityTotalPages > 1" class="flex items-center justify-center gap-2 pt-3">
+            <button @click="activityPage = Math.max(1, activityPage - 1)" :disabled="activityPage === 1"
+                    class="px-3 py-1.5 rounded-lg text-xs border border-gray-200 text-slate-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <span class="text-xs text-slate-500">Page {{ activityPage }} of {{ activityTotalPages }}</span>
+            <button @click="activityPage = Math.min(activityTotalPages, activityPage + 1)" :disabled="activityPage === activityTotalPages"
+                    class="px-3 py-1.5 rounded-lg text-xs border border-gray-200 text-slate-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- Calendar Tab -->
       <div v-if="currentTab === 'calendar'" class="space-y-4">
-        <div class="flex items-center justify-between mb-4">
+
+        <!-- Header row -->
+        <div class="flex items-center justify-between">
           <h2 class="text-lg font-semibold text-slate-900"><i class="fas fa-calendar-alt mr-2 text-indigo-600"></i>Calendar</h2>
           <div class="flex items-center gap-2">
+            <button @click="calendarJumpToday" class="px-3 py-1.5 rounded-lg text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-medium transition-colors">
+              <i class="fas fa-crosshairs mr-1"></i> Today
+            </button>
             <button @click="calendarPrev" class="px-3 py-1.5 rounded-lg text-xs bg-white text-slate-700 hover:bg-gray-50 border border-gray-200 transition-colors">
               <i class="fas fa-chevron-left"></i>
             </button>
@@ -708,40 +938,90 @@
           </div>
         </div>
 
-        <!-- Legend -->
-        <div class="flex items-center gap-4 text-[10px] mb-2 text-slate-600">
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-500"></span> Overdue</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-400"></span> High</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-400"></span> Medium</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-500"></span> Low</span>
-          <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-indigo-400"></span> Done</span>
+        <!-- Monthly Stats Bar -->
+        <div class="grid grid-cols-3 gap-3">
+          <div class="bg-white rounded-xl px-4 py-3 border border-slate-200 flex items-center gap-3">
+            <div style="width:34px;height:34px;border-radius:10px;background:#eef2ff;display:flex;align-items:center;justify-content:center;"><i class="fas fa-list-check" style="color:#4f46e5;font-size:14px;"></i></div>
+            <div><div class="text-xl font-bold text-slate-900">{{ calendarMonthStats.due }}</div><div class="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Due this month</div></div>
+          </div>
+          <div class="bg-white rounded-xl px-4 py-3 border border-red-100 flex items-center gap-3">
+            <div style="width:34px;height:34px;border-radius:10px;background:#fef2f2;display:flex;align-items:center;justify-content:center;"><i class="fas fa-clock" style="color:#ef4444;font-size:14px;"></i></div>
+            <div><div class="text-xl font-bold text-red-500">{{ calendarMonthStats.overdue }}</div><div class="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Overdue</div></div>
+          </div>
+          <div class="bg-white rounded-xl px-4 py-3 border border-green-100 flex items-center gap-3">
+            <div style="width:34px;height:34px;border-radius:10px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;"><i class="fas fa-circle-check" style="color:#16a34a;font-size:14px;"></i></div>
+            <div><div class="text-xl font-bold text-green-600">{{ calendarMonthStats.done }}</div><div class="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Completed</div></div>
+          </div>
         </div>
 
-        <div class="grid grid-cols-7 gap-px bg-gray-200 rounded-xl overflow-hidden border border-gray-200">
-          <!-- Day headers -->
-          <div v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="d"
-               class="bg-gray-50 text-center text-[11px] text-slate-500 py-2 font-semibold">{{ d }}</div>
-          <!-- Calendar cells -->
-          <div v-for="(cell, idx) in calendarDays" :key="idx"
-               class="bg-white min-h-[80px] p-1.5"
-               :class="{ 'bg-gray-50': !cell }">
-            <template v-if="cell">
-              <div class="text-[11px] font-semibold mb-1"
-                   :class="isToday(cell.iso) ? 'text-indigo-600' : 'text-slate-500'">
-                <span v-if="isToday(cell.iso)" class="px-1.5 py-0.5 rounded-full bg-indigo-600 text-white">{{ cell.day }}</span>
-                <span v-else>{{ cell.day }}</span>
+        <!-- Legend + Calendar + Upcoming panel -->
+        <div class="flex gap-4 items-start">
+
+          <!-- Calendar grid -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-3 text-[10px] mb-2 text-slate-500 flex-wrap">
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-500"></span> Overdue</span>
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-red-400"></span> High</span>
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-amber-400"></span> Medium</span>
+              <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded bg-green-500"></span> Low / Done</span>
+              <span class="flex items-center gap-1 ml-auto"><span class="w-10 h-2.5 rounded" style="background:linear-gradient(90deg,#eef2ff,#818cf8);"></span> Load intensity</span>
+            </div>
+            <div class="grid grid-cols-7 gap-px bg-gray-200 rounded-xl overflow-hidden border border-gray-200">
+              <div v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="d"
+                   class="bg-gray-50 text-center text-[11px] text-slate-500 py-2 font-semibold">{{ d }}</div>
+              <div v-for="(cell, idx) in calendarDays" :key="idx"
+                   class="min-h-[80px] p-1.5 transition-colors"
+                   :style="cell ? calendarHeatmapStyle(cell.events.length) : 'background:#f8fafc;'">
+                <template v-if="cell">
+                  <div class="text-[11px] font-semibold mb-1 leading-none">
+                    <span v-if="isToday(cell.iso)" class="today-ring">{{ cell.day }}</span>
+                    <span v-else class="text-slate-500">{{ cell.day }}</span>
+                  </div>
+                  <div class="space-y-0.5">
+                    <div v-for="ev in cell.events.slice(0, 3)" :key="ev.id"
+                         class="cal-event-chip text-[9px] px-1 py-0.5 rounded truncate"
+                         :class="calendarEventColor(ev)"
+                         :title="ev.title + ' — click to view'"
+                         @click="openTaskFromCalendar(ev)">
+                      {{ ev.title }}
+                    </div>
+                    <div v-if="cell.events.length > 3"
+                         class="text-[9px] text-indigo-600 px-1 font-medium cursor-pointer hover:underline"
+                         :title="'+' + (cell.events.length - 3) + ' more tasks'">+{{ cell.events.length - 3 }} more</div>
+                  </div>
+                </template>
               </div>
-              <div class="space-y-0.5">
-                <div v-for="ev in cell.events.slice(0, 3)" :key="ev.id"
-                     class="text-[9px] px-1 py-0.5 rounded truncate cursor-default"
-                     :class="calendarEventColor(ev)"
-                     :title="ev.title + ' (' + ev.column + ')'">
-                  {{ ev.title }}
-                </div>
-                <div v-if="cell.events.length > 3" class="text-[9px] text-gray-500 px-1">+{{ cell.events.length - 3 }} more</div>
-              </div>
-            </template>
+            </div>
           </div>
+
+          <!-- Upcoming Deadlines panel -->
+          <div class="w-52 flex-shrink-0">
+            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+                <i class="fas fa-bolt text-amber-500 text-xs"></i>
+                <span class="text-xs font-semibold text-slate-700">Upcoming Deadlines</span>
+              </div>
+              <div v-if="calendarUpcoming.length === 0" class="px-4 py-6 text-center">
+                <i class="fas fa-check-circle text-green-400 text-2xl mb-2"></i>
+                <p class="text-[11px] text-slate-400">No upcoming deadlines</p>
+              </div>
+              <div v-for="ev in calendarUpcoming" :key="ev.id"
+                   class="px-4 py-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50 cursor-pointer transition-colors"
+                   @click="openTaskFromCalendar(ev)">
+                <div class="flex items-start gap-2">
+                  <span class="mt-0.5 w-2 h-2 rounded-full flex-shrink-0"
+                        :class="ev.overdue ? 'bg-red-500' : ev.priority === 'high' ? 'bg-red-400' : ev.priority === 'medium' ? 'bg-amber-400' : 'bg-green-400'"></span>
+                  <div class="min-w-0">
+                    <div class="text-[11px] font-medium text-slate-800 truncate">{{ ev.title }}</div>
+                    <div class="text-[10px] mt-0.5" :class="ev.overdue ? 'text-red-500 font-semibold' : 'text-slate-400'">
+                      <i class="far fa-calendar mr-0.5"></i>{{ ev.date }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -768,12 +1048,17 @@
         </div>
 
         <div class="flex items-center gap-2 mb-5 text-xs flex-wrap">
+          <span v-if="detailTask.blocked" class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-200 font-bold">
+            <i class="fas fa-ban text-[9px]"></i> BLOCKED
+          </span>
           <span class="px-2 py-1 rounded-full font-medium" :class="{
             'bg-red-50 text-red-700 border border-red-200': detailTask.priority === 'high',
             'bg-amber-50 text-amber-700 border border-amber-200': detailTask.priority === 'medium',
             'bg-green-50 text-green-700 border border-green-200': detailTask.priority === 'low'
           }">{{ detailTask.priority }}</span>
-          <span class="text-slate-500"><i class="far fa-clock mr-1"></i>{{ formatDate(detailTask.dueDate) }}</span>
+          <span :class="detailTask.dueDate ? smartDueDate(detailTask.dueDate).cls : 'text-slate-400'">
+            <i class="far fa-clock mr-1"></i>{{ detailTask.dueDate ? smartDueDate(detailTask.dueDate).label : 'No date' }}
+          </span>
           <span class="text-slate-500"><i class="fas fa-columns mr-1"></i>{{ getBoardName(detailTask.boardId) }}</span>
         </div>
 
@@ -848,13 +1133,32 @@
                   </button>
                 </div>
               </div>
-              <p class="text-sm text-slate-700 mt-1">{{ c.body }}</p>
+              <p class="text-sm text-slate-700 mt-1 comment-body" v-html="renderCommentBody(c.body)"></p>
             </div>
           </div>
           <div v-else class="text-xs text-slate-400 mb-3">No comments yet. Be the first to comment.</div>
           <div class="flex items-start gap-2">
-            <textarea v-model="newCommentBody" @keydown.ctrl.enter="addComment" rows="2" placeholder="Write a comment... (Ctrl+Enter to send)"
-                      class="flex-1 px-3 py-2 modal-input text-sm resize-none"></textarea>
+            <div class="flex-1 relative">
+              <textarea ref="commentTextarea" v-model="newCommentBody"
+                        @keydown.ctrl.enter="addComment"
+                        @input="onCommentInput"
+                        @keydown.down.prevent="mentionDropdown.show && mentionMoveSelection(1)"
+                        @keydown.up.prevent="mentionDropdown.show && mentionMoveSelection(-1)"
+                        @keydown.enter="mentionDropdown.show ? (mentionPickHighlighted($event)) : null"
+                        @keydown.esc="closeMentionDropdown"
+                        @blur="onCommentBlur"
+                        rows="2" placeholder="Write a comment... Use @ to mention someone. Ctrl+Enter to send."
+                        class="w-full px-3 py-2 modal-input text-sm resize-none"></textarea>
+              <div v-if="mentionDropdown.show && mentionDropdown.matches.length" class="mention-dropdown">
+                <div v-for="(m, i) in mentionDropdown.matches" :key="m.email"
+                     class="mention-item" :class="{ active: i === mentionDropdown.index }"
+                     @mousedown.prevent="insertMention(m)">
+                  <i class="fas fa-user text-indigo-500 text-xs"></i>
+                  <span class="m-name">{{ m.name || m.email }}</span>
+                  <span class="m-email">{{ m.email }}</span>
+                </div>
+              </div>
+            </div>
             <button @click="addComment" class="px-3 py-2 rounded-lg text-xs neon-button text-white self-end">
               <i class="fas fa-paper-plane"></i>
             </button>
@@ -896,15 +1200,6 @@
             </p>
           </div>
 
-          <!-- Project -->
-          <div>
-            <label class="block text-slate-600 font-medium mb-1">Project (optional)</label>
-            <select v-model.number="currentTask.projectId" class="modal-input">
-              <option :value="null">No project</option>
-              <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
-            </select>
-          </div>
-
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-slate-600 font-medium mb-1">Priority</label>
@@ -919,6 +1214,56 @@
               <input type="date" v-model="currentTask.dueDate" class="modal-input">
             </div>
           </div>
+
+          <!-- Blocked-by (dependencies) picker -->
+          <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <div class="flex items-center justify-between mb-2">
+              <label class="block text-slate-700 text-sm font-medium">
+                <i class="fas fa-link mr-1 text-indigo-500"></i> Blocked by (dependencies)
+              </label>
+              <button type="button" @click="currentTask.blockedBy = []"
+                      class="text-[11px] text-slate-500 hover:text-slate-700">
+                Clear
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mb-2">
+              This task can't be finished until the selected tasks reach <span class="font-semibold">Done</span>.
+            </p>
+            <div v-if="availableBlockerTasks.length" class="max-h-40 overflow-y-auto space-y-1">
+              <label v-for="bt in availableBlockerTasks" :key="bt.id"
+                     class="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white cursor-pointer transition-colors">
+                <input type="checkbox" class="accent-indigo-600"
+                       :value="bt.id"
+                       v-model="currentTask.blockedBy" />
+                <span class="text-xs text-slate-900 truncate flex-1">{{ bt.name }}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded-full"
+                      :class="bt.boardId === 3 ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-600 border border-gray-200'">
+                  {{ getBoardName(bt.boardId) }}
+                </span>
+              </label>
+            </div>
+            <div v-else class="text-xs text-slate-400 italic">
+              No other tasks available to depend on.
+            </div>
+          </div>
+
+          <!-- Blocked toggle -->
+          <label class="flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors"
+                 :class="currentTask.blocked ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'">
+            <div class="relative flex-shrink-0">
+              <input type="checkbox" v-model="currentTask.blocked" class="sr-only">
+              <div class="w-9 h-5 rounded-full transition-colors" :class="currentTask.blocked ? 'bg-red-500' : 'bg-gray-300'"></div>
+              <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform" :class="currentTask.blocked ? 'translate-x-4' : ''"></div>
+            </div>
+            <div>
+              <span class="text-sm font-medium" :class="currentTask.blocked ? 'text-red-700' : 'text-slate-600'">
+                <i class="fas fa-ban mr-1"></i> Mark as Blocked
+              </span>
+              <p class="text-[10px] mt-0.5" :class="currentTask.blocked ? 'text-red-500' : 'text-slate-400'">
+                {{ currentTask.blocked ? 'Task is waiting on something to proceed' : 'Toggle if this task is blocked' }}
+              </p>
+            </div>
+          </label>
 
           <!-- Assignees (Team Head only) -->
           <div v-if="currentUserRole === 'head'" class="bg-gray-50 p-3 rounded-lg border border-gray-200">
@@ -1178,6 +1523,43 @@
     </div>
   </transition>
 
+  <!-- File Preview Modal -->
+  <div v-if="previewFile" class="preview-backdrop" @click.self="previewFile = null">
+    <div class="preview-box" style="width:min(860px,92vw);">
+      <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200 flex-shrink-0">
+        <div class="flex items-center gap-2 min-w-0">
+          <i class="fas fa-file text-indigo-500"></i>
+          <span class="font-semibold text-slate-900 text-sm truncate">{{ previewFile.name }}</span>
+          <span class="text-[11px] text-slate-400 flex-shrink-0">{{ previewFile.size }}</span>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <a :href="previewFile.content" download class="px-3 py-1.5 rounded-lg text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors">
+            <i class="fas fa-download mr-1"></i> Download
+          </a>
+          <button @click="previewFile = null" class="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-gray-100 hover:text-slate-700 transition-colors">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+      <div class="flex-1 overflow-auto bg-gray-50 flex items-center justify-center p-4" style="min-height:400px;">
+        <img v-if="isImageFile(previewFile)" :src="previewFile.content" :alt="previewFile.name"
+             class="max-w-full max-h-[70vh] rounded-lg shadow-md object-contain" />
+        <iframe v-else-if="isPdfFile(previewFile)" :src="previewFile.content"
+                class="w-full rounded" style="height:70vh;border:none;"></iframe>
+        <div v-else class="text-center py-12">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-400">
+            <i class="fas fa-file text-3xl"></i>
+          </div>
+          <p class="text-slate-600 font-medium mb-1">{{ previewFile.name }}</p>
+          <p class="text-slate-400 text-sm mb-4">Preview not available for this file type</p>
+          <a :href="previewFile.content" download class="px-4 py-2 rounded-lg text-sm bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+            <i class="fas fa-download mr-2"></i> Download file
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Context Menu -->
   <div v-if="contextMenu.visible" class="fixed z-50 context-menu rounded-lg py-1"
        :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
@@ -1235,8 +1617,14 @@
         isDark: true,
         searchQuery: "",
         highlightedIndex: 0,
-        currentTab: "tasks",
+        currentTab: "projects",
 
+        isLoading: true,
+        currentUserPhoto: "",
+        taskFilter: { priority: 'all', dueFilter: 'all' },
+        previewFile: null,
+        activityPage: 1,
+        activityPageSize: 15,
         dragOverBoard: null,
         showTaskModal: false,
         showProjectModal: false,
@@ -1255,10 +1643,12 @@
         itemToDelete: { type: "", name: "", id: null },
         contextMenu: { visible: false, type: null, item: null, x: 0, y: 0 },
 
-        teams: [],
-        newTeamName: "",
-        newTeamColor: "#00ffff",
-        editingTeamId: null,
+        projectFilter: 'all',
+
+        // Currently opened project board (null = show all tasks).
+        // When set, the Tasks tab only shows tasks belonging to this project,
+        // and new tasks created from that tab are saved under this project.
+        activeProjectId: null,
 
         currentTask: {
           id: null,
@@ -1269,7 +1659,8 @@
           assignees: [],
           boardId: 1,
           projectId: null,
-
+          blocked: false,
+          blockedBy: [],
           taskType: "normal",
           codeMeta: {
             codeName: "",          // ✅ required for super
@@ -1301,6 +1692,10 @@
         tasks: [],
         projects: [],
         files: [],
+        fileView: 'grid',
+        fileTypeFilter: 'all',
+        fileDragOver: false,
+        fileSort: 'date',
 
         approvalRequests: [],
 
@@ -1313,6 +1708,15 @@
 
         // Activity Log
         activityLogs: [],
+
+        // @mention autocomplete state for the comment textarea
+        mentionDropdown: {
+          show: false,
+          query: '',
+          startIndex: -1,
+          matches: [],
+          index: 0,
+        },
 
         // Task Detail (comments, attachments, subtasks)
         showTaskDetailModal: false,
@@ -1334,6 +1738,18 @@
     },
 
     computed: {
+      // Tasks eligible to be selected as a blocker for the currently-edited task:
+      // exclude self; if currentTask has a project, restrict to same-project tasks.
+      availableBlockerTasks() {
+        const selfId = this.currentTask && this.currentTask.id;
+        const selfProject = this.currentTask && this.currentTask.projectId;
+        return (this.tasks || []).filter(t => {
+          if (!t || t.id === selfId) return false;
+          if (selfProject && t.projectId && Number(t.projectId) !== Number(selfProject)) return false;
+          return true;
+        });
+      },
+
       globalResults() {
         const q = this.searchQuery.toLowerCase();
         return {
@@ -1379,6 +1795,43 @@
         return new Date(this.calendarYear, this.calendarMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
       },
 
+      filteredProjects() {
+        if (this.projectFilter === 'all') return this.projects;
+        return this.projects.filter(p => p.status === this.projectFilter);
+      },
+
+      activeProjectName() {
+        if (!this.activeProjectId) return '';
+        const p = this.projects.find(p => p.id === this.activeProjectId);
+        return p ? p.name : 'Project';
+      },
+
+      filteredFiles() {
+        let result = this.fileTypeFilter === 'all' ? this.files : this.files.filter(f => this.getFileCategory(f.type) === this.fileTypeFilter);
+        const sorted = [...result];
+        if (this.fileSort === 'name') sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        else sorted.sort((a, b) => (b.uploaded || '').localeCompare(a.uploaded || ''));
+        return sorted;
+      },
+
+      calendarMonthStats() {
+        const prefix = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}`;
+        const month = this.calendarEvents.filter(e => e.date && e.date.startsWith(prefix));
+        return {
+          due: month.length,
+          overdue: month.filter(e => e.overdue && !e.done).length,
+          done: month.filter(e => e.done).length
+        };
+      },
+
+      calendarUpcoming() {
+        const today = this._localDate();
+        return this.calendarEvents
+          .filter(e => e.date >= today && !e.done)
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .slice(0, 6);
+      },
+
       currentUserObj() {
         if (this.cachedUserObj) return this.cachedUserObj;
         const raw = localStorage.getItem("taskhive_current_user");
@@ -1391,7 +1844,26 @@
       currentUserEmail() { return (this.currentUserObj.email || this.currentUserObj.username || "").toLowerCase(); },
       currentUserInitials() { return (this.currentUserObj.name || "U").charAt(0).toUpperCase(); },
       currentUserRole() { return (this.currentUserObj.role || "member").toLowerCase(); },
-      pendingApprovalsCount() { return this.approvalRequests.length; }
+      pendingApprovalsCount() { return this.approvalRequests.length; },
+
+      pagedActivityLogs() {
+        const start = (this.activityPage - 1) * this.activityPageSize;
+        return this.activityLogs.slice(start, start + this.activityPageSize);
+      },
+
+      activityTotalPages() {
+        return Math.max(1, Math.ceil(this.activityLogs.length / this.activityPageSize));
+      },
+
+      recentNotifications() {
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        return (this.notifications || [])
+          .filter(n => {
+            const ts = new Date(n.createdAt).getTime();
+            return !isNaN(ts) && ts >= cutoff;
+          })
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      },
     },
 
     mounted() {
@@ -1492,8 +1964,13 @@
           this.teamMembers = members.map(m => ({
             email: m.email,
             name: m.name,
-            role: m.role
+            role: m.role,
+            photoUrl: m.photo_url || ""
           }));
+
+          // Resolve current user's photo from team members (by email match)
+          const mine = members.find(m => (m.email || "").toLowerCase() === this.currentUserEmail);
+          if (mine && mine.photo_url) this.currentUserPhoto = mine.photo_url;
 
           this.loadNotifications();
         } catch (e) {}
@@ -1559,8 +2036,14 @@
           const res = await fetch('/api/notifications/', { credentials: 'same-origin' });
           const data = await res.json();
           if (data.ok) {
-            this.notifications = Array.isArray(data.notifications) ? data.notifications : [];
-            this.unreadNotificationCount = data.unreadCount || 0;
+            const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+            const list = Array.isArray(data.notifications) ? data.notifications : [];
+            // Keep only last 7 days on the frontend as well (defence-in-depth)
+            this.notifications = list.filter(n => {
+              const ts = new Date(n.createdAt).getTime();
+              return !isNaN(ts) && ts >= cutoff;
+            });
+            this.unreadNotificationCount = this.notifications.filter(n => !n.isRead).length;
           }
         } catch (e) {}
       },
@@ -1628,6 +2111,9 @@
         }
       },
       initTheme() {
+        // Dark mode has been removed — keep a light theme default
+        document.body.classList.remove("dark");
+        try { localStorage.removeItem("taskhive_dark_mode"); } catch (e) {}
         const saved = localStorage.getItem("taskhive_theme");
         if (saved === "light") {
           this.isDark = false;
@@ -1649,9 +2135,28 @@
         }
       },
 
-      logout() {
+      isImageFile(file) {
+        if (!file) return false;
+        const ext = (file.name || '').split('.').pop().toLowerCase();
+        return ['jpg','jpeg','png','gif','webp','svg','bmp'].includes(ext);
+      },
+
+      isPdfFile(file) {
+        if (!file) return false;
+        const ext = (file.name || '').split('.').pop().toLowerCase();
+        return ext === 'pdf';
+      },
+
+      async logout() {
+        try {
+          await fetch('/api/logout/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRFToken': this._getCsrf() }
+          });
+        } catch (e) { /* ignore network errors — still clear client */ }
         localStorage.removeItem("taskhive_current_user");
-        window.location.href = "/login/";
+        window.location.href = "/";
       },
 
       _getCsrf() {
@@ -1680,6 +2185,8 @@
 
         if (task.projectId === undefined) task.projectId = null;
         if (!task.taskType) task.taskType = "normal";
+        if (task.blocked === undefined) task.blocked = false;
+        if (!Array.isArray(task.blockedBy)) task.blockedBy = [];
 
         if (!task.codeMeta || typeof task.codeMeta !== "object") task.codeMeta = {};
         task.codeMeta.codeName = task.codeMeta.codeName || "";
@@ -1700,7 +2207,23 @@
       },
 
       visibleTasksForBoard(boardId) {
-        return this.tasks.filter(t => t.boardId === boardId && this.canViewTask(t));
+        let tasks = this.tasks.filter(t => t.boardId === boardId && this.canViewTask(t));
+        // Hard filter: only tasks belonging to the currently opened project
+        if (this.activeProjectId) {
+          const pid = this.activeProjectId;
+          tasks = tasks.filter(t => Number(t.projectId) === Number(pid));
+        }
+        if (this.taskFilter.priority !== 'all') {
+          tasks = tasks.filter(t => t.priority === this.taskFilter.priority);
+        }
+        if (this.taskFilter.dueFilter !== 'all') {
+          const today = this._localDate();
+          const endOfWeek = this._localDate(7);
+          if (this.taskFilter.dueFilter === 'today')   tasks = tasks.filter(t => t.dueDate === today);
+          if (this.taskFilter.dueFilter === 'week')    tasks = tasks.filter(t => t.dueDate && t.dueDate >= today && t.dueDate <= endOfWeek);
+          if (this.taskFilter.dueFilter === 'overdue') tasks = tasks.filter(t => t.dueDate && t.dueDate < today);
+        }
+        return tasks;
       },
 
       isProjectMember(email) {
@@ -1735,9 +2258,11 @@
             this.files = Array.isArray(data.files) ? data.files : [];
             this.approvalRequests = Array.isArray(data.approvalRequests) ? data.approvalRequests : [];
             this.applyRouteContext();
+            this.isLoading = false;
           }
         } catch (e) {
           console.error('loadData failed', e);
+          this.isLoading = false;
         }
       },
 
@@ -1758,7 +2283,12 @@
       },
 
       openBoardRedirect() {
-        window.location.href = '/user/';
+        // Already on the board page — just reload
+        if (window.location.pathname === '/workspace/') {
+          window.location.reload();
+        } else {
+          window.location.href = '/workspace/';
+        }
       },
 
       closeApprovals() {
@@ -1910,13 +2440,58 @@
       async moveTask(event, boardId) {
         const taskId = parseInt(event.dataTransfer.getData("taskID"));
         const task = this.tasks.find((t) => t.id === taskId);
+
+        // No-op: dropped in the same column it came from.
+        // Skip API call, notifications, activity log, and toast.
+        if (task && task.boardId === boardId) {
+          this.draggedTask = null;
+          this.dragOverBoard = null;
+          return;
+        }
+
         if (task) {
+          // Guard: moving to Done while open blockers remain
+          if (boardId === 3 && this.openBlockerCount(task) > 0) {
+            const titles = this.openBlockerTitles(task);
+            const proceed = window.confirm(
+              `This task is blocked by ${this.openBlockerCount(task)} unfinished task(s):\n\n${titles}\n\nMove to Done anyway?`
+            );
+            if (!proceed) {
+              this.draggedTask = null;
+              this.dragOverBoard = null;
+              return;
+            }
+          }
           task.boardId = boardId;
           await this._postJson('/api/workspace/task/move/', { id: taskId, boardId: boardId });
           this.showToastMessage(`Task moved to ${this.getBoardName(boardId)}`);
         }
         this.draggedTask = null;
         this.dragOverBoard = null;
+      },
+
+      // List of tasks that can be picked as a blocker for the task being edited
+      // (excludes self, same project scope, same team).
+      openBlockerCount(task) {
+        const ids = Array.isArray(task.blockedBy) ? task.blockedBy : [];
+        if (!ids.length) return 0;
+        let n = 0;
+        for (const id of ids) {
+          const bt = this.tasks.find(t => t.id === id);
+          if (bt && bt.boardId !== 3) n++; // 3 = Done
+        }
+        return n;
+      },
+
+      openBlockerTitles(task) {
+        const ids = Array.isArray(task.blockedBy) ? task.blockedBy : [];
+        if (!ids.length) return '';
+        const names = [];
+        for (const id of ids) {
+          const bt = this.tasks.find(t => t.id === id);
+          if (bt && bt.boardId !== 3) names.push('• ' + bt.name);
+        }
+        return names.join('\n');
       },
 
       setDragOver(boardId, isOver) { this.dragOverBoard = isOver ? boardId : null; },
@@ -1934,6 +2509,11 @@
       openNewTask() {
         this.editingTask = false;
         this.resetCurrentTask();
+        // When creating from inside a project board, pre-bind the new task
+        // to that project so it is saved under it by default.
+        if (this.activeProjectId) {
+          this.currentTask.projectId = this.activeProjectId;
+        }
         this.showTaskModal = true;
       },
 
@@ -2007,6 +2587,8 @@
           assignees: [],
           boardId: 1,
           projectId: null,
+          blocked: false,
+          blockedBy: [],
           taskType: "normal",
           codeMeta: {
             codeName: "",
@@ -2050,6 +2632,30 @@
         this.showProjectModal = true;
       },
 
+      // Open a project's task board (NOT the edit modal).
+      openProjectBoard(project) {
+        if (!project || !project.id) return;
+        this.activeProjectId = project.id;
+        this.currentTab = 'tasks';
+        // Reset any task filters that might hide the project's tasks.
+        this.taskFilter = { priority: 'all', dueFilter: 'all' };
+      },
+
+      // Clear the active project filter and go back to the Projects tab.
+      clearActiveProject() {
+        this.activeProjectId = null;
+        this.currentTab = 'projects';
+      },
+
+      // Open the project-edit modal (pencil icon, context menu, etc.).
+      editProject(project) {
+        this.currentProject = { ...project, members: Array.isArray(project.members) ? [...project.members] : [] };
+        this.editingProject = true;
+        this.showProjectModal = true;
+      },
+
+      // Legacy alias kept so existing callers (notifications, search, routing)
+      // still work. Opens the edit modal, same as editProject.
       viewProject(project) {
         this.currentProject = { ...project, members: Array.isArray(project.members) ? [...project.members] : [] };
         this.editingProject = true;
@@ -2126,6 +2732,11 @@
         if (data.ok) {
           this.tasks = this.tasks.map(t => t.projectId === projectId ? { ...t, projectId: null } : t);
           this.projects = this.projects.filter(p => p.id !== projectId);
+          // If the deleted project was the one currently being viewed, exit its board.
+          if (this.activeProjectId === projectId) {
+            this.activeProjectId = null;
+            this.currentTab = 'projects';
+          }
           this.showToastMessage("Project deleted successfully");
         } else {
           this.showToastMessage(data.error || "Failed to delete project", true);
@@ -2134,45 +2745,63 @@
 
       getProjectTaskCount(projectId) { return this.tasks.filter(t => t.projectId === projectId).length; },
 
-      createOrUpdateTeam() {
-        const name = this.newTeamName.trim();
-        if (!name) return this.showToastMessage("Team name is required", true);
-
-        if (this.editingTeamId) {
-          const idx = this.teams.findIndex(t => t.id === this.editingTeamId);
-          if (idx !== -1) {
-            this.teams[idx].name = name;
-            this.teams[idx].color = this.newTeamColor;
-          }
-          this.showToastMessage("Team updated");
-        } else {
-          const newId = this.teams.length ? Math.max(...this.teams.map(t => t.id)) + 1 : 1;
-          this.teams.push({ id: newId, name, color: this.newTeamColor });
-          this.showToastMessage("Team added");
-        }
-        this.resetTeamForm();
+      getProjectDoneCount(projectId) {
+        return this.tasks.filter(t => t.projectId === projectId && t.boardId === 3).length;
       },
 
-      startEditTeam(team) {
-        this.editingTeamId = team.id;
-        this.newTeamName = team.name;
-        this.newTeamColor = team.color;
+      getProjectOverdueCount(projectId) {
+        const today = this._localDate();
+        return this.tasks.filter(t => t.projectId === projectId && t.boardId !== 3 && t.dueDate && t.dueDate < today).length;
       },
 
-      confirmDeleteTeam(team) {
-        this.itemToDelete = { type: 'team', name: team.name, id: team.id };
-        this.showConfirmationModal = true;
+      projectHealth(projectId) {
+        const overdue = this.getProjectOverdueCount(projectId);
+        const total = this.getProjectTaskCount(projectId);
+        if (total === 0 || overdue === 0) return { label: 'Healthy', cls: 'bg-green-50 text-green-700 border-green-200', dot: 'bg-green-500' };
+        if (overdue <= 2 || overdue / total < 0.35) return { label: 'At Risk', cls: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-400' };
+        return { label: 'Critical', cls: 'bg-red-50 text-red-700 border-red-200', dot: 'bg-red-500' };
       },
 
-      deleteTeam(teamId) {
-        this.teams = this.teams.filter(t => t.id !== teamId);
-        this.showToastMessage("Team deleted successfully");
+      getFileCategory(type) {
+        if (['doc','docx','pdf','txt'].includes(type)) return 'docs';
+        if (['png','jpg','jpeg','gif','svg','webp'].includes(type)) return 'images';
+        if (['xls','xlsx','csv'].includes(type)) return 'sheets';
+        if (['zip','rar','7z','tar'].includes(type)) return 'archives';
+        return 'other';
       },
 
-      resetTeamForm() {
-        this.editingTeamId = null;
-        this.newTeamName = "";
-        this.newTeamColor = "#00ffff";
+      isNewFile(uploaded) {
+        if (!uploaded) return false;
+        return (Date.now() - new Date(uploaded).getTime()) < 86400000;
+      },
+
+      fileIconBg(type) {
+        if (type === 'doc' || type === 'docx') return 'bg-blue-50 text-blue-600';
+        if (type === 'pdf') return 'bg-red-50 text-red-600';
+        if (['xls','xlsx','csv'].includes(type)) return 'bg-green-50 text-green-600';
+        if (['zip','rar','7z','tar'].includes(type)) return 'bg-amber-50 text-amber-600';
+        if (['png','jpg','jpeg','gif','svg','webp'].includes(type)) return 'bg-purple-50 text-purple-600';
+        return 'bg-gray-100 text-gray-500';
+      },
+
+      fileIconClass(type) {
+        if (type === 'doc' || type === 'docx') return 'fa-file-word';
+        if (type === 'pdf') return 'fa-file-pdf';
+        if (['xls','xlsx','csv'].includes(type)) return 'fa-file-excel';
+        if (['zip','rar','7z','tar'].includes(type)) return 'fa-file-archive';
+        if (['png','jpg','jpeg','gif','svg','webp'].includes(type)) return 'fa-file-image';
+        return 'fa-file-alt';
+      },
+
+      handleFileDrop(event) {
+        this.fileDragOver = false;
+        const file = event.dataTransfer.files[0];
+        if (!file) return;
+        this.uploadProgress = 0;
+        const interval = setInterval(() => {
+          this.uploadProgress += 10;
+          if (this.uploadProgress >= 100) { clearInterval(interval); this.addFile(file); }
+        }, 100);
       },
 
       handleFileUpload(event) {
@@ -2224,8 +2853,7 @@
       },
 
       openFile(file) {
-        window.open(file.content, '_blank');
-        this.showToastMessage(`Opening ${file.name}`);
+        this.previewFile = file;
         this.closeContextMenu();
       },
 
@@ -2278,7 +2906,6 @@
         if (type === 'task') this.deleteTask(id);
         else if (type === 'project') this.deleteProject(id);
         else if (type === 'file') this.deleteFile(id);
-        else if (type === 'team') this.deleteTeam(id);
         this.showConfirmationModal = false;
       },
 
@@ -2294,6 +2921,27 @@
         return status.charAt(0).toUpperCase() + status.slice(1);
       },
       getInitials(name) { return (name || "").substring(0, 1).toUpperCase(); },
+
+      memberPhoto(emailOrName) {
+        if (!emailOrName) return "";
+        const key = String(emailOrName).toLowerCase();
+        const m = (this.teamMembers || []).find(tm =>
+          (tm.email || "").toLowerCase() === key ||
+          (tm.name  || "").toLowerCase() === key
+        );
+        return (m && m.photoUrl) ? m.photoUrl : "";
+      },
+
+      // Only show assignees that are still active members of the current team.
+      // Hides orphaned assignees from users who have left/been removed.
+      validAssignees(task) {
+        const list = Array.isArray(task && task.assignees) ? task.assignees : [];
+        if (!this.teamMembers || !this.teamMembers.length) return list;
+        const validEmails = new Set(
+          this.teamMembers.map(m => (m.email || "").toLowerCase()).filter(Boolean)
+        );
+        return list.filter(a => validEmails.has(String(a || "").toLowerCase()));
+      },
 
       showToastMessage(message, isError = false) {
         this.toastMessage = message;
@@ -2358,9 +3006,99 @@
         if (data.ok && data.comment) {
           this.taskComments.push(data.comment);
           this.newCommentBody = "";
+          this.closeMentionDropdown();
         } else {
           this.showToastMessage(data.error || "Failed to add comment", true);
         }
+      },
+
+      // Render comment body with HTML escaped + @mentions highlighted
+      renderCommentBody(body) {
+        if (!body) return '';
+        const escape = (s) => String(s)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+        const escaped = escape(body);
+        return escaped.replace(
+          /@([A-Za-z0-9._+\-]+(?:@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})?)/g,
+          '<span class="mention">@$1</span>'
+        );
+      },
+
+      // === @mention autocomplete ===
+      onCommentInput(e) {
+        const el = e && e.target ? e.target : this.$refs.commentTextarea;
+        if (!el) return;
+        const caret = el.selectionStart || 0;
+        const upto = (this.newCommentBody || '').slice(0, caret);
+        const m = upto.match(/@([A-Za-z0-9._+\-]*)$/);
+        if (!m) {
+          this.closeMentionDropdown();
+          return;
+        }
+        const query = m[1].toLowerCase();
+        const matches = (this.teamMembers || [])
+          .filter(tm => {
+            const email = String(tm.email || '').toLowerCase();
+            const name = String(tm.name || '').toLowerCase();
+            const prefix = email.split('@')[0];
+            if (!query) return true;
+            return email.includes(query) || name.includes(query) || prefix.includes(query);
+          })
+          .slice(0, 6);
+        this.mentionDropdown.show = matches.length > 0;
+        this.mentionDropdown.query = query;
+        this.mentionDropdown.startIndex = caret - m[0].length;
+        this.mentionDropdown.matches = matches;
+        this.mentionDropdown.index = 0;
+      },
+
+      mentionMoveSelection(delta) {
+        const n = this.mentionDropdown.matches.length;
+        if (!n) return;
+        this.mentionDropdown.index = (this.mentionDropdown.index + delta + n) % n;
+      },
+
+      mentionPickHighlighted(event) {
+        const m = this.mentionDropdown.matches[this.mentionDropdown.index];
+        if (m) {
+          if (event) event.preventDefault();
+          this.insertMention(m);
+        }
+      },
+
+      insertMention(member) {
+        const el = this.$refs.commentTextarea;
+        const body = this.newCommentBody || '';
+        const caret = el ? (el.selectionStart || body.length) : body.length;
+        const start = this.mentionDropdown.startIndex >= 0 ? this.mentionDropdown.startIndex : caret;
+        const emailPrefix = String(member.email || '').split('@')[0] || member.email || '';
+        const handle = '@' + emailPrefix + ' ';
+        this.newCommentBody = body.slice(0, start) + handle + body.slice(caret);
+        this.closeMentionDropdown();
+        this.$nextTick(() => {
+          if (el) {
+            const pos = start + handle.length;
+            el.focus();
+            el.setSelectionRange(pos, pos);
+          }
+        });
+      },
+
+      closeMentionDropdown() {
+        this.mentionDropdown.show = false;
+        this.mentionDropdown.query = '';
+        this.mentionDropdown.startIndex = -1;
+        this.mentionDropdown.matches = [];
+        this.mentionDropdown.index = 0;
+      },
+
+      onCommentBlur() {
+        // Small delay so mousedown on an autocomplete item can run before we close.
+        setTimeout(() => this.closeMentionDropdown(), 150);
       },
 
       async deleteComment(commentId) {
@@ -2463,16 +3201,71 @@
         else this.calendarMonth++;
       },
 
+      calendarJumpToday() {
+        const now = new Date();
+        this.calendarMonth = now.getMonth();
+        this.calendarYear = now.getFullYear();
+      },
+
       isToday(iso) {
-        return iso === new Date().toISOString().slice(0, 10);
+        return iso === this._localDate();
+      },
+
+      calendarHeatmapStyle(count) {
+        if (count === 0) return 'background:#ffffff;';
+        if (count === 1) return 'background:#eef2ff;';
+        if (count === 2) return 'background:#e0e7ff;';
+        if (count === 3) return 'background:#c7d2fe;';
+        return 'background:#a5b4fc;';
+      },
+
+      columnOverdueCount(boardId) {
+        const today = this._localDate();
+        return this.visibleTasksForBoard(boardId).filter(t => t.dueDate && t.dueDate < today).length;
+      },
+
+      // Returns YYYY-MM-DD in the user's LOCAL timezone (not UTC).
+      // Using toISOString() here caused off-by-one-day bugs near midnight in
+      // non-UTC timezones (e.g. Nepal UTC+5:45) where tasks appeared
+      // 'Due Today' on the wrong calendar date.
+      _localDate(offsetDays = 0) {
+        const d = new Date();
+        if (offsetDays) d.setDate(d.getDate() + offsetDays);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      },
+
+      smartDueDate(dueDate) {
+        if (!dueDate) return null;
+        const today = this._localDate();
+        const tomorrow = this._localDate(1);
+        // Use ms-per-day math on a fixed 'noon' anchor to avoid DST rounding errors.
+        const toNoon = (iso) => new Date(iso + 'T12:00:00');
+        const diff = Math.round((toNoon(dueDate) - toNoon(today)) / 86400000);
+        if (dueDate < today) return { label: `Overdue ${Math.abs(diff)}d`, cls: 'text-red-600 font-semibold' };
+        if (dueDate === today) return { label: 'Due Today', cls: 'text-red-500 font-semibold' };
+        if (dueDate === tomorrow) return { label: 'Tomorrow', cls: 'text-amber-600 font-semibold' };
+        if (diff <= 3) return { label: `${diff} days left`, cls: 'text-amber-500 font-medium' };
+        return { label: this.formatDate(dueDate), cls: 'text-slate-400' };
       },
 
       calendarEventColor(ev) {
-        if (ev.done) return 'bg-green-700/60 text-green-200';
-        if (ev.overdue) return 'bg-red-700/60 text-red-200';
-        if (ev.priority === 'high') return 'bg-red-900/50 text-red-300';
-        if (ev.priority === 'low') return 'bg-green-900/50 text-green-300';
-        return 'bg-yellow-900/50 text-yellow-300';
+        if (ev.done) return 'bg-green-100 text-green-800';
+        if (ev.overdue) return 'bg-red-100 text-red-800';
+        if (ev.priority === 'high') return 'bg-red-50 text-red-700';
+        if (ev.priority === 'low') return 'bg-green-50 text-green-700';
+        return 'bg-amber-50 text-amber-700';
+      },
+
+      openTaskFromCalendar(ev) {
+        const full = this.tasks.find(t => t.id === ev.id);
+        if (full) {
+          this.openTaskDetail(full);
+        } else {
+          this.openTaskDetail({ id: ev.id, name: ev.title, description: '', priority: ev.priority || 'medium', dueDate: ev.date, boardId: null });
+        }
       }
     }
   });

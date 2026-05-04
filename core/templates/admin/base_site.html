@@ -1,0 +1,24 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | TaskHive Admin{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+  <a href="{% url 'admin:index' %}">
+    🧊 TaskHive Admin
+  </a>
+</h1>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'core/css/admin_custom.css' %}">
+{% endblock %}
+
+{% block footer %}
+<div style="text-align:center; padding:16px; color:#94a3b8; font-size:0.78rem; font-weight:500;">
+  TaskHive &copy; 2026 &mdash; Project Management Platform
+</div>
+{% endblock %}

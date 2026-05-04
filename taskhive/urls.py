@@ -1,11 +1,12 @@
-from django.contrib import admin
 from django.urls import path, include
 
 from django.conf import settings
 from django.conf.urls.static import static
 
+from core.admin import taskhive_admin
+
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path("admin/", taskhive_admin.urls),
     path("", include("core.urls")),
 ]
 

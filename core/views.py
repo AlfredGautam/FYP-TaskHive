@@ -3,8 +3,12 @@
 import json
 import logging
 import random
+import re
 import secrets
 from datetime import timedelta, date
+
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +18,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.models import User
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -84,7 +88,9 @@ def dashboard_page(request):
 
 @ensure_csrf_cookie
 def login_page(request):
-    return render(request, "core/login_new.html")
+    return render(request, "core/login_new.html", {
+        "google_client_id": settings.GOOGLE_CLIENT_ID,
+    })
 
 
 @login_required
@@ -198,60 +204,122 @@ def api_login(request):
     return JsonResponse({"ok": True, "redirect": "/user/"})
 
 
-@csrf_exempt
-@require_POST
-@rate_limit(max_requests=20, window_seconds=60)
-def api_google_auth(request):
-    """Verify a Google ID-token and log the user in (create account if new)."""
-    try:
-        data = json.loads(request.body.decode("utf-8"))
-    except Exception:
-        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+def google_auth_start(request):
+    """Step 1: Redirect the user to Google's OAuth2 consent screen."""
+    import urllib.parse
+    client_id = settings.GOOGLE_CLIENT_ID
+    if not client_id:
+        return redirect("/login/")
 
-    credential = data.get("credential", "").strip()
-    if not credential:
-        return JsonResponse({"ok": False, "error": "Missing credential"}, status=400)
+    state = secrets.token_hex(16)
 
-    # Verify the token with google-auth
-    from google.oauth2 import id_token as google_id_token
-    from google.auth.transport import requests as google_requests
+    redirect_uri = "http://127.0.0.1:8000/auth/google/callback/"
+    params = urllib.parse.urlencode({
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "online",
+        "prompt": "select_account",
+    })
+    response = redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
+    response.set_cookie("google_oauth_state", state, max_age=600, httponly=True, samesite="Lax")
+    return response
 
-    try:
-        idinfo = google_id_token.verify_oauth2_token(
-            credential,
-            google_requests.Request(),
-            settings.GOOGLE_OAUTH_CLIENT_ID,
+
+def google_auth_callback(request):
+    """Step 2: Google redirects here with an authorization code. Exchange it
+    for an ID-token, find/create the user, and log them in."""
+    import requests as http_requests
+
+    error = request.GET.get("error")
+    if error:
+        return HttpResponse(f"Google OAuth error: {error}", status=400)
+
+    code = request.GET.get("code", "")
+    state = request.GET.get("state", "")
+    saved_state = request.COOKIES.get("google_oauth_state", "")
+
+    if not code:
+        return HttpResponse("Missing authorization code", status=400)
+
+    client_id = settings.GOOGLE_CLIENT_ID
+    client_secret = settings.GOOGLE_CLIENT_SECRET
+    redirect_uri = "http://127.0.0.1:8000/auth/google/callback/"
+
+    # Exchange the authorization code for tokens
+    token_resp = http_requests.post("https://oauth2.googleapis.com/token", data={
+        "code": code,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code",
+    }, timeout=10)
+
+    if token_resp.status_code != 200:
+        return HttpResponse(
+            f"Token exchange failed ({token_resp.status_code}): {token_resp.text}",
+            status=400,
         )
-    except ValueError:
-        return JsonResponse({"ok": False, "error": "Invalid Google token."}, status=401)
 
+    token_data = token_resp.json()
+    access_token = token_data.get("access_token", "")
+
+    if not access_token:
+        return HttpResponse("Google token response missing access_token", status=400)
+
+    # Use the userinfo endpoint instead of JWT verification (avoids clock skew issues)
+    userinfo_resp = http_requests.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=10,
+    )
+    if userinfo_resp.status_code != 200:
+        return HttpResponse(f"Failed to get user info: {userinfo_resp.text}", status=400)
+
+    idinfo = userinfo_resp.json()
     email = (idinfo.get("email") or "").strip().lower()
-    if not email or not idinfo.get("email_verified"):
-        return JsonResponse({"ok": False, "error": "Google account email not verified."}, status=401)
-
     name = idinfo.get("name") or email.split("@")[0]
 
-    # Get or create user
+    if not email:
+        return HttpResponse("Google account has no email", status=400)
+
+    # Find or create user
     user = User.objects.filter(email__iexact=email).first()
     if user is None:
-        # New user — create with unusable password (Google-only)
-        username = email  # match existing convention
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            first_name=name.split()[0] if name else "",
-            last_name=" ".join(name.split()[1:]) if name and len(name.split()) > 1 else "",
-        )
+        user = User.objects.filter(username=email).first()
+    if user is None:
+        user = User.objects.create_user(username=email, email=email, first_name=name)
         user.set_unusable_password()
         user.save()
-        UserProfile.objects.get_or_create(user=user)
         try:
-            send_welcome_email(email, name)
+            from .email_utils import send_welcome_email
+            send_welcome_email(user_name=name, user_email=email)
         except Exception:
-            logger.warning("Failed to send welcome email to %s", email)
+            pass
 
-    login(request, user, backend="core.backends.EmailBackend")
-    return JsonResponse({"ok": True, "redirect": "/user/", "name": user.get_full_name() or user.username, "email": user.email})
+    try:
+        login(request, user, backend="core.backends.EmailBackend")
+    except Exception as e:
+        return HttpResponse(f"Login failed: {e}", status=500)
+
+    # The /user/ page checks localStorage for "taskhive_current_user" on the client side.
+    # We must set it via a small redirect page so the dashboard doesn't bounce to /login/.
+    display_name = user.get_full_name() or user.first_name or user.username
+    html = (
+        '<!DOCTYPE html><html><head><script>'
+        'localStorage.setItem("taskhive_current_user", JSON.stringify({'
+        f'"name": "{display_name}",'
+        f'"email": "{email}",'
+        '"lastLogin": new Date().toISOString()'
+        '}));'
+        'window.location.href = "/user/";'
+        '</script></head><body>Redirecting...</body></html>'
+    )
+    response = HttpResponse(html, content_type="text/html")
+    response.delete_cookie("google_oauth_state")
+    return response
 
 
 def _gen_team_code() -> str:
@@ -414,13 +482,22 @@ def api_team_pending_invitations(request, team_id):
     if not membership or membership.role != TeamMembership.ROLE_HEAD:
         return JsonResponse({"ok": False, "error": "Only admin can view invitations"}, status=403)
 
-    invitations = TeamInvitation.objects.filter(team_id=team_id).select_related("invited_user", "invited_by").order_by("-created_at")[:50]
+    invitations = TeamInvitation.objects.filter(team_id=team_id).select_related("invited_user", "invited_user__profile", "invited_by").order_by("-created_at")[:50]
+
+    def _photo(u):
+        prof = getattr(u, "profile", None)
+        if prof and prof.photo:
+            try: return prof.photo.url
+            except Exception: return ""
+        return ""
+
     result = []
     for inv in invitations:
         result.append({
             "id": inv.id,
             "invitedUser": inv.invited_user.get_full_name() or inv.invited_user.username,
             "invitedEmail": inv.invited_user.email or inv.invited_user.username,
+            "invitedUserPhoto": _photo(inv.invited_user),
             "invitedBy": inv.invited_by.get_full_name() or inv.invited_by.username,
             "status": inv.status,
             "createdAt": inv.created_at.isoformat(),
@@ -685,6 +762,7 @@ def api_my_teams(request):
             "name": m.team.name,
             "code": m.team.code,
             "role": m.role,
+            "is_owner": (m.user_id == m.team.created_by_id),
             "joined_at": m.joined_at.isoformat(),
         })
     return JsonResponse({"ok": True, "teams": teams})
@@ -717,12 +795,22 @@ def api_team_members(request, team_id: int):
     if not is_member:
         return JsonResponse({"ok": False, "error": "Not a team member"}, status=403)
 
+    team_obj = Team.objects.filter(id=team_id).first()
+    owner_id = team_obj.created_by_id if team_obj else None
+
     memberships = (
         TeamMembership.objects
-        .select_related("user")
+        .select_related("user", "user__profile")
         .filter(team_id=team_id)
         .order_by("role", "joined_at")
     )
+
+    def _photo(u):
+        prof = getattr(u, "profile", None)
+        if prof and prof.photo:
+            try: return prof.photo.url
+            except Exception: return ""
+        return ""
 
     return JsonResponse({
         "ok": True,
@@ -732,6 +820,8 @@ def api_team_members(request, team_id: int):
                 "name": (m.user.get_full_name() or m.user.username),
                 "username": m.user.username,
                 "role": m.role,
+                "is_owner": (m.user_id == owner_id),
+                "photo_url": _photo(m.user),
             }
             for m in memberships
         ],
@@ -746,10 +836,30 @@ def api_team_leave(request):
         return JsonResponse({"ok": True})
 
     team_id = profile.current_team_id
+    team_obj = Team.objects.filter(id=team_id).first()
+
     TeamMembership.objects.filter(team_id=team_id, user=request.user).delete()
 
     profile.current_team = None
     profile.save(update_fields=["current_team"])
+
+    # Clean up leftover references to this user inside the team's tasks and projects
+    if team_obj:
+        board = _get_team_board(team_obj)
+        if board:
+            for task in Task.objects.filter(board=board).prefetch_related("assignees"):
+                task.assignees.remove(request.user)
+
+        user_email = (request.user.email or request.user.username or "").lower()
+        for project in Project.objects.filter(team_id=team_id):
+            members = project.members if isinstance(project.members, list) else []
+            cleaned = [m for m in members if (m or "").lower() != user_email]
+            if cleaned != members:
+                project.members = cleaned
+                project.save(update_fields=["members"])
+
+    # Wipe this user's notifications for this team so a rejoin starts clean
+    Notification.objects.filter(team_id=team_id, recipient=request.user).delete()
 
     if not TeamMembership.objects.filter(team_id=team_id).exists():
         Team.objects.filter(id=team_id).delete()
@@ -1292,6 +1402,46 @@ def _actor_name(user):
     return (user.get_full_name() or user.first_name or user.username or user.email or "Someone")
 
 
+# Matches @alice, @alice.smith, @alice@example.com
+_MENTION_RE = re.compile(r'@([A-Za-z0-9._+\-]+(?:@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})?)')
+
+
+def _parse_mentions(body, team):
+    """Return list of User objects @mentioned in body, restricted to team members.
+
+    Supports matching by:
+      - full email (alice@example.com)
+      - email prefix before @ (alice)
+      - display name without spaces (alicesmith)
+      - public username (from UserProfile.username_public)
+    """
+    if not body or not team:
+        return []
+    tokens = set(m.group(1).lower() for m in _MENTION_RE.finditer(body))
+    if not tokens:
+        return []
+    memberships = TeamMembership.objects.filter(team=team).select_related("user")
+    matched = []
+    seen_ids = set()
+    for mship in memberships:
+        u = mship.user
+        if not u or u.id in seen_ids:
+            continue
+        email = (u.email or u.username or "").lower()
+        email_prefix = email.split("@")[0] if "@" in email else email
+        display_squashed = (u.get_full_name() or "").lower().replace(" ", "")
+        username_public = ""
+        try:
+            username_public = (u.profile.username_public or "").lower()
+        except Exception:
+            pass
+        candidates = {c for c in (email, email_prefix, display_squashed, username_public) if c}
+        if tokens & candidates:
+            matched.append(u)
+            seen_ids.add(u.id)
+    return matched
+
+
 def _notify_team(
     team,
     actor,
@@ -1385,6 +1535,7 @@ def _task_to_dict(task):
         "projectId": None,
         "taskType": task.task_type,
         "codeMeta": code_meta,
+        "blockedBy": list(task.blocked_by.values_list("id", flat=True)),
     }
 
 
@@ -1405,7 +1556,7 @@ def api_workspace_load(request):
     for i, c in enumerate(columns):
         col_id_to_board_id[c.id] = i + 1
 
-    tasks_qs = Task.objects.filter(board=board).select_related("column").prefetch_related("assignees")
+    tasks_qs = Task.objects.filter(board=board).select_related("column").prefetch_related("assignees", "blocked_by")
     tasks_list = []
     for t in tasks_qs:
         assignee_emails = list(t.assignees.values_list("email", flat=True))
@@ -1434,6 +1585,8 @@ def api_workspace_load(request):
             "projectId": project_id,
             "taskType": t.task_type,
             "codeMeta": code_meta,
+            "blocked": t.is_blocked,
+            "blockedBy": [b.id for b in t.blocked_by.all()],
         })
 
     projects_qs = Project.objects.filter(team=team)
@@ -1524,9 +1677,20 @@ def api_workspace_task_save(request):
         due_date = due_date_raw
 
     code_meta = data.get("codeMeta") or {}
-    project_id = data.get("projectId")
-    if project_id is not None:
-        code_meta["_projectId"] = project_id
+    # Always record projectId from payload (use key presence to decide).
+    # Coerce to int when possible so filtering is consistent across load/save.
+    if "projectId" in data:
+        raw_pid = data.get("projectId")
+        try:
+            project_id = int(raw_pid) if raw_pid not in (None, "", "null") else None
+        except (TypeError, ValueError):
+            project_id = None
+        if project_id is None:
+            code_meta.pop("_projectId", None)
+        else:
+            code_meta["_projectId"] = project_id
+    else:
+        project_id = code_meta.get("_projectId")
 
     is_update = bool(task_id)
     old_assignee_ids = set()
@@ -1544,6 +1708,7 @@ def api_workspace_task_save(request):
         task.task_type = data.get("taskType", "normal")
         task.column = column
         task.labels = code_meta
+        task.is_blocked = bool(data.get("blocked", False))
         task.save()
     else:
         task = Task.objects.create(
@@ -1555,20 +1720,45 @@ def api_workspace_task_save(request):
             due_date=due_date,
             task_type=data.get("taskType", "normal"),
             labels=code_meta,
+            is_blocked=bool(data.get("blocked", False)),
             created_by=request.user,
         )
 
-    task.assignees.clear()
-    assignees = data.get("assignees", [])
+    # --- Task dependencies (blocked_by) ---
+    if "blockedBy" in data:
+        raw_ids = data.get("blockedBy") or []
+        try:
+            blocker_ids = [int(x) for x in raw_ids if x is not None]
+        except (TypeError, ValueError):
+            blocker_ids = []
+        # Restrict to tasks on the same board; drop self-reference
+        valid_blocker_ids = list(
+            Task.objects.filter(id__in=blocker_ids, board=board)
+            .exclude(id=task.id)
+            .values_list("id", flat=True)
+        )
+        task.blocked_by.set(valid_blocker_ids)
+
+    # Only team admins (head) can assign tasks. Regular members cannot
+    # change assignees; their assignees field in the payload is ignored
+    # and any existing assignees are preserved.
+    is_admin = (membership.role == TeamMembership.ROLE_HEAD)
     new_assignee_users = []
-    if assignees:
-        new_assignee_users = list(User.objects.filter(
-            id__in=TeamMembership.objects.filter(
-                team=team,
-                user__email__in=assignees,
-            ).values_list("user_id", flat=True)
-        ))
-        task.assignees.set(new_assignee_users)
+
+    if is_admin:
+        task.assignees.clear()
+        assignees = data.get("assignees", [])
+        if assignees:
+            new_assignee_users = list(User.objects.filter(
+                id__in=TeamMembership.objects.filter(
+                    team=team,
+                    user__email__in=assignees,
+                ).values_list("user_id", flat=True)
+            ))
+            task.assignees.set(new_assignee_users)
+    else:
+        # Non-admins: keep existing assignees (for updates), no assignees on create
+        new_assignee_users = list(task.assignees.all())
 
     # Determine which assignees are truly new (not previously assigned)
     truly_new_assignee_users = [u for u in new_assignee_users if u.id not in old_assignee_ids]
@@ -1635,6 +1825,8 @@ def api_workspace_task_save(request):
             "projectId": project_id,
             "taskType": task.task_type,
             "codeMeta": code_meta,
+            "blocked": task.is_blocked,
+            "blockedBy": list(task.blocked_by.values_list("id", flat=True)),
         }
     })
 
@@ -1699,7 +1891,12 @@ def api_workspace_task_move(request):
         return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
 
     if isinstance(board_id_fe, int) and 1 <= board_id_fe <= len(columns):
-        task.column = columns[board_id_fe - 1]
+        target_column = columns[board_id_fe - 1]
+        # No-op guard: task already in the target column -> skip write, notification, activity log.
+        if task.column_id == target_column.id:
+            return JsonResponse({"ok": True, "noop": True})
+
+        task.column = target_column
         task.save(update_fields=["column"])
         _notify_team(
             team,
@@ -1892,8 +2089,13 @@ def api_team_member_remove(request):
     target_membership = TeamMembership.objects.filter(team_id=team_id, user=target_user).first()
     if not target_membership:
         return JsonResponse({"ok": False, "error": "User is not in this team"}, status=404)
-    if target_membership.role == TeamMembership.ROLE_HEAD:
-        return JsonResponse({"ok": False, "error": "Cannot remove team head"}, status=400)
+
+    team_obj = Team.objects.filter(id=team_id).first()
+    owner_id = team_obj.created_by_id if team_obj else None
+    if target_user.id == owner_id:
+        return JsonResponse({"ok": False, "error": "The team owner cannot be removed"}, status=403)
+    if target_membership.role == TeamMembership.ROLE_HEAD and request.user.id != owner_id:
+        return JsonResponse({"ok": False, "error": "Only the team owner can remove admins"}, status=403)
 
     target_membership.delete()
 
@@ -1911,6 +2113,9 @@ def api_team_member_remove(request):
             project.members = cleaned
             project.save(update_fields=["members"])
 
+    # Wipe the removed user's notifications for this team so a rejoin starts clean
+    Notification.objects.filter(team_id=team_id, recipient=target_user).delete()
+
     _notify_team(
         admin_membership.team,
         request.user,
@@ -1920,6 +2125,117 @@ def api_team_member_remove(request):
         target_type="member",
         target_id=target_user.id,
         extra={"teamId": admin_membership.team_id, "memberEmail": target_email},
+    )
+
+    return JsonResponse({"ok": True})
+
+
+@require_POST
+@login_required
+def api_team_member_promote(request):
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    team_id = data.get("team_id")
+    member_email = (data.get("member_email") or "").strip().lower()
+    if not team_id or not member_email:
+        return JsonResponse({"ok": False, "error": "team_id and member_email required"}, status=400)
+
+    admin_membership = TeamMembership.objects.filter(team_id=team_id, user=request.user).first()
+    if not admin_membership:
+        return JsonResponse({"ok": False, "error": "Not a team member"}, status=403)
+    if admin_membership.role != TeamMembership.ROLE_HEAD:
+        return JsonResponse({"ok": False, "error": "Only admin can promote members"}, status=403)
+
+    from django.db.models import Q
+    target_membership = (
+        TeamMembership.objects
+        .select_related("user")
+        .filter(team_id=team_id)
+        .filter(Q(user__email__iexact=member_email) | Q(user__username__iexact=member_email))
+        .first()
+    )
+    if not target_membership:
+        return JsonResponse({"ok": False, "error": "User is not in this team"}, status=404)
+
+    target_user = target_membership.user
+    if target_user.id == request.user.id:
+        return JsonResponse({"ok": False, "error": "You are already an admin"}, status=400)
+    if target_membership.role == TeamMembership.ROLE_HEAD:
+        return JsonResponse({"ok": False, "error": "User is already an admin"}, status=400)
+
+    target_membership.role = TeamMembership.ROLE_HEAD
+    target_membership.save(update_fields=["role"])
+
+    _notify_team(
+        admin_membership.team,
+        request.user,
+        f"{_actor_name(request.user)} promoted {target_user.get_full_name() or target_user.username} to admin.",
+        event_type="team_member_promoted",
+        target_tab="team",
+        target_type="member",
+        target_id=target_user.id,
+        extra={"teamId": admin_membership.team_id},
+    )
+
+    return JsonResponse({"ok": True})
+
+
+@require_POST
+@login_required
+def api_team_member_demote(request):
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    team_id = data.get("team_id")
+    member_email = (data.get("member_email") or "").strip().lower()
+    if not team_id or not member_email:
+        return JsonResponse({"ok": False, "error": "team_id and member_email required"}, status=400)
+
+    admin_membership = TeamMembership.objects.filter(team_id=team_id, user=request.user).first()
+    if not admin_membership:
+        return JsonResponse({"ok": False, "error": "Not a team member"}, status=403)
+    if admin_membership.role != TeamMembership.ROLE_HEAD:
+        return JsonResponse({"ok": False, "error": "Only admin can demote members"}, status=403)
+
+    from django.db.models import Q
+    target_membership = (
+        TeamMembership.objects
+        .select_related("user")
+        .filter(team_id=team_id)
+        .filter(Q(user__email__iexact=member_email) | Q(user__username__iexact=member_email))
+        .first()
+    )
+    if not target_membership:
+        return JsonResponse({"ok": False, "error": "User is not in this team"}, status=404)
+
+    target_user = target_membership.user
+    if target_user.id == request.user.id:
+        return JsonResponse({"ok": False, "error": "You cannot demote yourself"}, status=400)
+
+    team_obj = Team.objects.filter(id=team_id).first()
+    if team_obj and target_user.id == team_obj.created_by_id:
+        return JsonResponse({"ok": False, "error": "The team owner cannot be demoted"}, status=403)
+
+    if target_membership.role == TeamMembership.ROLE_MEMBER:
+        return JsonResponse({"ok": False, "error": "User is already a member"}, status=400)
+
+    target_membership.role = TeamMembership.ROLE_MEMBER
+    target_membership.save(update_fields=["role"])
+
+    _notify_team(
+        admin_membership.team,
+        request.user,
+        f"{_actor_name(request.user)} demoted {target_user.get_full_name() or target_user.username} to member.",
+        event_type="team_member_demoted",
+        target_tab="team",
+        target_type="member",
+        target_id=target_user.id,
+        extra={"teamId": admin_membership.team_id},
     )
 
     return JsonResponse({"ok": True})
@@ -2111,6 +2427,13 @@ def api_workspace_approval_resolve(request):
 @login_required
 def api_notifications_list(request):
     from django.db.models import Q
+    from django.utils import timezone
+    from datetime import timedelta
+
+    seven_days_ago = timezone.now() - timedelta(days=7)
+
+    # Auto-delete notifications older than 7 days for this recipient
+    Notification.objects.filter(recipient=request.user, created_at__lt=seven_days_ago).delete()
 
     team, membership = _get_user_team(request.user)
 
@@ -2124,6 +2447,9 @@ def api_notifications_list(request):
         qs = Notification.objects.filter(
             recipient=request.user
         ).select_related("actor")
+
+    # Only last 7 days, latest first
+    qs = qs.filter(created_at__gte=seven_days_ago).order_by("-created_at")
 
     unread_count = qs.filter(is_read=False).count()
     notifications = [_serialize_notification(n) for n in qs[:50]]
@@ -2360,23 +2686,63 @@ def api_task_comment_add(request, task_id):
 
     comment = TaskComment.objects.create(task=task, author=request.user, body=body)
 
+    actor_name = _actor_name(request.user)
     _log_activity(team, request.user, "commented", "task", task.id, task.title,
-                  f"{_actor_name(request.user)} commented on '{task.title}'")
+                  f"{actor_name} commented on '{task.title}'")
 
-    _notify_team(
-        team, request.user,
-        f"{_actor_name(request.user)} commented on task '{task.title}'.",
-        event_type="task_comment", target_tab="tasks", target_type="task", target_id=task.id,
-        extra={"taskName": task.title},
-    )
+    # Parse @mentions and split recipients: mentioned users get a targeted
+    # "mention" notification, everyone else gets the generic comment notification.
+    mentioned_users = _parse_mentions(body, team)
+    mentioned_ids = {u.id for u in mentioned_users if u.id != request.user.id}
+
+    memberships = TeamMembership.objects.filter(team=team).select_related("user")
+    notifs = []
+    for mship in memberships:
+        u = mship.user
+        if not u or u.id == request.user.id:
+            continue
+        if u.id in mentioned_ids:
+            notifs.append(Notification(
+                team=team, recipient=u, actor=request.user,
+                message=f"{actor_name} mentioned you in a comment on '{task.title}'.",
+                event_type="task_mention",
+                target_tab="tasks", target_type="task", target_id=task.id,
+                extra={"taskName": task.title, "commentId": comment.id},
+            ))
+        else:
+            notifs.append(Notification(
+                team=team, recipient=u, actor=request.user,
+                message=f"{actor_name} commented on task '{task.title}'.",
+                event_type="task_comment",
+                target_tab="tasks", target_type="task", target_id=task.id,
+                extra={"taskName": task.title},
+            ))
+    if notifs:
+        Notification.objects.bulk_create(notifs)
+
+    # Real-time push
+    try:
+        from core.ws_utils import broadcast_notification
+        broadcast_notification(team.id, {
+            "message": f"{actor_name} commented on '{task.title}'",
+            "event_type": "task_comment",
+            "mentionedUserIds": list(mentioned_ids),
+        })
+    except Exception:
+        pass
+
+    mention_emails = [
+        (u.email or u.username or "").lower() for u in mentioned_users if u.id != request.user.id
+    ]
 
     return JsonResponse({
         "ok": True,
         "comment": {
             "id": comment.id,
             "body": comment.body,
-            "author": _actor_name(comment.author),
+            "author": actor_name,
             "createdAt": comment.created_at.isoformat(),
+            "mentions": mention_emails,
         }
     })
 
@@ -2598,6 +2964,30 @@ def api_analytics_enhanced(request):
     all_tasks = list(tasks_qs)
     today = date.today()
 
+    try:
+        days = max(1, min(365, int(request.GET.get("days", 14))))
+    except (ValueError, TypeError):
+        days = 14
+
+    # Optional per-project filter: ?project_id=<id>
+    project_filter_id = None
+    raw_pid = request.GET.get("project_id")
+    if raw_pid not in (None, "", "all", "null"):
+        try:
+            project_filter_id = int(raw_pid)
+        except (TypeError, ValueError):
+            project_filter_id = None
+
+    if project_filter_id is not None:
+        def _task_pid(t):
+            labels = t.labels if isinstance(t.labels, dict) else {}
+            pid = labels.get("_projectId")
+            try:
+                return int(pid) if pid not in (None, "", "null") else None
+            except (TypeError, ValueError):
+                return None
+        all_tasks = [t for t in all_tasks if _task_pid(t) == project_filter_id]
+
     # Column distribution
     col_data = []
     for col in columns:
@@ -2612,9 +3002,9 @@ def api_analytics_enhanced(request):
     # Overdue tasks
     overdue = sum(1 for t in all_tasks if t.due_date and t.due_date < today)
 
-    # Tasks created per day (last 14 days)
+    # Tasks created per day (last N days)
     creation_trend = {}
-    for i in range(13, -1, -1):
+    for i in range(days - 1, -1, -1):
         d = today - timedelta(days=i)
         creation_trend[d.isoformat()] = 0
     for t in all_tasks:
@@ -2622,10 +3012,10 @@ def api_analytics_enhanced(request):
         if d in creation_trend:
             creation_trend[d] += 1
 
-    # Completion trend: tasks in last column per day (last 14 days)
+    # Completion trend: tasks in last column per day (last N days)
     done_col = columns[-1] if columns else None
     completion_trend = {}
-    for i in range(13, -1, -1):
+    for i in range(days - 1, -1, -1):
         d = today - timedelta(days=i)
         completion_trend[d.isoformat()] = 0
     if done_col:
@@ -2642,7 +3032,7 @@ def api_analytics_enhanced(request):
             name = a.get_full_name() or a.first_name or a.username
             member_workload[name] = member_workload.get(name, 0) + 1
 
-    # Project stats
+    # Project stats (always reflect the whole team, not the filter)
     projects = Project.objects.filter(team=team)
     project_stats = {
         "total": projects.count(),
@@ -2650,6 +3040,7 @@ def api_analytics_enhanced(request):
         "completed": projects.filter(status="completed").count(),
         "archived": projects.filter(status="archived").count(),
     }
+    projects_list = [{"id": p.id, "name": p.name, "status": p.status} for p in projects]
 
     return JsonResponse({"ok": True, "data": {
         "totalTasks": len(all_tasks),
@@ -2660,6 +3051,8 @@ def api_analytics_enhanced(request):
         "completionTrend": completion_trend,
         "memberWorkload": member_workload,
         "projectStats": project_stats,
+        "projects": projects_list,
+        "activeProjectId": project_filter_id,
     }})
 
 
@@ -2810,3 +3203,11 @@ def api_export_pdf(request):
     response = DjangoHttpResponse(html, content_type="text/html")
     response["Content-Disposition"] = f'attachment; filename="taskhive_report_{team.name}.html"'
     return response
+
+
+def error_404(request, exception=None):
+    return render(request, "core/404.html", status=404)
+
+
+def error_500(request):
+    return render(request, "core/500.html", status=500)
