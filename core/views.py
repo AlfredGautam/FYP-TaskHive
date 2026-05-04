@@ -232,21 +232,38 @@ def google_auth_callback(request):
     """Step 2: Google redirects here with an authorization code. Exchange it
     for an ID-token, find/create the user, and log them in."""
     import requests as http_requests
+    import logging
+    logger = logging.getLogger(__name__)
 
     error = request.GET.get("error")
     if error:
+        logger.error(f"Google OAuth error: {error}")
         return HttpResponse(f"Google OAuth error: {error}", status=400)
 
     code = request.GET.get("code", "")
     state = request.GET.get("state", "")
     saved_state = request.COOKIES.get("google_oauth_state", "")
 
+    logger.info(f"Google callback: code received={bool(code)}, state={state[:10]}..., saved_state={saved_state[:10]}...")
+
     if not code:
+        logger.error("Missing authorization code")
         return HttpResponse("Missing authorization code", status=400)
+
+    # Use the actual request host for redirect_uri (supports localhost, 127.0.0.1, etc.)
+    scheme = request.scheme
+    host = request.get_host()
+    redirect_uri = f"{scheme}://{host}/auth/google/callback/"
 
     client_id = settings.GOOGLE_CLIENT_ID
     client_secret = settings.GOOGLE_CLIENT_SECRET
-    redirect_uri = "http://127.0.0.1:8000/auth/google/callback/"
+
+    logger.info(f"redirect_uri: {redirect_uri}")
+    logger.info(f"client_id set: {bool(client_id)}, client_secret set: {bool(client_secret)}")
+
+    if not client_id or not client_secret:
+        logger.error("Google OAuth credentials not configured")
+        return HttpResponse("Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.", status=500)
 
     # Exchange the authorization code for tokens
     token_resp = http_requests.post("https://oauth2.googleapis.com/token", data={
@@ -257,9 +274,12 @@ def google_auth_callback(request):
         "grant_type": "authorization_code",
     }, timeout=10)
 
+    logger.info(f"Token exchange status: {token_resp.status_code}")
+
     if token_resp.status_code != 200:
+        logger.error(f"Token exchange failed: {token_resp.text}")
         return HttpResponse(
-            f"Token exchange failed ({token_resp.status_code}): {token_resp.text}",
+            f"Token exchange failed ({token_resp.status_code}): {token_resp.text}<br>redirect_uri used: {redirect_uri}",
             status=400,
         )
 
