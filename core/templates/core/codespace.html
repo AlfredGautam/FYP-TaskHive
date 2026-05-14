@@ -833,7 +833,7 @@ int main(void) {
 
     /* ═══════════════════════════════════════════
        COPY / DOWNLOAD
-    ═══════════════════════════════════════════ */
+    ═══════════════════════════════════════════ */  
     $("copyBtn").addEventListener("click", () => {
       if (!editor) return;
       navigator.clipboard.writeText(editor.getValue()).then(() => {

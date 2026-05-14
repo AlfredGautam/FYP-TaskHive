@@ -68,8 +68,9 @@
         <div class="text-[10px] text-slate-400 tracking-wider uppercase">Profile & Settings</div>
       </div>
     </div>
-    <a :href="backUrl" :title="'Back to ' + backLabel" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-gray-200 hover:border-indigo-200 text-sm font-medium transition-colors">
+    <a :href="backUrl" @click="handleBackClick" :title="'Back to ' + backLabel" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-gray-200 hover:border-indigo-200 text-sm font-medium transition-colors">
       <i class="fas fa-arrow-left text-xs"></i> {{ backLabel }}
+      <span v-if="isDirty" class="w-1.5 h-1.5 rounded-full bg-amber-500" title="Unsaved changes"></span>
     </a>
   </div>
 
@@ -242,6 +243,75 @@
         </div>
       </section> -->
 
+      <!-- Change Password -->
+      <section class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm text-sm">
+        <h3 class="text-sm font-semibold text-slate-800 mb-3 flex items-center">
+          <i class="fas fa-key mr-2 text-indigo-600"></i> Change Password
+        </h3>
+        <p class="text-xs text-gray-500 mb-3">Use a strong password (min. 6 characters).</p>
+
+        <div class="space-y-3">
+          <input
+            type="password"
+            v-model="pw.current"
+            placeholder="Current password"
+            class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-sm transition-all outline-none"
+            autocomplete="off"
+            spellcheck="false" />
+
+          <input
+            type="password"
+            v-model="pw.next"
+            placeholder="New password"
+            class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-sm transition-all outline-none"
+            autocomplete="off"
+            spellcheck="false" />
+
+          <input
+            type="password"
+            v-model="pw.confirm"
+            placeholder="Confirm new password"
+            class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 text-sm transition-all outline-none"
+            autocomplete="off"
+            spellcheck="false" />
+
+          <!-- strength meter -->
+          <div v-if="pw.next" class="space-y-1">
+            <div class="h-1.5 w-full bg-gray-100 rounded overflow-hidden">
+              <div class="h-full transition-all"
+                   :class="{
+                     'bg-red-500 w-1/4': pwStrength === 1,
+                     'bg-orange-400 w-2/4': pwStrength === 2,
+                     'bg-yellow-400 w-3/4': pwStrength === 3,
+                     'bg-green-500 w-full': pwStrength === 4
+                   }"></div>
+            </div>
+            <p class="text-[11px] text-gray-500">Strength: <span class="font-medium" :class="{
+              'text-red-600': pwStrength === 1,
+              'text-orange-600': pwStrength === 2,
+              'text-yellow-700': pwStrength === 3,
+              'text-green-600': pwStrength === 4
+            }">{{ pwStrengthLabel }}</span></p>
+          </div>
+
+          <div v-if="pw.error" class="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
+            <i class="fas fa-circle-exclamation mr-1"></i>{{ pw.error }}
+          </div>
+          <div v-if="pw.success" class="text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-lg">
+            <i class="fas fa-circle-check mr-1"></i>{{ pw.success }}
+          </div>
+
+          <button
+            @click="changePassword"
+            :disabled="pw.saving || !pw.current || !pw.next || !pw.confirm"
+            class="w-full px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2">
+            <i v-if="pw.saving" class="fas fa-spinner fa-spin"></i>
+            <i v-else class="fas fa-lock"></i>
+            {{ pw.saving ? 'Updating...' : 'Update Password' }}
+          </button>
+        </div>
+      </section>
+
       <!-- Danger Zone -->
       <section class="bg-white rounded-2xl p-5 border border-red-200 shadow-sm text-sm">
         <h3 class="text-sm font-semibold text-red-600 mb-3 flex items-center">
@@ -315,7 +385,22 @@ new Vue({
       accentOptions: ['#22d3ee', '#6366f1', '#ec4899', '#f97316', '#22c55e', '#e11d48'],
 
       toastVisible: false,
-      toastMessage: ''
+      toastMessage: '',
+
+      // pristine snapshot (for dirty tracking)
+      pristine: '',
+
+      // password change
+      pw: {
+        current: '',
+        next: '',
+        confirm: '',
+        showCurrent: false,
+        showNew: false,
+        saving: false,
+        error: '',
+        success: ''
+      }
     };
   },
 
@@ -342,6 +427,34 @@ new Vue({
       const from = params.get('from');
       if (from === 'workspace') return 'Back to Workspace';
       return 'Back to Dashboard';
+    },
+    pwStrength() {
+      const p = this.pw.next || '';
+      if (!p) return 0;
+      let score = 0;
+      if (p.length >= 6) score++;
+      if (p.length >= 10) score++;
+      if (/[A-Z]/.test(p) && /[a-z]/.test(p)) score++;
+      if (/\d/.test(p)) score++;
+      if (/[^A-Za-z0-9]/.test(p)) score++;
+      return Math.min(score, 4);
+    },
+    pwStrengthLabel() {
+      return ['', 'Weak', 'Fair', 'Good', 'Strong'][this.pwStrength];
+    },
+    currentSnapshot() {
+      return JSON.stringify({
+        displayName: this.user.displayName || '',
+        username: this.user.username || '',
+        name: this.user.name || '',
+        tagline: this.user.tagline || '',
+        bio: this.user.bio || '',
+        github: this.socials.github || '',
+        linkedin: this.socials.linkedin || ''
+      });
+    },
+    isDirty() {
+      return this.dbLoaded && this.pristine !== '' && this.currentSnapshot !== this.pristine;
     }
   },
 
@@ -373,6 +486,22 @@ new Vue({
 
     // 3) load from DB (source of truth)
     await this.loadFromDB();
+
+    // 4) warn on browser close/refresh if there are unsaved changes
+    this._beforeUnload = (e) => {
+      if (this.isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    window.addEventListener('beforeunload', this._beforeUnload);
+  },
+
+  beforeDestroy() {
+    if (this._beforeUnload) {
+      window.removeEventListener('beforeunload', this._beforeUnload);
+    }
   },
 
   methods: {
@@ -431,6 +560,9 @@ new Vue({
         if (p.accent_color) this.setAccent(p.accent_color, false);
 
         this.dbLoaded = true;
+
+        // capture pristine snapshot for unsaved-changes detection
+        this.$nextTick(() => { this.pristine = this.currentSnapshot; });
 
         // also sync localStorage after DB load
         this.saveToLocalStorage();
@@ -591,6 +723,9 @@ new Vue({
         // localStorage also updated
         this.saveToLocalStorage();
 
+        // refresh pristine snapshot — current state is now saved
+        this.pristine = this.currentSnapshot;
+
         this.showToast('Profile saved ✅');
       } catch (e) {
         this.errorMsg = 'Network error while saving profile.';
@@ -603,6 +738,75 @@ new Vue({
       // reload from DB again (real reset)
       this.loadFromDB();
       this.showToast('Reset to saved profile');
+    },
+
+    handleBackClick(e) {
+      if (this.isDirty) {
+        const ok = confirm('You have unsaved changes. Leave anyway?');
+        if (!ok) {
+          e.preventDefault();
+          return;
+        }
+      }
+      // disarm beforeunload — user confirmed navigation
+      if (this._beforeUnload) {
+        window.removeEventListener('beforeunload', this._beforeUnload);
+        this._beforeUnload = null;
+      }
+    },
+
+    async changePassword() {
+      this.pw.error = '';
+      this.pw.success = '';
+
+      if (!this.pw.current || !this.pw.next || !this.pw.confirm) {
+        this.pw.error = 'All fields are required.';
+        return;
+      }
+      if (this.pw.next !== this.pw.confirm) {
+        this.pw.error = 'New passwords do not match.';
+        return;
+      }
+      if (this.pw.next.length < 6) {
+        this.pw.error = 'New password must be at least 6 characters.';
+        return;
+      }
+      if (this.pw.next === this.pw.current) {
+        this.pw.error = 'New password must be different from your current password.';
+        return;
+      }
+
+      this.pw.saving = true;
+      try {
+        const res = await fetch('/api/profile/change-password/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCookie('csrftoken')
+          },
+          body: JSON.stringify({
+            current_password: this.pw.current,
+            new_password: this.pw.next,
+            confirm_password: this.pw.confirm
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          this.pw.error = data.error || 'Failed to change password.';
+          return;
+        }
+        this.pw.success = data.message || 'Password changed successfully.';
+        this.pw.current = '';
+        this.pw.next = '';
+        this.pw.confirm = '';
+        this.showToast('Password updated');
+        setTimeout(() => { this.pw.success = ''; }, 5000);
+      } catch (e) {
+        this.pw.error = 'Network error. Please try again.';
+      } finally {
+        this.pw.saving = false;
+      }
     },
 
     async deleteAccount() {
