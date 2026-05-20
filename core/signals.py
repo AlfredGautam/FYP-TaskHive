@@ -26,7 +26,13 @@ def _get_user_agent(request):
 
 
 def _notify_admin_dashboard(reason="data_changed"):
-    """Broadcast a refresh event to all connected admin dashboard WebSockets."""
+    """Broadcast a refresh event to all connected admin dashboard WebSockets
+    and invalidate the cached dashboard stats."""
+    try:
+        from django.core.cache import cache
+        cache.delete("admin_dashboard_stats")
+    except Exception:
+        pass
     try:
         layer = get_channel_layer()
         async_to_sync(layer.group_send)(

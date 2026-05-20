@@ -37,6 +37,8 @@ from core.email_utils import (
     send_deadline_reminder_email, send_team_invitation_email,
 )
 from core.rate_limit import rate_limit
+from core.file_validation import validate_attachment
+from core.sanitize import sanitize_text
 
 logger = logging.getLogger(__name__)
 
@@ -235,7 +237,7 @@ def api_workspace_load(request):
     for i, c in enumerate(columns):
         col_id_to_board_id[c.id] = i + 1
 
-    tasks_qs = Task.objects.filter(board=board).select_related("column").prefetch_related("assignees", "blocked_by")
+    tasks_qs = Task.objects.filter(board=board).select_related("column").prefetch_related("assignees", "blocked_by").order_by("column__position", "position", "-updated_at")[:500]
     tasks_list = []
     for t in tasks_qs:
         assignee_emails = list(t.assignees.values_list("email", flat=True))
@@ -330,7 +332,7 @@ def api_workspace_task_save(request):
         return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
 
     task_id = data.get("id")
-    name = (data.get("name") or "").strip()
+    name = sanitize_text((data.get("name") or "").strip(), 300)
     if not name:
         return JsonResponse({"ok": False, "error": "Task name required"}, status=400)
 
@@ -751,6 +753,10 @@ def api_workspace_file_upload(request):
     if not up:
         return JsonResponse({"ok": False, "error": "No file"}, status=400)
 
+    err = validate_attachment(up)
+    if err:
+        return JsonResponse({"ok": False, "error": err}, status=400)
+
     ext = up.name.rsplit(".", 1)[-1].lower() if "." in up.name else ""
     type_map = {
         "pdf": "pdf", "doc": "document", "docx": "document", "txt": "document",
@@ -1087,6 +1093,10 @@ def api_task_attachment_upload(request, task_id):
     uploaded = request.FILES.get("file")
     if not uploaded:
         return JsonResponse({"ok": False, "error": "No file"}, status=400)
+
+    err = validate_attachment(uploaded)
+    if err:
+        return JsonResponse({"ok": False, "error": err}, status=400)
 
     size_str = ""
     if uploaded.size < 1024:

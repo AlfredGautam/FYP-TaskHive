@@ -156,7 +156,7 @@ def api_team_invite(request):
     broadcast_to_user(invited_user.id, {"message": "New invitation", "event_type": "team_invitation"})
 
     # Send invitation email via Gmail
-    from .email_utils import _site_url
+    from core.email_utils import _site_url
     site = _site_url()
     accept_url = f"{site}/invite/{invitation.token}/accept/"
     decline_url = f"{site}/invite/{invitation.token}/decline/"
@@ -250,7 +250,7 @@ def api_invitation_resend(request):
     if not membership:
         return JsonResponse({"ok": False, "error": "Only admin can resend invitations"}, status=403)
 
-    from .email_utils import _site_url
+    from core.email_utils import _site_url
     site = _site_url()
     accept_url = f"{site}/invite/{invitation.token}/accept/"
     decline_url = f"{site}/invite/{invitation.token}/decline/"

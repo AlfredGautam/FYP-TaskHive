@@ -37,6 +37,7 @@ from core.email_utils import (
     send_deadline_reminder_email, send_team_invitation_email,
 )
 from core.rate_limit import rate_limit
+from core.file_validation import validate_code_file
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +102,10 @@ def api_code_upload(request):
     up = request.FILES.get("file")
     if not up:
         return JsonResponse({"ok": False, "error": "No file uploaded"}, status=400)
+
+    err = validate_code_file(up)
+    if err:
+        return JsonResponse({"ok": False, "error": err}, status=400)
 
     try:
         text = up.read().decode("utf-8", errors="ignore")

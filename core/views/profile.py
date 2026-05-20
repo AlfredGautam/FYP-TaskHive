@@ -37,6 +37,8 @@ from core.email_utils import (
     send_deadline_reminder_email, send_team_invitation_email,
 )
 from core.rate_limit import rate_limit
+from core.file_validation import validate_image
+from core.sanitize import sanitize_text
 
 logger = logging.getLogger(__name__)
 
@@ -96,18 +98,24 @@ def api_profile_update(request):
         except Exception:
             payload = {}
 
-    profile.display_name = payload.get("displayName", payload.get("display_name", profile.display_name))
-    profile.username_public = payload.get("username", payload.get("username_public", profile.username_public))
-    profile.tagline = payload.get("tagline", profile.tagline)
-    profile.bio = payload.get("bio", profile.bio)
+    profile.display_name = sanitize_text(payload.get("displayName", payload.get("display_name", profile.display_name)), 120)
+    profile.username_public = sanitize_text(payload.get("username", payload.get("username_public", profile.username_public)), 60)
+    profile.tagline = sanitize_text(payload.get("tagline", profile.tagline), 200)
+    profile.bio = sanitize_text(payload.get("bio", profile.bio), 2000)
     profile.github = payload.get("github", profile.github)
     profile.linkedin = payload.get("linkedin", profile.linkedin)
     profile.theme_mode = payload.get("themeMode", payload.get("theme_mode", profile.theme_mode))
     profile.accent_color = payload.get("accentColor", payload.get("accent_color", profile.accent_color))
 
     if request.FILES.get("photo"):
+        err = validate_image(request.FILES["photo"])
+        if err:
+            return JsonResponse({"ok": False, "error": err}, status=400)
         profile.photo = request.FILES["photo"]
     if request.FILES.get("cover"):
+        err = validate_image(request.FILES["cover"])
+        if err:
+            return JsonResponse({"ok": False, "error": err}, status=400)
         profile.cover_photo = request.FILES["cover"]
 
     profile.save()
@@ -160,6 +168,9 @@ def api_profile_photo(request):
     photo = request.FILES.get("photo")
     if not photo:
         return JsonResponse({"ok": False, "error": "photo file required"}, status=400)
+    err = validate_image(photo)
+    if err:
+        return JsonResponse({"ok": False, "error": err}, status=400)
     profile.photo = photo
     profile.save(update_fields=["photo", "updated_at"])
     return JsonResponse({"ok": True, "photo_url": profile.photo.url if profile.photo else ""})
@@ -172,6 +183,9 @@ def api_profile_cover(request):
     cover = request.FILES.get("cover")
     if not cover:
         return JsonResponse({"ok": False, "error": "cover file required"}, status=400)
+    err = validate_image(cover)
+    if err:
+        return JsonResponse({"ok": False, "error": err}, status=400)
     profile.cover_photo = cover
     profile.save(update_fields=["cover_photo", "updated_at"])
     return JsonResponse({"ok": True, "cover_url": profile.cover_photo.url if profile.cover_photo else ""})

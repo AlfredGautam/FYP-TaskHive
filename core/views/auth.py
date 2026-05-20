@@ -22,7 +22,7 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
 from django.utils import timezone
-from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 
 from core.models import (
@@ -41,7 +41,6 @@ from core.rate_limit import rate_limit
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
 @require_POST
 @rate_limit(max_requests=10, window_seconds=60)
 def api_login(request):
@@ -82,7 +81,6 @@ def api_logout(request):
     return JsonResponse({"ok": True})
 
 
-@csrf_exempt
 @require_POST
 @rate_limit(max_requests=5, window_seconds=60)
 def api_register(request):
@@ -129,8 +127,8 @@ def api_register(request):
     })
 
 
-@csrf_exempt
 @require_POST
+@rate_limit(max_requests=10, window_seconds=60)
 def api_register_verify(request):
     try:
         data = json.loads(request.body.decode("utf-8"))
@@ -367,7 +365,6 @@ def _send_email_verification_code(email: str, name: str, code: str):
     send_mail(subject, message, from_email, [email], fail_silently=False)
 
 
-@csrf_exempt
 @require_POST
 @rate_limit(max_requests=3, window_seconds=60)
 def api_password_request_otp(request):
@@ -412,7 +409,6 @@ def api_password_request_otp(request):
     return JsonResponse({"ok": True})
 
 
-@csrf_exempt
 @require_POST
 @rate_limit(max_requests=5, window_seconds=60)
 def api_password_reset(request):

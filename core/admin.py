@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 from django.contrib import admin
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.db.models import Count, Q
 from django.db.models.functions import TruncDate
 from django.urls import path
@@ -61,6 +62,10 @@ class TaskHiveAdminSite(admin.AdminSite):
 
     # ── API: dashboard overview stats ──
     def api_dashboard(self, request):
+        cached = cache.get("admin_dashboard_stats")
+        if cached:
+            return JsonResponse(cached)
+
         now = timezone.now()
         today = now.date()
 
@@ -136,7 +141,7 @@ class TaskHiveAdminSite(admin.AdminSite):
             date_joined__date__lt=week_start,
         ).count()
 
-        return JsonResponse({
+        payload = {
             "stats": {
                 "total_users": total_users,
                 "total_teams": total_teams,
@@ -153,7 +158,9 @@ class TaskHiveAdminSite(admin.AdminSite):
             "task_priority": priority_map,
             "task_status": {"labels": status_labels, "data": status_data},
             "project_status": proj_map,
-        })
+        }
+        cache.set("admin_dashboard_stats", payload, 30)
+        return JsonResponse(payload)
 
     # ── API: recent activity ──
     def api_activity(self, request):
