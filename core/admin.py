@@ -1,16 +1,22 @@
 import json
+from datetime import timedelta
 from django.contrib import admin
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.db.models import Count, Q
+from django.db.models.functions import TruncDate
 from django.urls import path
 from django.http import JsonResponse
 from django.template.response import TemplateResponse
 from django.core.paginator import Paginator
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from .models import (
-    UserProfile, Team, TeamMembership,
+    UserProfile, Team, TeamMembership, Workspace, Board, Column,
+    Task, Project, Notification, ActivityLog,
+    LoginHistory, FailedLoginAttempt,
 )
 
 
@@ -34,6 +40,9 @@ class TaskHiveAdminSite(admin.AdminSite):
     def get_urls(self):
         custom = [
             path("", self.admin_view(self.dashboard_view), name="index"),
+            path("api/dashboard/", self.admin_view(self.api_dashboard), name="api_dashboard"),
+            path("api/activity/", self.admin_view(self.api_activity), name="api_activity"),
+            path("api/recent-users/", self.admin_view(self.api_recent_users), name="api_recent_users"),
             path("api/members/", self.admin_view(self.api_members), name="api_members"),
             path("api/teams/", self.admin_view(self.api_teams), name="api_teams"),
             path("api/member/add/", self.admin_view(self.api_member_add), name="api_member_add"),
@@ -50,6 +59,138 @@ class TaskHiveAdminSite(admin.AdminSite):
             "title": "Team Management",
         }
         return TemplateResponse(request, "admin/dashboard.html", context)
+
+    # ── API: dashboard overview stats ──
+    def api_dashboard(self, request):
+        cached = cache.get("admin_dashboard_stats")
+        if cached:
+            return JsonResponse(cached)
+
+        now = timezone.now()
+        today = now.date()
+
+        total_users = User.objects.count()
+        total_teams = Team.objects.count()
+        total_tasks = Task.objects.count()
+        total_projects = Project.objects.count()
+        active_members = TeamMembership.objects.filter(user__is_active=True).count()
+        total_workspaces = Workspace.objects.count()
+
+        # Users joined in the last 30 days (by day)
+        thirty_days_ago = now - timedelta(days=30)
+        user_growth = (
+            User.objects.filter(date_joined__gte=thirty_days_ago)
+            .annotate(day=TruncDate("date_joined"))
+            .values("day")
+            .annotate(count=Count("id"))
+            .order_by("day")
+        )
+        growth_labels = []
+        growth_data = []
+        for entry in user_growth:
+            growth_labels.append(entry["day"].strftime("%b %d"))
+            growth_data.append(entry["count"])
+
+        # Task distribution by priority
+        task_priority = (
+            Task.objects.values("priority")
+            .annotate(count=Count("id"))
+            .order_by("priority")
+        )
+        priority_map = {"high": 0, "medium": 0, "low": 0}
+        for t in task_priority:
+            priority_map[t["priority"]] = t["count"]
+
+        # Tasks by column name (status proxy)
+        task_status = (
+            Task.objects.values("column__name")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:8]
+        )
+        status_labels = [t["column__name"] for t in task_status]
+        status_data = [t["count"] for t in task_status]
+
+        # Project status breakdown
+        project_status = (
+            Project.objects.values("status")
+            .annotate(count=Count("id"))
+            .order_by("status")
+        )
+        proj_map = {"active": 0, "completed": 0, "archived": 0}
+        for p in project_status:
+            proj_map[p["status"]] = p["count"]
+
+        # Recent logins (last 24h) — total login events from normal users
+        recent_logins_24h = LoginHistory.objects.filter(
+            timestamp__gte=now - timedelta(hours=24),
+            user__is_staff=False,
+            user__is_superuser=False,
+        ).count()
+
+        # Failed logins (last 24h)
+        failed_logins_24h = FailedLoginAttempt.objects.filter(
+            timestamp__gte=now - timedelta(hours=24)
+        ).count()
+
+        # New users this week vs last week
+        week_start = today - timedelta(days=today.weekday())
+        last_week_start = week_start - timedelta(days=7)
+        new_this_week = User.objects.filter(date_joined__date__gte=week_start).count()
+        new_last_week = User.objects.filter(
+            date_joined__date__gte=last_week_start,
+            date_joined__date__lt=week_start,
+        ).count()
+
+        payload = {
+            "stats": {
+                "total_users": total_users,
+                "total_teams": total_teams,
+                "total_tasks": total_tasks,
+                "total_projects": total_projects,
+                "active_members": active_members,
+                "total_workspaces": total_workspaces,
+                "recent_logins_24h": recent_logins_24h,
+                "failed_logins_24h": failed_logins_24h,
+                "new_this_week": new_this_week,
+                "new_last_week": new_last_week,
+            },
+            "user_growth": {"labels": growth_labels, "data": growth_data},
+            "task_priority": priority_map,
+            "task_status": {"labels": status_labels, "data": status_data},
+            "project_status": proj_map,
+        }
+        cache.set("admin_dashboard_stats", payload, 30)
+        return JsonResponse(payload)
+
+    # ── API: recent activity ──
+    def api_activity(self, request):
+        logs = ActivityLog.objects.select_related("actor", "team").order_by("-created_at")[:20]
+        rows = []
+        for log in logs:
+            rows.append({
+                "actor": log.actor.get_full_name() or log.actor.username if log.actor else "System",
+                "action": log.action,
+                "target_type": log.target_type,
+                "target_name": log.target_name,
+                "detail": log.detail,
+                "team": log.team.name if log.team else "",
+                "time": timezone.localtime(log.created_at).strftime("%b %d, %I:%M %p"),
+            })
+        return JsonResponse({"rows": rows})
+
+    # ── API: recently joined users ──
+    def api_recent_users(self, request):
+        users = User.objects.order_by("-date_joined")[:10]
+        rows = []
+        for u in users:
+            rows.append({
+                "name": u.get_full_name() or u.username,
+                "email": u.email,
+                "joined": timezone.localtime(u.date_joined).strftime("%b %d, %Y"),
+                "last_login": timezone.localtime(u.last_login).strftime("%b %d, %Y %I:%M %p") if u.last_login else "Never",
+                "is_active": u.is_active,
+            })
+        return JsonResponse({"rows": rows})
 
     # ── API: paginated member list with search/filter/sort ──
     def api_members(self, request):
@@ -113,9 +254,9 @@ class TaskHiveAdminSite(admin.AdminSite):
                 "role_display": m.get_role_display(),
                 "team_name": m.team.name,
                 "team_id": m.team.id,
-                "team_created": m.team.created_at.strftime("%b %d, %Y %I:%M %p"),
+                "team_created": timezone.localtime(m.team.created_at).strftime("%b %d, %Y %I:%M %p"),
                 "status": "active" if u.is_active else "inactive",
-                "last_login": u.last_login.strftime("%b %d, %Y %I:%M %p") if u.last_login else "Never",
+                "last_login": timezone.localtime(u.last_login).strftime("%b %d, %Y %I:%M %p") if u.last_login else "Never",
             })
 
         return JsonResponse({
@@ -153,8 +294,8 @@ class TaskHiveAdminSite(admin.AdminSite):
             "team_name": m.team.name,
             "team_id": m.team.id,
             "status": "active" if u.is_active else "inactive",
-            "last_login": u.last_login.strftime("%b %d, %Y %I:%M %p") if u.last_login else "Never",
-            "date_joined": u.date_joined.strftime("%b %d, %Y %I:%M %p"),
+            "last_login": timezone.localtime(u.last_login).strftime("%b %d, %Y %I:%M %p") if u.last_login else "Never",
+            "date_joined": timezone.localtime(u.date_joined).strftime("%b %d, %Y %I:%M %p"),
         })
 
     # ── API: add member ──

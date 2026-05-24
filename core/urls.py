@@ -46,9 +46,16 @@
 
 
 from django.urls import path
+from django.views.generic.base import RedirectView
+from django.templatetags.static import static
 from . import views
 
 urlpatterns = [
+    # --------------------
+    # Favicon
+    # --------------------
+    path("favicon.ico", RedirectView.as_view(url=static("core/favicon.svg"), permanent=True)),
+
     # --------------------
     # Health check
     # --------------------
@@ -93,6 +100,7 @@ urlpatterns = [
     path("api/team/member/demote/", views.api_team_member_demote, name="api_team_member_demote"),
     path("api/team/current/", views.api_team_current, name="api_team_current"),
     path("api/my-teams/", views.api_my_teams, name="api_my_teams"),
+    path("api/team/delete/", views.api_team_delete, name="api_team_delete"),
     path("api/team/leave/", views.api_team_leave, name="api_team_leave"),
     path("api/team/<int:team_id>/members/", views.api_team_members, name="api_team_members"),
     path("api/invitations/", views.api_my_invitations, name="api_my_invitations"),
@@ -126,6 +134,7 @@ urlpatterns = [
     path("api/profile/photo/", views.api_profile_photo, name="api_profile_photo"),
     path("api/profile/cover/", views.api_profile_cover, name="api_profile_cover"),
     path("api/profile/delete-account/", views.api_profile_delete_account, name="api_profile_delete_account"),
+    path("api/profile/change-password/", views.api_profile_change_password, name="api_profile_change_password"),
     path("api/profile/public/<str:username>/", views.api_profile_public, name="api_profile_public"),
     path("api/profile/update/", views.api_profile_update, name="api_profile_update"),
     path("api/profile/get/", views.api_profile_get, name="api_profile_get"),

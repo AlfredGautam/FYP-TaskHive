@@ -3,6 +3,33 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 
+ADMIN_DASHBOARD_GROUP = "admin_dashboard"
+
+
+class AdminDashboardConsumer(AsyncWebsocketConsumer):
+    """WebSocket for admin dashboard — pushes real-time updates when data changes."""
+
+    async def connect(self):
+        user = self.scope.get("user")
+        if not user or user.is_anonymous or not (user.is_staff and user.is_superuser):
+            await self.close()
+            return
+        await self.channel_layer.group_add(ADMIN_DASHBOARD_GROUP, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(ADMIN_DASHBOARD_GROUP, self.channel_name)
+
+    async def receive(self, text_data=None, bytes_data=None):
+        pass
+
+    async def admin_refresh(self, event):
+        """Handler for admin_refresh type messages — tells the dashboard to reload data."""
+        await self.send(text_data=json.dumps({
+            "type": "admin_refresh",
+            "reason": event.get("reason", "data_changed"),
+        }))
+
 
 class NotificationConsumer(AsyncWebsocketConsumer):
     """WebSocket consumer — joins user-specific room + team room for real-time updates."""

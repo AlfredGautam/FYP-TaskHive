@@ -14,14 +14,21 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    "SECRET_KEY",
-    "django-insecure-#p0qg$r=%k9vhqp4l)b+)576iv7fqj+^xk_cc4+skadw939j-w",
-)
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# In DEBUG/dev: falls back to an insecure key for convenience.
+# In production: must be set via environment / .env or startup will fail.
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-dev-only-#p0qg$r=%k9vhqp4l)b+)576iv7fqj"
+    else:
+        raise RuntimeError(
+            "SECRET_KEY environment variable is required when DEBUG=False. "
+            "Set it in your .env file (see .env.example)."
+        )
 
 # Dev safe hosts
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
@@ -106,7 +113,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kathmandu'
 USE_I18N = True
 USE_TZ = True
 

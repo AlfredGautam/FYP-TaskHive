@@ -77,6 +77,8 @@
     .slide-enter-active, .slide-leave-active { transition: all 0.3s ease; }
     .slide-enter, .slide-leave-to { opacity: 0; max-height: 0; overflow: hidden; }
     .slide-enter-to, .slide-leave { opacity: 1; max-height: 800px; }
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+    .fade-enter, .fade-leave-to { opacity: 0; }
     .member-row { transition: background 0.15s ease; }
     .member-row:hover { background: rgba(79, 70, 229, 0.03); }
     .badge { font-size: 10px; padding: 2px 8px; border-radius: 9999px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
@@ -246,7 +248,7 @@
         <div class="divide-y divide-gray-100">
           <div v-for="inv in teamInvitations" :key="inv.id" class="px-5 py-3 flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 flex-1 min-w-0">
-              <img v-if="inv.invitedUserPhoto" :src="inv.invitedUserPhoto" :alt="inv.invitedUser"
+              <img v-if="inv.invitedUserPhoto" :src="inv.invitedUserPhoto" :alt="inv.invitedUser" loading="lazy"
                    class="w-8 h-8 rounded-full object-cover border border-gray-200 bg-gray-100 shrink-0" />
               <div v-else class="w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold shrink-0" :class="avatarColor(inv.invitedUser)">
                 {{ (inv.invitedUser || '?').charAt(0).toUpperCase() }}
@@ -294,7 +296,7 @@
         <div v-else class="divide-y divide-gray-100">
           <div v-for="m in filteredMembers" :key="m.email" class="member-row px-5 py-3 flex items-center justify-between gap-3">
             <a :href="'/profile/' + encodeURIComponent(m.username || '') + '/'" class="flex items-center gap-3 flex-1 min-w-0 no-underline group">
-              <img v-if="m.photo_url" :src="m.photo_url" :alt="m.name || m.email"
+              <img v-if="m.photo_url" :src="m.photo_url" :alt="m.name || m.email" loading="lazy"
                    class="w-9 h-9 rounded-full object-cover border border-gray-200 bg-gray-100 shrink-0" />
               <div v-else class="w-9 h-9 rounded-full border flex items-center justify-center text-sm font-bold shrink-0" :class="avatarColor(m.name || m.email)">
                 {{ (m.name || m.email || '?').charAt(0).toUpperCase() }}
@@ -378,6 +380,16 @@
     </section>
 
   </main>
+
+  <!-- Toast -->
+  <transition name="fade">
+    <div v-if="showToast"
+         class="fixed bottom-4 right-4 px-4 py-3 rounded-xl shadow-lg flex items-center z-50"
+         :class="toastIsError ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-white text-indigo-700 border border-indigo-200'">
+      <i class="fas mr-2" :class="toastIsError ? 'fa-triangle-exclamation text-red-500' : 'fa-check-circle text-indigo-500'"></i>
+      <span class="text-sm font-medium">{{ toastMessage }}</span>
+    </div>
+  </transition>
 </div>
 
 <script>
@@ -413,6 +425,9 @@ new Vue({
       memberSearch: '',
       pendingInvitations: [],
       myPhoto: '',
+      showToast: false,
+      toastMessage: '',
+      toastIsError: false,
     };
   },
   computed: {
@@ -641,12 +656,12 @@ new Vue({
       try {
         const { res, data } = await this.fetchJson('/api/team/leave/', { method: 'POST' });
         if (!res.ok || !data.ok) {
-          alert(data.error || `Leave failed (HTTP ${res.status}).`);
+          this.showToastMsg(data.error || `Leave failed (HTTP ${res.status}).`, true);
           return;
         }
         this.goHome();
       } catch (e) {
-        alert('Network error. Try again.');
+        this.showToastMsg('Network error. Try again.', true);
       }
     },
 
@@ -728,11 +743,11 @@ new Vue({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ team_id: this.selectedTeam.id, member_email: email }),
         });
-        if (!res.ok || !data.ok) { alert(data.error || 'Promote failed.'); return; }
+        if (!res.ok || !data.ok) { this.showToastMsg(data.error || 'Promote failed.', true); return; }
         this.inviteMsg = `${email} is now an admin.`;
         this.inviteError = false;
         await this.selectTeam(this.selectedTeam);
-      } catch(e) { alert('Network error. Try again.'); }
+      } catch(e) { this.showToastMsg('Network error. Try again.', true); }
     },
 
     // ---- Demote admin to member ----
@@ -745,11 +760,11 @@ new Vue({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ team_id: this.selectedTeam.id, member_email: email }),
         });
-        if (!res.ok || !data.ok) { alert(data.error || 'Demote failed.'); return; }
+        if (!res.ok || !data.ok) { this.showToastMsg(data.error || 'Demote failed.', true); return; }
         this.inviteMsg = `${email} is now a member.`;
         this.inviteError = false;
         await this.selectTeam(this.selectedTeam);
-      } catch(e) { alert('Network error. Try again.'); }
+      } catch(e) { this.showToastMsg('Network error. Try again.', true); }
     },
 
     // ---- Delete team (admin only) ----
@@ -762,9 +777,9 @@ new Vue({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ team_id: this.selectedTeam.id }),
         });
-        if (!res.ok || !data.ok) { alert(data.error || 'Delete failed.'); return; }
+        if (!res.ok || !data.ok) { this.showToastMsg(data.error || 'Delete failed.', true); return; }
         this.goHome();
-      } catch(e) { alert('Network error. Try again.'); }
+      } catch(e) { this.showToastMsg('Network error. Try again.', true); }
     },
 
     // ---- Load current user's profile photo ----
@@ -804,6 +819,15 @@ new Vue({
         this.inviteMsg = 'Network error.';
         this.inviteError = true;
       }
+    },
+
+    // ---- Toast ----
+    showToastMsg(msg, isError = false) {
+      this.toastMessage = msg;
+      this.toastIsError = isError;
+      this.showToast = true;
+      clearTimeout(this._toastTimer);
+      this._toastTimer = setTimeout(() => { this.showToast = false; }, 3500);
     },
 
     // ---- Logout ----

@@ -5,59 +5,173 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TaskHive Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
-/* ── Reset & base ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#f1f5f9;--card:#fff;--border:#e2e8f0;
-  --text:#1e293b;--muted:#64748b;--light:#94a3b8;
-  --primary:#4f46e5;--primary-hover:#4338ca;
-  --green:#10b981;--amber:#f59e0b;--red:#ef4444;--cyan:#06b6d4;
-  --radius:12px;--shadow:0 2px 8px rgba(0,0,0,.04);
+  --bg:#f0f2f5;--card:#fff;--border:#e5e7eb;
+  --text:#111827;--muted:#6b7280;--light:#9ca3af;
+  --primary:#6366f1;--primary-light:#818cf8;--primary-dark:#4f46e5;--primary-bg:#eef2ff;
+  --green:#10b981;--green-bg:#d1fae5;--green-dark:#065f46;
+  --amber:#f59e0b;--amber-bg:#fef3c7;--amber-dark:#92400e;
+  --red:#ef4444;--red-bg:#fee2e2;--red-dark:#991b1b;
+  --cyan:#06b6d4;--cyan-bg:#cffafe;--cyan-dark:#155e75;
+  --purple:#8b5cf6;--purple-bg:#ede9fe;--purple-dark:#5b21b6;
+  --sidebar-bg:#1e1b4b;--sidebar-hover:rgba(255,255,255,.08);
+  --radius:12px;--radius-sm:8px;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg:0 10px 25px rgba(0,0,0,.08);
 }
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh;-webkit-font-smoothing:antialiased}
 a{color:var(--primary);text-decoration:none}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#94a3b8}
 
 /* ── Layout ── */
 .layout{display:flex;min-height:100vh}
-.sidebar{width:250px;background:linear-gradient(160deg,#312e81 0%,#4f46e5 100%);color:#fff;padding:28px 0;flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
-.sidebar .logo{padding:0 24px 28px;font-size:1.35rem;font-weight:800;letter-spacing:-.3px;border-bottom:1px solid rgba(255,255,255,.12)}
-.sidebar .logo span{opacity:.7;font-weight:500;font-size:.85rem;display:block;margin-top:2px}
-.sidebar nav{flex:1;padding:20px 12px}
-.sidebar nav a{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;color:rgba(255,255,255,.75);font-weight:500;font-size:.88rem;transition:all .15s}
-.sidebar nav a:hover,.sidebar nav a.active{background:rgba(255,255,255,.12);color:#fff}
-.sidebar nav a svg{width:18px;height:18px;flex-shrink:0}
-.sidebar .user-box{padding:16px 20px;border-top:1px solid rgba(255,255,255,.12);font-size:.82rem;color:rgba(255,255,255,.65)}
-.sidebar .user-box strong{color:#fff;display:block}
 
-.main{flex:1;padding:28px 36px;overflow-x:auto}
-.page-title{font-size:1.6rem;font-weight:800;margin-bottom:24px;color:var(--text)}
+/* ── Sidebar ── */
+.sidebar{width:260px;background:var(--sidebar-bg);color:#fff;flex-shrink:0;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s ease}
+.sidebar-header{padding:24px 24px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar-header .brand{display:flex;align-items:center;gap:12px}
+.sidebar-header .brand-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+.sidebar-header .brand-text h2{font-size:1.1rem;font-weight:800;letter-spacing:-.3px;line-height:1.2}
+.sidebar-header .brand-text span{font-size:.72rem;color:rgba(255,255,255,.45);font-weight:500;text-transform:uppercase;letter-spacing:.8px}
 
-/* ── Stats ── */
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:28px}
-.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
-.stat-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(79,70,229,.10)}
-.stat-card .stat-value{font-size:2rem;font-weight:800;line-height:1.1}
-.stat-card .stat-label{font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
-.stat-card.c1 .stat-value{color:var(--primary)}
-.stat-card.c2 .stat-value{color:var(--cyan)}
-.stat-card.c3 .stat-value{color:var(--green)}
-.stat-card.c4 .stat-value{color:var(--amber)}
+.sidebar-nav{flex:1;padding:16px 12px;overflow-y:auto}
+.nav-section{margin-bottom:24px}
+.nav-section-title{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.3);padding:0 14px 8px;margin-bottom:2px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--radius-sm);color:rgba(255,255,255,.55);font-weight:500;font-size:.87rem;cursor:pointer;transition:all .15s ease;position:relative;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--sidebar-hover);color:rgba(255,255,255,.85)}
+.nav-item.active{background:rgba(99,102,241,.25);color:#fff}
+.nav-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--primary-light);border-radius:0 3px 3px 0}
+.nav-item svg{width:20px;height:20px;flex-shrink:0;opacity:.7}
+.nav-item.active svg{opacity:1}
+.nav-badge{margin-left:auto;background:var(--primary);color:#fff;font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:10px;min-width:20px;text-align:center}
+
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08)}
+.user-info{display:flex;align-items:center;gap:12px}
+.user-avatar{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--primary),var(--purple));display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:#fff;flex-shrink:0}
+.user-details{overflow:hidden}
+.user-details .name{font-size:.82rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-details .role{font-size:.7rem;color:rgba(255,255,255,.4)}
+.logout-btn{display:flex;align-items:center;gap:8px;margin-top:12px;padding:8px 12px;border-radius:var(--radius-sm);background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.15);color:rgba(255,255,255,.6);font-size:.78rem;font-weight:500;cursor:pointer;transition:all .15s;width:100%;font-family:inherit}
+.logout-btn:hover{background:rgba(239,68,68,.2);color:#fca5a5}
+.logout-btn svg{width:16px;height:16px}
+
+/* ── Main ── */
+.main{flex:1;margin-left:260px;min-height:100vh}
+
+/* ── Top bar ── */
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.topbar-left{display:flex;align-items:center;gap:16px}
+.topbar-left h1{font-size:1.3rem;font-weight:800;color:var(--text);letter-spacing:-.3px}
+.topbar-left .breadcrumb{font-size:.78rem;color:var(--muted)}
+.mobile-toggle{display:none;background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;cursor:pointer}
+.mobile-toggle svg{width:20px;height:20px;color:var(--muted)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-time{font-size:.78rem;color:var(--light);font-weight:500}
+
+/* ── Content ── */
+.content{padding:28px 32px}
+
+/* ── Page sections ── */
+.page{display:none}
+.page.active{display:block}
+
+/* ── Stats grid ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:28px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);transition:all .2s ease;position:relative;overflow:hidden}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.stat-card::after{content:'';position:absolute;top:0;right:0;width:100px;height:100px;border-radius:50%;opacity:.06;transform:translate(30%,-30%)}
+.stat-card .stat-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.stat-card .stat-icon svg{width:22px;height:22px}
+.stat-card .stat-value{font-size:2rem;font-weight:800;line-height:1}
+.stat-card .stat-label{font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+.stat-card .stat-change{font-size:.72rem;font-weight:600;margin-top:8px;display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px}
+.stat-card.indigo .stat-icon{background:var(--primary-bg);color:var(--primary)}
+.stat-card.indigo .stat-value{color:var(--primary-dark)}
+.stat-card.indigo::after{background:var(--primary)}
+.stat-card.cyan .stat-icon{background:var(--cyan-bg);color:var(--cyan)}
+.stat-card.cyan .stat-value{color:var(--cyan-dark)}
+.stat-card.cyan::after{background:var(--cyan)}
+.stat-card.green .stat-icon{background:var(--green-bg);color:var(--green)}
+.stat-card.green .stat-value{color:var(--green-dark)}
+.stat-card.green::after{background:var(--green)}
+.stat-card.amber .stat-icon{background:var(--amber-bg);color:var(--amber)}
+.stat-card.amber .stat-value{color:var(--amber-dark)}
+.stat-card.amber::after{background:var(--amber)}
+.stat-card.purple .stat-icon{background:var(--purple-bg);color:var(--purple)}
+.stat-card.purple .stat-value{color:var(--purple-dark)}
+.stat-card.purple::after{background:var(--purple)}
+.stat-card.red .stat-icon{background:var(--red-bg);color:var(--red)}
+.stat-card.red .stat-value{color:var(--red-dark)}
+.stat-card.red::after{background:var(--red)}
+.stat-up{background:var(--green-bg);color:var(--green-dark)}
+.stat-down{background:var(--red-bg);color:var(--red-dark)}
+.stat-neutral{background:#f3f4f6;color:var(--muted)}
+
+/* ── Charts ── */
+.charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:28px}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.chart-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 0}
+.chart-header h3{font-size:.95rem;font-weight:700;color:var(--text)}
+.chart-body{padding:16px 22px 22px;position:relative}
+.chart-body canvas{max-height:280px}
+
+/* ── Data cards ── */
+.data-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px}
+.data-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.data-card-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border)}
+.data-card-header h3{font-size:.92rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.data-card-header h3 svg{width:18px;height:18px;color:var(--primary)}
+.data-card-body{padding:0;max-height:340px;overflow-y:auto}
+.activity-item{display:flex;align-items:flex-start;gap:12px;padding:14px 22px;border-bottom:1px solid #f9fafb;transition:background .12s}
+.activity-item:hover{background:#fafbfc}
+.activity-item:last-child{border-bottom:none}
+.activity-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex-shrink:0}
+.activity-dot.green{background:var(--green)}
+.activity-dot.amber{background:var(--amber)}
+.activity-dot.red{background:var(--red)}
+.activity-dot.blue{background:var(--primary)}
+.activity-content{flex:1;min-width:0}
+.activity-text{font-size:.84rem;color:var(--text);line-height:1.4}
+.activity-text strong{font-weight:600}
+.activity-time{font-size:.72rem;color:var(--light);margin-top:2px}
+.user-row{display:flex;align-items:center;gap:12px;padding:12px 22px;border-bottom:1px solid #f9fafb;transition:background .12s}
+.user-row:hover{background:#fafbfc}
+.user-row:last-child{border-bottom:none}
+.user-row-avatar{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff;flex-shrink:0}
+.user-row-info{flex:1;min-width:0}
+.user-row-info .name{font-size:.84rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-row-info .email{font-size:.72rem;color:var(--light)}
+.user-row-meta{text-align:right;flex-shrink:0}
+.user-row-meta .date{font-size:.72rem;color:var(--muted)}
+.user-row-meta .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:4px}
+.user-row-meta .status-dot.active{background:var(--green)}
+.user-row-meta .status-dot.inactive{background:var(--red)}
 
 /* ── Toolbar ── */
 .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
-.toolbar .search-box{flex:1;min-width:200px;position:relative}
-.toolbar .search-box input{width:100%;padding:10px 14px 10px 38px;border:1px solid var(--border);border-radius:8px;font-size:.88rem;font-family:inherit;outline:none;transition:border .2s}
-.toolbar .search-box input:focus{border-color:var(--primary)}
-.toolbar .search-box svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--light)}
-.toolbar select{padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:.85rem;font-family:inherit;background:var(--card);color:var(--text);cursor:pointer;outline:none}
-.toolbar select:focus{border-color:var(--primary)}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s}
-.btn-primary{background:var(--primary);color:#fff;box-shadow:0 2px 6px rgba(79,70,229,.25)}
-.btn-primary:hover{background:var(--primary-hover);transform:translateY(-1px)}
-.btn-sm{padding:6px 12px;font-size:.78rem;border-radius:6px}
+.toolbar .search-box{flex:1;min-width:220px;position:relative}
+.toolbar .search-box input{width:100%;padding:10px 14px 10px 40px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.87rem;font-family:inherit;outline:none;transition:all .2s;background:var(--card)}
+.toolbar .search-box input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.toolbar .search-box svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--light)}
+.toolbar select{padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.84rem;font-family:inherit;background:var(--card);color:var(--text);cursor:pointer;outline:none;transition:all .2s}
+.toolbar select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border:none;border-radius:var(--radius-sm);font-size:.84rem;font-weight:600;font-family:inherit;cursor:pointer;transition:all .2s ease}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(99,102,241,.3)}
+.btn-primary:hover{background:var(--primary-dark);transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.35)}
+.btn-sm{padding:6px 12px;font-size:.76rem;border-radius:6px}
 .btn-green{background:var(--green);color:#fff}
+.btn-green:hover{background:#059669}
 .btn-amber{background:var(--amber);color:#fff}
+.btn-amber:hover{background:#d97706}
 .btn-red{background:var(--red);color:#fff}
 .btn-red:hover{background:#dc2626}
 .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
@@ -66,55 +180,62 @@ a{color:var(--primary);text-decoration:none}
 /* ── Table ── */
 .table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
 table{width:100%;border-collapse:collapse}
-thead th{background:#f8fafc;font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:12px 16px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
-tbody td{padding:12px 16px;font-size:.88rem;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+thead th{background:#fafbfc;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:13px 16px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:13px 16px;font-size:.86rem;border-bottom:1px solid #f3f4f6;vertical-align:middle}
 tbody tr{transition:background .12s}
-tbody tr:hover{background:#eef2ff}
-.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.badge-admin{background:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe}
+tbody tr:hover{background:#fafbfe}
+.badge{display:inline-block;padding:4px 11px;border-radius:20px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.badge-admin{background:var(--purple-bg);color:var(--purple-dark);border:1px solid #ddd6fe}
 .badge-member{background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd}
-.badge-active{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0}
-.badge-inactive{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+.badge-active{background:var(--green-bg);color:var(--green-dark);border:1px solid #a7f3d0}
+.badge-inactive{background:var(--red-bg);color:var(--red-dark);border:1px solid #fecaca}
 .actions{display:flex;gap:6px}
 
 /* ── Pagination ── */
-.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-top:1px solid var(--border);font-size:.82rem;color:var(--muted)}
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-top:1px solid var(--border);font-size:.8rem;color:var(--muted)}
 .pagination .page-btns{display:flex;gap:4px}
-.pagination .page-btns button{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:var(--card);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;color:var(--text)}
+.pagination .page-btns button{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:6px;background:var(--card);font-size:.8rem;font-weight:600;cursor:pointer;transition:all .15s;color:var(--text)}
 .pagination .page-btns button:hover{border-color:var(--primary);color:var(--primary)}
 .pagination .page-btns button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
-.pagination .page-btns button:disabled{opacity:.4;cursor:default}
+.pagination .page-btns button:disabled{opacity:.35;cursor:default;pointer-events:none}
 
 /* ── Modal ── */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(6px);z-index:1000;align-items:center;justify-content:center}
 .modal-overlay.open{display:flex}
-.modal{background:var(--card);border-radius:16px;width:100%;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,.15);animation:modalIn .2s ease}
-@keyframes modalIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border)}
-.modal-header h3{font-size:1.1rem;font-weight:700}
+.modal{background:var(--card);border-radius:16px;width:100%;max-width:500px;box-shadow:0 25px 60px rgba(0,0,0,.2);animation:modalIn .25s ease}
+@keyframes modalIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:22px 24px;border-bottom:1px solid var(--border)}
+.modal-header h3{font-size:1.05rem;font-weight:700}
 .modal-close{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:var(--bg);border-radius:8px;cursor:pointer;font-size:1rem;color:var(--muted);transition:all .15s}
-.modal-close:hover{background:var(--border);color:var(--text)}
-.modal-body{padding:20px 24px}
-.form-group{margin-bottom:16px}
-.form-group label{display:block;font-size:.82rem;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.3px}
-.form-group input,.form-group select{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:.88rem;font-family:inherit;outline:none;transition:border .2s}
-.form-group input:focus,.form-group select:focus{border-color:var(--primary)}
-.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--border)}
+.modal-close:hover{background:#e5e7eb;color:var(--text)}
+.modal-body{padding:22px 24px}
+.form-group{margin-bottom:18px}
+.form-group label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:7px;text-transform:uppercase;letter-spacing:.4px}
+.form-group input,.form-group select{width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.87rem;font-family:inherit;outline:none;transition:all .2s}
+.form-group input:focus,.form-group select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:18px 24px;border-top:1px solid var(--border)}
 
 /* ── Toast ── */
-.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:10px;font-size:.85rem;font-weight:600;color:#fff;background:var(--green);box-shadow:0 6px 20px rgba(0,0,0,.15);z-index:2000;opacity:0;transform:translateY(8px);transition:all .25s}
+.toast{position:fixed;bottom:24px;right:24px;padding:14px 22px;border-radius:var(--radius);font-size:.84rem;font-weight:600;color:#fff;background:var(--green);box-shadow:0 8px 25px rgba(0,0,0,.15);z-index:2000;opacity:0;transform:translateY(10px);transition:all .3s ease}
 .toast.show{opacity:1;transform:none}
 .toast.error{background:var(--red)}
 
-/* ── Loading ── */
-.loading{text-align:center;padding:40px;color:var(--light)}
+.loading-text{text-align:center;padding:48px;color:var(--light);font-size:.88rem}
+.empty-state{text-align:center;padding:48px;color:var(--light)}
+.empty-state svg{width:48px;height:48px;margin-bottom:12px;opacity:.4}
+.empty-state p{font-size:.88rem}
 
 /* ── Responsive ── */
-@media(max-width:1024px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1280px){.stats-row{grid-template-columns:repeat(2,1fr)}.charts-grid{grid-template-columns:1fr}}
+@media(max-width:1024px){.data-grid{grid-template-columns:1fr}}
 @media(max-width:768px){
-  .sidebar{display:none}
-  .main{padding:20px 16px}
-  .stats-grid{grid-template-columns:1fr 1fr}
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:none}
+  .main{margin-left:0}
+  .mobile-toggle{display:flex}
+  .topbar{padding:12px 16px}
+  .content{padding:20px 16px}
+  .stats-row{grid-template-columns:1fr 1fr}
   .toolbar{flex-direction:column}
   .toolbar .search-box{width:100%}
 }
@@ -123,97 +244,258 @@ tbody tr:hover{background:#eef2ff}
 <body>
 
 <div class="layout">
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="logo">🧊 TaskHive<span>Admin Panel</span></div>
-    <nav>
-      <a href="/admin/" class="active">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        Dashboard
+  <!-- ═══ Sidebar ═══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="brand-icon">TH</div>
+        <div class="brand-text">
+          <h2>TaskHive</h2>
+          <span>Admin Panel</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <button class="nav-item active" data-page="overview">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-page="members">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Team Members
+        </button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">Analytics</div>
+        <button class="nav-item" data-page="analytics">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Statistics
+        </button>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar">{{ user.first_name|truncatechars:1|default:"A" }}</div>
+        <div class="user-details">
+          <div class="name">{{ user.get_full_name|default:user.username }}</div>
+          <div class="role">Super Admin</div>
+        </div>
+      </div>
+      <a href="/admin/logout/" class="logout-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Logout
       </a>
-      <a href="/admin/" onclick="document.getElementById('searchInput').focus();return false;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-        Team Members
-      </a>
-    </nav>
-    <div class="user-box">
-      <strong>{{ user.get_full_name|default:user.username }}</strong>
-      {{ user.email }}
     </div>
   </aside>
 
-  <!-- Main -->
+  <!-- ═══ Main Content ═══ -->
   <div class="main">
-    <h1 class="page-title">Team Management</h1>
-
-    <!-- Stats -->
-    <div class="stats-grid">
-      <div class="stat-card c1"><div class="stat-value" id="statUsers">–</div><div class="stat-label">Total Users</div></div>
-      <div class="stat-card c2"><div class="stat-value" id="statTeams">–</div><div class="stat-label">Total Teams</div></div>
-      <div class="stat-card c3"><div class="stat-value" id="statActive">–</div><div class="stat-label">Active Members</div></div>
-      <div class="stat-card c4"><div class="stat-value" id="statAdmins">–</div><div class="stat-label">Admin Count</div></div>
-    </div>
-
-    <!-- Toolbar -->
-    <div class="toolbar">
-      <div class="search-box">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" id="searchInput" placeholder="Search by name, email, or team...">
+    <!-- Top Bar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <div class="breadcrumb" id="pageBreadcrumb">Admin / Overview</div>
+        </div>
       </div>
-      <select id="filterRole">
-        <option value="">All Roles</option>
-        <option value="head">Admin / Head</option>
-        <option value="member">Member</option>
-      </select>
-      <select id="filterStatus">
-        <option value="">All Status</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-      </select>
-      <select id="sortBy">
-        <option value="date_desc">Newest First</option>
-        <option value="date_asc">Oldest First</option>
-        <option value="name_asc">Name A–Z</option>
-        <option value="name_desc">Name Z–A</option>
-      </select>
-      <button class="btn btn-primary" onclick="openAddModal()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add New User
-      </button>
-    </div>
-
-    <!-- Table -->
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>User Name</th>
-            <th>Role</th>
-            <th>Team Name</th>
-            <th>Team Created</th>
-            <th>Status</th>
-            <th>Email</th>
-            <th>Last Login</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody">
-          <tr><td colspan="8" class="loading">Loading...</td></tr>
-        </tbody>
-      </table>
-      <div class="pagination">
-        <span id="pageInfo">–</span>
-        <div class="page-btns" id="pageBtns"></div>
+      <div class="topbar-right">
+        <span class="topbar-time" id="clockDisplay"></span>
       </div>
     </div>
-  </div>
-</div>
 
-<!-- Add / Edit Modal -->
+    <div class="content">
+
+      <!-- ═══ PAGE: Overview ═══ -->
+      <div class="page active" id="page-overview">
+        <!-- Stats Row 1 -->
+        <div class="stats-row" id="overviewStats">
+          <div class="stat-card indigo">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div class="stat-value" id="oUsers">-</div>
+            <div class="stat-label">Total Users</div>
+            <div class="stat-change stat-neutral" id="oUsersChange">-</div>
+          </div>
+          <div class="stat-card cyan">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+            <div class="stat-value" id="oTeams">-</div>
+            <div class="stat-label">Total Teams</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+            <div class="stat-value" id="oTasks">-</div>
+            <div class="stat-label">Total Tasks</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+            <div class="stat-value" id="oProjects">-</div>
+            <div class="stat-label">Total Projects</div>
+          </div>
+        </div>
+
+        <!-- Stats Row 2 -->
+        <div class="stats-row">
+          <div class="stat-card purple">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+            <div class="stat-value" id="oWorkspaces">-</div>
+            <div class="stat-label">Workspaces</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <div class="stat-value" id="oActiveMembers">-</div>
+            <div class="stat-label">Active Members</div>
+          </div>
+          <div class="stat-card indigo">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg></div>
+            <div class="stat-value" id="oLogins24h">-</div>
+            <div class="stat-label">Logins (24h)</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+            <div class="stat-value" id="oFailed24h">-</div>
+            <div class="stat-label">Failed Logins (24h)</div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-header"><h3>User Growth (Last 30 Days)</h3></div>
+            <div class="chart-body"><canvas id="chartGrowth"></canvas></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-header"><h3>New Users</h3></div>
+            <div class="data-card-body" id="recentUsersList">
+              <div class="loading-text">Loading users...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ PAGE: Team Members ═══ -->
+      <div class="page" id="page-members">
+        <div class="stats-row" id="memberStats">
+          <div class="stat-card indigo">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4-4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+            <div class="stat-value" id="mStatUsers">-</div>
+            <div class="stat-label">Total Users</div>
+          </div>
+          <div class="stat-card cyan">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg></div>
+            <div class="stat-value" id="mStatTeams">-</div>
+            <div class="stat-label">Total Teams</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/></svg></div>
+            <div class="stat-value" id="mStatActive">-</div>
+            <div class="stat-label">Active Members</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <div class="stat-value" id="mStatAdmins">-</div>
+            <div class="stat-label">Team Heads</div>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="searchInput" placeholder="Search by name, email, or team...">
+          </div>
+          <select id="filterRole">
+            <option value="">All Roles</option>
+            <option value="head">Admin / Head</option>
+            <option value="member">Member</option>
+          </select>
+          <select id="filterStatus">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+          <select id="sortBy">
+            <option value="date_desc">Newest First</option>
+            <option value="date_asc">Oldest First</option>
+            <option value="name_asc">Name A-Z</option>
+            <option value="name_desc">Name Z-A</option>
+          </select>
+          <button class="btn btn-primary" onclick="openAddModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Member
+          </button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>User Name</th>
+                <th>Role</th>
+                <th>Team Name</th>
+                <th>Team Created</th>
+                <th>Status</th>
+                <th>Email</th>
+                <th>Last Login</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr><td colspan="8" class="loading-text">Loading...</td></tr>
+            </tbody>
+          </table>
+          <div class="pagination">
+            <span id="pageInfo">-</span>
+            <div class="page-btns" id="pageBtns"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ PAGE: Analytics ═══ -->
+      <div class="page" id="page-analytics">
+        <div class="stats-row">
+          <div class="stat-card indigo">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4-4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+            <div class="stat-value" id="aUsers">-</div>
+            <div class="stat-label">Total Users</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/></svg></div>
+            <div class="stat-value" id="aTasks">-</div>
+            <div class="stat-label">Total Tasks</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+            <div class="stat-value" id="aProjects">-</div>
+            <div class="stat-label">Total Projects</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+            <div class="stat-value" id="aWorkspaces">-</div>
+            <div class="stat-label">Workspaces</div>
+          </div>
+        </div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <div class="chart-header"><h3>User Growth Trend</h3></div>
+            <div class="chart-body"><canvas id="chartGrowth2"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ═══ Add / Edit Modal ═══ -->
 <div class="modal-overlay" id="addModal">
   <div class="modal">
     <div class="modal-header">
-      <h3 id="modalTitle">Add New User</h3>
+      <h3 id="modalTitle">Add New Member</h3>
       <button class="modal-close" onclick="closeModal('addModal')">&times;</button>
     </div>
     <div class="modal-body">
@@ -230,21 +512,19 @@ tbody tr:hover{background:#eef2ff}
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('addModal')">Cancel</button>
-      <button class="btn btn-primary" id="modalSubmit" onclick="submitForm()">Add User</button>
+      <button class="btn btn-primary" id="modalSubmit">Add Member</button>
     </div>
   </div>
 </div>
 
-<!-- View Modal -->
+<!-- ═══ View Modal ═══ -->
 <div class="modal-overlay" id="viewModal">
   <div class="modal">
     <div class="modal-header">
       <h3>Member Details</h3>
       <button class="modal-close" onclick="closeModal('viewModal')">&times;</button>
     </div>
-    <div class="modal-body" id="viewBody" style="line-height:2;font-size:.92rem">
-      Loading...
-    </div>
+    <div class="modal-body" id="viewBody" style="line-height:2.2;font-size:.9rem">Loading...</div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('viewModal')">Close</button>
     </div>
@@ -257,9 +537,179 @@ tbody tr:hover{background:#eef2ff}
 <script>
 const CSRF = '{{ csrf_token }}';
 let currentPage = 1;
+let chartInstances = {};
 
-/* ── Fetch & render ── */
-async function load(page){
+/* ═══ CLOCK ═══ */
+function updateClock(){
+  const now = new Date();
+  const opts = {weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'};
+  document.getElementById('clockDisplay').textContent = now.toLocaleDateString('en-US',opts);
+}
+setInterval(updateClock,30000);
+updateClock();
+
+/* ═══ NAV ═══ */
+const navItems = document.querySelectorAll('.nav-item[data-page]');
+const pages = document.querySelectorAll('.page');
+const pageTitle = document.getElementById('pageTitle');
+const pageBreadcrumb = document.getElementById('pageBreadcrumb');
+
+const pageConfig = {
+  overview:  {title:'Dashboard',       crumb:'Admin / Overview'},
+  members:   {title:'Team Members',    crumb:'Admin / Team Members'},
+  analytics: {title:'Statistics',      crumb:'Admin / Analytics'},
+};
+
+navItems.forEach(item => {
+  item.addEventListener('click', () => {
+    const target = item.dataset.page;
+    navItems.forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    pages.forEach(p => p.classList.remove('active'));
+    document.getElementById('page-'+target).classList.add('active');
+    pageTitle.textContent = pageConfig[target].title;
+    pageBreadcrumb.textContent = pageConfig[target].crumb;
+    if(target === 'overview') loadOverview();
+    if(target === 'members') loadMembers(1);
+    if(target === 'analytics') loadAnalytics();
+    // close mobile sidebar
+    document.getElementById('sidebar').classList.remove('open');
+  });
+});
+
+/* ═══ HELPERS ═══ */
+function esc(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function toast(msg, err){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (err?' error':'');
+  setTimeout(()=>t.className='toast', 3500);
+}
+
+function destroyChart(id){
+  if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+const COLORS = {
+  primary:'#6366f1',primaryBg:'rgba(99,102,241,.12)',
+  green:'#10b981',greenBg:'rgba(16,185,129,.12)',
+  amber:'#f59e0b',amberBg:'rgba(245,158,11,.12)',
+  red:'#ef4444',redBg:'rgba(239,68,68,.12)',
+  cyan:'#06b6d4',cyanBg:'rgba(6,182,212,.12)',
+  purple:'#8b5cf6',purpleBg:'rgba(139,92,246,.12)',
+};
+
+const avatarColors = ['#6366f1','#06b6d4','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6'];
+function getAvatarColor(str){ let h=0; for(let i=0;i<str.length;i++) h=str.charCodeAt(i)+((h<<5)-h); return avatarColors[Math.abs(h)%avatarColors.length]; }
+function getInitials(name){ return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+
+/* ═══ OVERVIEW PAGE ═══ */
+async function loadOverview(){
+  try {
+    const [dashRes, usersRes] = await Promise.all([
+      fetch('/admin/api/dashboard/'),
+      fetch('/admin/api/recent-users/')
+    ]);
+    const dash = await dashRes.json();
+    const users = await usersRes.json();
+
+    const s = dash.stats;
+    document.getElementById('oUsers').textContent = s.total_users;
+    document.getElementById('oTeams').textContent = s.total_teams;
+    document.getElementById('oTasks').textContent = s.total_tasks;
+    document.getElementById('oProjects').textContent = s.total_projects;
+    document.getElementById('oWorkspaces').textContent = s.total_workspaces;
+    document.getElementById('oActiveMembers').textContent = s.active_members;
+    document.getElementById('oLogins24h').textContent = s.recent_logins_24h;
+    document.getElementById('oFailed24h').textContent = s.failed_logins_24h;
+
+    // Week-over-week change
+    const change = s.new_this_week - s.new_last_week;
+    const changeEl = document.getElementById('oUsersChange');
+    if(change > 0) {
+      changeEl.className = 'stat-change stat-up';
+      changeEl.textContent = `+${change} this week`;
+    } else if(change < 0) {
+      changeEl.className = 'stat-change stat-down';
+      changeEl.textContent = `${change} this week`;
+    } else {
+      changeEl.className = 'stat-change stat-neutral';
+      changeEl.textContent = `No change this week`;
+    }
+
+    // Charts
+    renderGrowthChart('chartGrowth', dash.user_growth);
+
+    // Recent users
+    const ruEl = document.getElementById('recentUsersList');
+    if(!users.rows.length){
+      ruEl.innerHTML = '<div class="empty-state"><p>No users yet</p></div>';
+    } else {
+      ruEl.innerHTML = users.rows.map(u => {
+        const col = getAvatarColor(u.email);
+        const ini = getInitials(u.name);
+        return `<div class="user-row">
+          <div class="user-row-avatar" style="background:${col}">${ini}</div>
+          <div class="user-row-info"><div class="name">${esc(u.name)}</div><div class="email">${esc(u.email)}</div></div>
+          <div class="user-row-meta"><div class="date">${esc(u.joined)}</div><span class="status-dot ${u.is_active?'active':'inactive'}"></span></div>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) { console.error('Dashboard load failed:', e); }
+}
+
+/* ═══ CHART RENDERERS ═══ */
+function renderGrowthChart(canvasId, data){
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if(!ctx) return;
+  chartInstances[canvasId] = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: data.labels,
+      datasets:[{
+        label:'New Users',
+        data: data.data,
+        borderColor: COLORS.primary,
+        backgroundColor: COLORS.primaryBg,
+        fill:true,
+        tension:.4,
+        borderWidth:2.5,
+        pointRadius:3,
+        pointBackgroundColor:COLORS.primary,
+        pointHoverRadius:5,
+      }]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:11},color:'#9ca3af'}},
+        y:{beginAtZero:true,grid:{color:'#f3f4f6'},ticks:{font:{size:11},color:'#9ca3af',stepSize:1}}
+      }
+    }
+  });
+}
+
+/* ═══ ANALYTICS PAGE ═══ */
+async function loadAnalytics(){
+  try {
+    const res = await fetch('/admin/api/dashboard/');
+    const dash = await res.json();
+    const s = dash.stats;
+    document.getElementById('aUsers').textContent = s.total_users;
+    document.getElementById('aTasks').textContent = s.total_tasks;
+    document.getElementById('aProjects').textContent = s.total_projects;
+    document.getElementById('aWorkspaces').textContent = s.total_workspaces;
+    renderGrowthChart('chartGrowth2', dash.user_growth);
+  } catch(e) { console.error('Analytics load failed:', e); }
+}
+
+/* ═══ MEMBERS PAGE ═══ */
+async function loadMembers(page){
   currentPage = page || 1;
   const p = new URLSearchParams({
     page: currentPage,
@@ -271,20 +721,18 @@ async function load(page){
   const r = await fetch('/admin/api/members/?' + p);
   const d = await r.json();
 
-  // stats
-  document.getElementById('statUsers').textContent = d.stats.total_users;
-  document.getElementById('statTeams').textContent = d.stats.total_teams;
-  document.getElementById('statActive').textContent = d.stats.active_members;
-  document.getElementById('statAdmins').textContent = d.stats.admin_count;
+  document.getElementById('mStatUsers').textContent = d.stats.total_users;
+  document.getElementById('mStatTeams').textContent = d.stats.total_teams;
+  document.getElementById('mStatActive').textContent = d.stats.active_members;
+  document.getElementById('mStatAdmins').textContent = d.stats.admin_count;
 
-  // table
   const tb = document.getElementById('tableBody');
   if(!d.rows.length){
-    tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#94a3b8;">No members found</td></tr>';
+    tb.innerHTML = '<tr><td colspan="8" class="loading-text">No members found</td></tr>';
   } else {
     tb.innerHTML = d.rows.map(r => `
       <tr>
-        <td style="font-weight:600">${esc(r.username)}</td>
+        <td><strong>${esc(r.username)}</strong></td>
         <td><span class="badge ${r.role==='head'?'badge-admin':'badge-member'}">${esc(r.role_display)}</span></td>
         <td>${esc(r.team_name)}</td>
         <td style="color:var(--muted);font-size:.82rem">${r.team_created}</td>
@@ -292,52 +740,43 @@ async function load(page){
         <td style="color:var(--muted)">${esc(r.email)}</td>
         <td style="color:var(--muted);font-size:.82rem">${r.last_login}</td>
         <td class="actions">
-          <button class="btn btn-sm btn-ghost" onclick="viewMember(${r.id})" title="View">👁</button>
-          <button class="btn btn-sm btn-amber" onclick="editMember(${r.id})" title="Edit">✏️</button>
-          <button class="btn btn-sm btn-red" onclick="deleteMember(${r.id})" title="Delete">🗑</button>
+          <button class="btn btn-sm btn-ghost" onclick="viewMember(${r.id})" title="View">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <button class="btn btn-sm btn-amber" onclick="editMember(${r.id})" title="Edit">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="btn btn-sm btn-red" onclick="deleteMember(${r.id})" title="Delete">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
         </td>
       </tr>
     `).join('');
   }
 
-  // pagination
   const from = d.total ? (d.page-1)*10+1 : 0;
   const to = Math.min(d.page*10, d.total);
-  document.getElementById('pageInfo').textContent = `Showing ${from}–${to} of ${d.total}`;
+  document.getElementById('pageInfo').textContent = `Showing ${from}-${to} of ${d.total}`;
   const pb = document.getElementById('pageBtns');
-  let btns = `<button ${d.page<=1?'disabled':''} onclick="load(${d.page-1})">&laquo;</button>`;
+  let btns = `<button ${d.page<=1?'disabled':''} onclick="loadMembers(${d.page-1})">&laquo;</button>`;
   for(let i=1;i<=d.num_pages;i++){
-    btns += `<button class="${i===d.page?'active':''}" onclick="load(${i})">${i}</button>`;
+    btns += `<button class="${i===d.page?'active':''}" onclick="loadMembers(${i})">${i}</button>`;
   }
-  btns += `<button ${d.page>=d.num_pages?'disabled':''} onclick="load(${d.page+1})">&raquo;</button>`;
+  btns += `<button ${d.page>=d.num_pages?'disabled':''} onclick="loadMembers(${d.page+1})">&raquo;</button>`;
   pb.innerHTML = btns;
 }
 
 /* ── Debounced search ── */
 let timer;
-document.getElementById('searchInput').addEventListener('input', ()=>{
-  clearTimeout(timer);
-  timer = setTimeout(()=>load(1), 300);
-});
-document.getElementById('filterRole').addEventListener('change', ()=>load(1));
-document.getElementById('filterStatus').addEventListener('change', ()=>load(1));
-document.getElementById('sortBy').addEventListener('change', ()=>load(1));
-
-/* ── Modal helpers ── */
-function openModal(id){ document.getElementById(id).classList.add('open'); }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
-function toast(msg, err){
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show' + (err?' error':'');
-  setTimeout(()=>t.className='toast', 3000);
-}
-function esc(s){ const d=document.createElement('div');d.textContent=s;return d.innerHTML; }
+document.getElementById('searchInput').addEventListener('input', ()=>{ clearTimeout(timer); timer=setTimeout(()=>loadMembers(1),300); });
+document.getElementById('filterRole').addEventListener('change', ()=>loadMembers(1));
+document.getElementById('filterStatus').addEventListener('change', ()=>loadMembers(1));
+document.getElementById('sortBy').addEventListener('change', ()=>loadMembers(1));
 
 /* ── Add modal ── */
 async function openAddModal(){
-  document.getElementById('modalTitle').textContent = 'Add New User';
-  document.getElementById('modalSubmit').textContent = 'Add User';
+  document.getElementById('modalTitle').textContent = 'Add New Member';
+  document.getElementById('modalSubmit').textContent = 'Add Member';
   document.getElementById('modalSubmit').onclick = submitAdd;
   document.getElementById('editId').value = '';
   document.getElementById('fName').value = '';
@@ -381,18 +820,15 @@ async function submitAdd(){
   };
   const r = await fetch('/admin/api/member/add/', {method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(body)});
   const d = await r.json();
-  if(d.ok){ closeModal('addModal'); toast('Member added!'); load(currentPage); }
+  if(d.ok){ closeModal('addModal'); toast('Member added!'); loadMembers(currentPage); }
   else toast(d.error||'Error', true);
 }
 
 async function submitEdit(id){
-  const body = {
-    role: document.getElementById('fRole').value,
-    status: document.getElementById('fStatus').value,
-  };
+  const body = { role: document.getElementById('fRole').value, status: document.getElementById('fStatus').value };
   const r = await fetch(`/admin/api/member/${id}/update/`, {method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},body:JSON.stringify(body)});
   const d = await r.json();
-  if(d.ok){ closeModal('addModal'); toast('Updated!'); load(currentPage); }
+  if(d.ok){ closeModal('addModal'); toast('Updated!'); loadMembers(currentPage); }
   else toast(d.error||'Error', true);
 }
 
@@ -419,7 +855,7 @@ async function deleteMember(id){
   if(!confirm('Remove this member from the team?')) return;
   const r = await fetch(`/admin/api/member/${id}/delete/`, {method:'POST',headers:{'X-CSRFToken':CSRF}});
   const d = await r.json();
-  if(d.ok){ toast('Member removed'); load(currentPage); }
+  if(d.ok){ toast('Member removed'); loadMembers(currentPage); }
   else toast(d.error||'Error', true);
 }
 
@@ -430,13 +866,51 @@ async function loadTeams(){
   const r = await fetch('/admin/api/teams/');
   const d = await r.json();
   sel.innerHTML = '<option value="">Select team...</option>';
-  d.teams.forEach(t=>{
-    sel.innerHTML += `<option value="${t.id}">${esc(t.name)}</option>`;
-  });
+  d.teams.forEach(t=>{ sel.innerHTML += `<option value="${t.id}">${esc(t.name)}</option>`; });
 }
 
-/* ── Init ── */
-load(1);
+/* ═══ WEBSOCKET — real-time dashboard updates ═══ */
+let ws = null;
+let wsRetryDelay = 1000;
+
+function connectWS(){
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/admin/`);
+
+  ws.onopen = () => {
+    console.log('[Admin WS] connected');
+    wsRetryDelay = 1000;
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if(msg.type === 'admin_refresh'){
+        console.log('[Admin WS] refresh:', msg.reason);
+        // Reload whichever page is active
+        const activePage = document.querySelector('.page.active');
+        if(activePage){
+          const id = activePage.id;
+          if(id === 'page-overview') loadOverview();
+          else if(id === 'page-members') loadMembers(currentPage);
+          else if(id === 'page-analytics') loadAnalytics();
+        }
+      }
+    } catch(err) { console.warn('[Admin WS] parse error:', err); }
+  };
+
+  ws.onclose = () => {
+    console.log('[Admin WS] disconnected, retrying in', wsRetryDelay+'ms');
+    setTimeout(connectWS, wsRetryDelay);
+    wsRetryDelay = Math.min(wsRetryDelay * 2, 15000);
+  };
+
+  ws.onerror = () => { ws.close(); };
+}
+
+/* ═══ INIT ═══ */
+loadOverview();
+connectWS();
 </script>
 </body>
 </html>

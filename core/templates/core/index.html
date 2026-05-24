@@ -513,7 +513,7 @@
               </div>
               <div class="flex -space-x-1.5">
                 <template v-for="member in project.members.slice(0, 3)">
-                  <img v-if="memberPhoto(member)" :key="'img-'+member" :src="memberPhoto(member)" :title="member"
+                  <img v-if="memberPhoto(member)" :key="'img-'+member" :src="memberPhoto(member)" :title="member" loading="lazy"
                        class="w-6 h-6 rounded-full object-cover border-2 border-white bg-gray-100" />
                   <div v-else :key="'ini-'+member"
                        class="w-6 h-6 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center border-2 border-white" :title="member">
@@ -622,7 +622,7 @@
                   @click.stop="openBoardRedirect(board)">{{ board.name }}</h3>
               <div class="flex items-center gap-1.5">
                 <span class="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2 py-1 rounded-full border border-indigo-100">
-                  {{ visibleTasksForBoard(board.id).length }}
+                  {{ allTasksForBoard(board.id).length }}
                 </span>
                 <span v-if="columnOverdueCount(board.id) > 0"
                       class="bg-red-50 text-red-600 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-red-100">
@@ -712,7 +712,7 @@
                       :title="assignee"
                       class="w-5 h-5 -ml-1"
                     >
-                      <img v-if="memberPhoto(assignee)" :src="memberPhoto(assignee)"
+                      <img v-if="memberPhoto(assignee)" :src="memberPhoto(assignee)" loading="lazy"
                            class="w-5 h-5 rounded-full object-cover border-2 border-white bg-gray-100" />
                       <div v-else
                            class="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] flex items-center justify-center border-2 border-white">
@@ -723,6 +723,11 @@
                 </div>
 
               </div>
+              <!-- Show More Button -->
+              <button v-if="hasMoreTasks(board.id)" @click="showMoreTasks(board.id)"
+                      class="w-full py-2 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg border border-dashed border-indigo-200 transition-colors mt-2">
+                <i class="fas fa-chevron-down mr-1"></i> Show {{ remainingTaskCount(board.id) }} more task{{ remainingTaskCount(board.id) !== 1 ? 's' : '' }}
+              </button>
             </div>
           </div>
         </div>
@@ -1556,7 +1561,7 @@
         </div>
       </div>
       <div class="flex-1 overflow-auto bg-gray-50 flex items-center justify-center p-4" style="min-height:400px;">
-        <img v-if="isImageFile(previewFile)" :src="previewFile.content" :alt="previewFile.name"
+        <img v-if="isImageFile(previewFile)" :src="previewFile.content" :alt="previewFile.name" loading="lazy"
              class="max-w-full max-h-[70vh] rounded-lg shadow-md object-contain" />
         <iframe v-else-if="isPdfFile(previewFile)" :src="previewFile.content"
                 class="w-full rounded" style="height:70vh;border:none;"></iframe>
@@ -1640,6 +1645,8 @@
         previewFile: null,
         activityPage: 1,
         activityPageSize: 15,
+        columnTaskLimit: {},
+        defaultColumnLimit: 20,
         dragOverBoard: null,
         showTaskModal: false,
         showProjectModal: false,
@@ -1885,8 +1892,9 @@
       this._initCachedUser();
       this.initTheme();
       this.loadData();
+      // fetchTeamContext() already calls loadNotifications() at the end,
+      // so we don't need a separate call here (avoids duplicate /api/notifications/ request).
       this.fetchTeamContext();
-      this.loadNotifications();
       this.loadInvitations();
       window.addEventListener("keydown", this.handleShortcut);
 
@@ -2221,9 +2229,8 @@
         return assignees.map(a => String(a).toLowerCase()).includes(this.currentUserEmail);
       },
 
-      visibleTasksForBoard(boardId) {
+      allTasksForBoard(boardId) {
         let tasks = this.tasks.filter(t => t.boardId === boardId && this.canViewTask(t));
-        // Hard filter: only tasks belonging to the currently opened project
         if (this.activeProjectId) {
           const pid = this.activeProjectId;
           tasks = tasks.filter(t => Number(t.projectId) === Number(pid));
@@ -2239,6 +2246,29 @@
           if (this.taskFilter.dueFilter === 'overdue') tasks = tasks.filter(t => t.dueDate && t.dueDate < today);
         }
         return tasks;
+      },
+
+      visibleTasksForBoard(boardId) {
+        const all = this.allTasksForBoard(boardId);
+        const limit = this.columnTaskLimit[boardId] || this.defaultColumnLimit;
+        return all.slice(0, limit);
+      },
+
+      hasMoreTasks(boardId) {
+        const all = this.allTasksForBoard(boardId);
+        const limit = this.columnTaskLimit[boardId] || this.defaultColumnLimit;
+        return all.length > limit;
+      },
+
+      remainingTaskCount(boardId) {
+        const all = this.allTasksForBoard(boardId);
+        const limit = this.columnTaskLimit[boardId] || this.defaultColumnLimit;
+        return Math.max(0, all.length - limit);
+      },
+
+      showMoreTasks(boardId) {
+        const current = this.columnTaskLimit[boardId] || this.defaultColumnLimit;
+        this.$set(this.columnTaskLimit, boardId, current + 20);
       },
 
       isProjectMember(email) {
