@@ -1892,8 +1892,9 @@
       this._initCachedUser();
       this.initTheme();
       this.loadData();
+      // fetchTeamContext() already calls loadNotifications() at the end,
+      // so we don't need a separate call here (avoids duplicate /api/notifications/ request).
       this.fetchTeamContext();
-      this.loadNotifications();
       this.loadInvitations();
       window.addEventListener("keydown", this.handleShortcut);
 

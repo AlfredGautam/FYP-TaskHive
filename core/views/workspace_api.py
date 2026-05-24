@@ -180,6 +180,194 @@ def _log_activity(team, actor, action, target_type="", target_id=None, target_na
     broadcast_data_changed(team.id, {"action": action, "target_type": target_type})
 
 
+# ---------------------------------------------------------------
+# Audit-style change tracking helpers
+# ---------------------------------------------------------------
+
+# Human-readable labels for choice fields
+_PRIORITY_LABELS = {
+    Task.PRIORITY_HIGH: "High",
+    Task.PRIORITY_MEDIUM: "Medium",
+    Task.PRIORITY_LOW: "Low",
+}
+_PROJECT_STATUS_LABELS = {
+    Project.STATUS_ACTIVE: "Active",
+    Project.STATUS_COMPLETED: "Completed",
+    Project.STATUS_ARCHIVED: "Archived",
+}
+_TASK_TYPE_LABELS = {
+    Task.TYPE_NORMAL: "Normal",
+    Task.TYPE_SUPER: "Super",
+}
+
+
+def _label_priority(value):
+    return _PRIORITY_LABELS.get((value or "").lower(), value or "—")
+
+
+def _label_project_status(value):
+    return _PROJECT_STATUS_LABELS.get((value or "").lower(), value or "—")
+
+
+def _label_task_type(value):
+    return _TASK_TYPE_LABELS.get((value or "").lower(), value or "—")
+
+
+def _label_date(value):
+    if not value:
+        return "no date"
+    try:
+        return value.isoformat() if hasattr(value, "isoformat") else str(value)
+    except Exception:
+        return str(value)
+
+
+def _emit_change(team, actor, message, *, event_type, target_type, target_id, target_name, extra=None):
+    """Send a single audit-style notification + activity log entry.
+
+    `message` should already include actor name and be human-readable, e.g.
+        "Alfred changed task 'UI Design' priority from 'Medium' to 'High'"
+    """
+    payload = dict(extra or {})
+    payload.setdefault("targetName", target_name)
+    _notify_team(
+        team, actor, message,
+        event_type=event_type,
+        target_tab="tasks" if target_type == "task" else ("projects" if target_type == "project" else ""),
+        target_type=target_type,
+        target_id=target_id,
+        extra=payload,
+    )
+    _log_activity(team, actor, event_type, target_type, target_id, target_name, message)
+
+
+def _diff_task_changes(actor, old_state, new_state, columns_by_id):
+    """Compare old/new task states; return list of audit messages (without leading actor name).
+
+    old_state / new_state: dicts with keys: title, description, priority, due_date,
+        column_id, task_type, is_blocked, assignee_emails (sorted set/list).
+    columns_by_id: {column_id: name} map for resolving column moves.
+
+    Returns list of (event_type, fragment) tuples — fragment is the text after the actor name.
+    """
+    changes = []
+    title_for_msg = new_state.get("title") or old_state.get("title") or ""
+
+    # Title rename
+    if old_state.get("title") != new_state.get("title"):
+        changes.append((
+            "task_renamed",
+            f"renamed task from '{old_state.get('title')}' to '{new_state.get('title')}'",
+        ))
+
+    # Priority
+    if old_state.get("priority") != new_state.get("priority"):
+        changes.append((
+            "task_priority_changed",
+            f"changed task '{title_for_msg}' priority from '{_label_priority(old_state.get('priority'))}' to '{_label_priority(new_state.get('priority'))}'",
+        ))
+
+    # Column / status
+    if old_state.get("column_id") != new_state.get("column_id"):
+        old_col = columns_by_id.get(old_state.get("column_id"), "—")
+        new_col = columns_by_id.get(new_state.get("column_id"), "—")
+        changes.append((
+            "task_moved",
+            f"moved task '{title_for_msg}' from '{old_col}' to '{new_col}'",
+        ))
+
+    # Due date
+    if old_state.get("due_date") != new_state.get("due_date"):
+        changes.append((
+            "task_due_changed",
+            f"changed task '{title_for_msg}' due date from '{_label_date(old_state.get('due_date'))}' to '{_label_date(new_state.get('due_date'))}'",
+        ))
+
+    # Task type
+    if old_state.get("task_type") != new_state.get("task_type"):
+        changes.append((
+            "task_type_changed",
+            f"changed task '{title_for_msg}' type from '{_label_task_type(old_state.get('task_type'))}' to '{_label_task_type(new_state.get('task_type'))}'",
+        ))
+
+    # Blocked flag
+    if bool(old_state.get("is_blocked")) != bool(new_state.get("is_blocked")):
+        if new_state.get("is_blocked"):
+            changes.append(("task_blocked", f"marked task '{title_for_msg}' as blocked"))
+        else:
+            changes.append(("task_unblocked", f"unblocked task '{title_for_msg}'"))
+
+    # Description (just say it was edited; full diff is too noisy)
+    old_desc = (old_state.get("description") or "").strip()
+    new_desc = (new_state.get("description") or "").strip()
+    if old_desc != new_desc:
+        changes.append((
+            "task_description_changed",
+            f"updated description of task '{title_for_msg}'",
+        ))
+
+    # Assignees: added / removed
+    old_assignees = set(old_state.get("assignee_emails") or [])
+    new_assignees = set(new_state.get("assignee_emails") or [])
+    added = sorted(new_assignees - old_assignees)
+    removed = sorted(old_assignees - new_assignees)
+    if added:
+        changes.append((
+            "task_assigned",
+            f"assigned task '{title_for_msg}' to {', '.join(added)}",
+        ))
+    if removed:
+        changes.append((
+            "task_unassigned",
+            f"unassigned {', '.join(removed)} from task '{title_for_msg}'",
+        ))
+
+    return changes
+
+
+def _diff_project_changes(old_state, new_state):
+    """Compare old/new project states. Returns list of (event_type, fragment) tuples."""
+    changes = []
+    name_for_msg = new_state.get("name") or old_state.get("name") or ""
+
+    if old_state.get("name") != new_state.get("name"):
+        changes.append((
+            "project_renamed",
+            f"renamed project from '{old_state.get('name')}' to '{new_state.get('name')}'",
+        ))
+
+    if old_state.get("status") != new_state.get("status"):
+        changes.append((
+            "project_status_changed",
+            f"changed project '{name_for_msg}' status from '{_label_project_status(old_state.get('status'))}' to '{_label_project_status(new_state.get('status'))}'",
+        ))
+
+    old_desc = (old_state.get("description") or "").strip()
+    new_desc = (new_state.get("description") or "").strip()
+    if old_desc != new_desc:
+        changes.append((
+            "project_description_changed",
+            f"updated description of project '{name_for_msg}'",
+        ))
+
+    old_members = set(old_state.get("members") or [])
+    new_members = set(new_state.get("members") or [])
+    added = sorted(new_members - old_members)
+    removed = sorted(old_members - new_members)
+    if added:
+        changes.append((
+            "project_member_added",
+            f"added {', '.join(added)} to project '{name_for_msg}'",
+        ))
+    if removed:
+        changes.append((
+            "project_member_removed",
+            f"removed {', '.join(removed)} from project '{name_for_msg}'",
+        ))
+
+    return changes
+
+
 def _serialize_notification(n):
     return {
         "id": n.id,
@@ -375,13 +563,24 @@ def api_workspace_task_save(request):
 
     is_update = bool(task_id)
     old_assignee_ids = set()
+    old_state = None
     if task_id:
         try:
             task = Task.objects.get(id=task_id, board=board)
         except Task.DoesNotExist:
             return JsonResponse({"ok": False, "error": "Task not found"}, status=404)
-        # Capture old state before any modification
+        # Capture full old state before any modification (used for audit-style diff notifications)
         old_assignee_ids = set(task.assignees.values_list("id", flat=True))
+        old_state = {
+            "title": task.title,
+            "description": task.description,
+            "priority": task.priority,
+            "due_date": _safe_date_iso(task.due_date),
+            "column_id": task.column_id,
+            "task_type": task.task_type,
+            "is_blocked": task.is_blocked,
+            "assignee_emails": sorted(task.assignees.values_list("email", flat=True)),
+        }
         task.title = name
         task.description = data.get("description", "")
         task.priority = data.get("priority", "medium")
@@ -444,19 +643,53 @@ def api_workspace_task_save(request):
     # Determine which assignees are truly new (not previously assigned)
     truly_new_assignee_users = [u for u in new_assignee_users if u.id not in old_assignee_ids]
 
-    _notify_team(
-        team,
-        request.user,
-        f"{_actor_name(request.user)} {'updated' if is_update else 'created'} task '{task.title}'.",
-        event_type="task_updated" if is_update else "task_created",
-        target_tab="tasks",
-        target_type="task",
-        target_id=task.id,
-        extra={"taskName": task.title},
-    )
+    actor_display = _actor_name(request.user)
 
-    _log_activity(team, request.user, "updated" if is_update else "created", "task", task.id, task.title,
-                  f"{_actor_name(request.user)} {'updated' if is_update else 'created'} task '{task.title}'")
+    if is_update and old_state is not None:
+        # Build new_state from the post-save task and emit one audit notification per real change
+        new_state = {
+            "title": task.title,
+            "description": task.description,
+            "priority": task.priority,
+            "due_date": _safe_date_iso(task.due_date),
+            "column_id": task.column_id,
+            "task_type": task.task_type,
+            "is_blocked": task.is_blocked,
+            "assignee_emails": sorted(task.assignees.values_list("email", flat=True)),
+        }
+        columns_by_id = {c.id: c.name for c in columns}
+        change_list = _diff_task_changes(request.user, old_state, new_state, columns_by_id)
+
+        if change_list:
+            for event_type, fragment in change_list:
+                _emit_change(
+                    team, request.user,
+                    f"{actor_display} {fragment}",
+                    event_type=event_type,
+                    target_type="task",
+                    target_id=task.id,
+                    target_name=task.title,
+                )
+        else:
+            # No diffable changes detected (rare — e.g. only blocked_by deps changed). Fall back to a generic message.
+            _emit_change(
+                team, request.user,
+                f"{actor_display} updated task '{task.title}'",
+                event_type="task_updated",
+                target_type="task",
+                target_id=task.id,
+                target_name=task.title,
+            )
+    else:
+        # Creation
+        _emit_change(
+            team, request.user,
+            f"{actor_display} created task '{task.title}'",
+            event_type="task_created",
+            target_type="task",
+            target_id=task.id,
+            target_name=task.title,
+        )
 
     actor_name = _actor_name(request.user)
     due_str = _safe_date_iso(task.due_date)
@@ -577,20 +810,20 @@ def api_workspace_task_move(request):
         if task.column_id == target_column.id:
             return JsonResponse({"ok": True, "noop": True})
 
+        # Capture source column name BEFORE the move for an audit-style "from X to Y" message
+        from_column_name = task.column.name if task.column else "—"
         task.column = target_column
         task.save(update_fields=["column"])
-        _notify_team(
-            team,
-            request.user,
-            f"{_actor_name(request.user)} moved task '{task.title}' to {task.column.name}.",
+        actor_display = _actor_name(request.user)
+        _emit_change(
+            team, request.user,
+            f"{actor_display} moved task '{task.title}' from '{from_column_name}' to '{task.column.name}'",
             event_type="task_moved",
-            target_tab="tasks",
             target_type="task",
             target_id=task.id,
-            extra={"toColumn": task.column.name},
+            target_name=task.title,
+            extra={"fromColumn": from_column_name, "toColumn": task.column.name},
         )
-        _log_activity(team, request.user, "moved", "task", task.id, task.title,
-                      f"{_actor_name(request.user)} moved task '{task.title}' to {task.column.name}")
 
     return JsonResponse({"ok": True})
 
@@ -636,13 +869,19 @@ def api_workspace_project_save(request):
         seen.add(email)
 
     is_update = bool(proj_id)
-    previous_members = []
+    old_state = None
     if proj_id:
         try:
             project = Project.objects.get(id=proj_id, team=team)
         except Project.DoesNotExist:
             return JsonResponse({"ok": False, "error": "Project not found"}, status=404)
-        previous_members = project.members if isinstance(project.members, list) else []
+        # Capture full old state before any modification
+        old_state = {
+            "name": project.name,
+            "description": project.description,
+            "status": project.status,
+            "members": list(project.members) if isinstance(project.members, list) else [],
+        }
         project.name = name
         project.description = data.get("description", "")
         project.status = incoming_status
@@ -658,34 +897,44 @@ def api_workspace_project_save(request):
             created_by=request.user,
         )
 
-    _notify_team(
-        team,
-        request.user,
-        f"{_actor_name(request.user)} {'updated' if is_update else 'created'} project '{project.name}'.",
-        event_type="project_updated" if is_update else "project_created",
-        target_tab="projects",
-        target_type="project",
-        target_id=project.id,
-        extra={"projectName": project.name},
-    )
+    actor_display = _actor_name(request.user)
 
-    _log_activity(team, request.user, "updated" if is_update else "created", "project", project.id, project.name,
-                  f"{_actor_name(request.user)} {'updated' if is_update else 'created'} project '{project.name}'")
-
-    if is_update:
-        before = {str(m).lower() for m in previous_members}
-        added_members = [m for m in cleaned_members if str(m).lower() not in before]
-        if added_members:
-            _notify_team(
-                team,
-                request.user,
-                f"{_actor_name(request.user)} added member(s) to project '{project.name}': {', '.join(added_members)}.",
-                event_type="project_member_added",
-                target_tab="projects",
+    if is_update and old_state is not None:
+        new_state = {
+            "name": project.name,
+            "description": project.description,
+            "status": project.status,
+            "members": list(project.members) if isinstance(project.members, list) else [],
+        }
+        change_list = _diff_project_changes(old_state, new_state)
+        if change_list:
+            for event_type, fragment in change_list:
+                _emit_change(
+                    team, request.user,
+                    f"{actor_display} {fragment}",
+                    event_type=event_type,
+                    target_type="project",
+                    target_id=project.id,
+                    target_name=project.name,
+                )
+        else:
+            _emit_change(
+                team, request.user,
+                f"{actor_display} updated project '{project.name}'",
+                event_type="project_updated",
                 target_type="project",
                 target_id=project.id,
-                extra={"projectName": project.name, "members": added_members},
+                target_name=project.name,
             )
+    else:
+        _emit_change(
+            team, request.user,
+            f"{actor_display} created project '{project.name}'",
+            event_type="project_created",
+            target_type="project",
+            target_id=project.id,
+            target_name=project.name,
+        )
 
     return JsonResponse({
         "ok": True,

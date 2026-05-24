@@ -46,9 +46,16 @@
 
 
 from django.urls import path
+from django.views.generic.base import RedirectView
+from django.templatetags.static import static
 from . import views
 
 urlpatterns = [
+    # --------------------
+    # Favicon
+    # --------------------
+    path("favicon.ico", RedirectView.as_view(url=static("core/favicon.svg"), permanent=True)),
+
     # --------------------
     # Health check
     # --------------------
